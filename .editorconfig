@@ -1,0 +1,8 @@
+
+[CMakeLists.txt,*.cmake]
+indent_style = space
+indent_size = 2
+
+[*.cpp,*.hpp]
+indent_style = space
+indent_size = 4
