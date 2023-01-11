@@ -14,9 +14,6 @@
 #include <etl/parser/records/kernel/perfinfo.hpp>
 #include <etl/parser/records/kernel/stackwalk.hpp>
 
-#include <binarystream/binarystream.hpp>
-#include <binarystream/memory_stream.hpp>
-
 using namespace perfreader;
 
 const char* group_to_string(etl::parser::event_trace_group group)

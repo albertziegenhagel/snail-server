@@ -5,8 +5,6 @@
 
 #include <type_traits>
 
-#include "binarystream/fwd/binarystream.hpp"
-
 #include "etl/parser/extract.hpp"
 
 namespace perfreader::etl::parser {
@@ -51,22 +49,6 @@ enum class etw_buffer_type : std::uint16_t
 };
 
 // See ETW_BUFFER_CONTEXT from evntrace.h
-struct etw_buffer_context
-{
-    union
-    {
-        struct
-        {
-            std::uint8_t processor_number;
-            std::uint8_t alignment;
-        } unnamed;
-        std::uint16_t processor_index;
-    };
-    std::uint16_t logger_id;
-};
-
-std::size_t parse(utility::binary_stream_parser& stream, etw_buffer_context& data);
-
 struct etw_buffer_context_view : private extract_view_base
 {
     using extract_view_base::extract_view_base;
@@ -80,28 +62,6 @@ struct etw_buffer_context_view : private extract_view_base
 // See WNODE_HEADER from wmistr.h or the beginning of _WMI_BUFFER_HEADER from ntwmi.h
 // The documentated version (from wmistr.h) differs slightly and does not specifify the
 // ETW sub-structures
-struct wnode_header
-{
-    std::uint32_t buffer_size;
-    std::uint32_t saved_offset;
-    std::uint32_t current_offset;
-    std::int32_t reference_count;
-    std::int64_t timestamp;
-    std::int64_t sequence_number;
-    union
-    {
-        struct
-        {
-            std::uint64_t type : 3;
-            std::uint64_t frequency : 61;
-        } unnamed;
-        std::uint64_t clock;
-    };
-    etw_buffer_context client_context;
-    etw_buffer_state state;
-};
-
-
 struct wnode_header_view : private extract_view_base
 {
     using extract_view_base::extract_view_base;
@@ -119,24 +79,8 @@ struct wnode_header_view : private extract_view_base
     static inline constexpr std::size_t static_size = 44 + etw_buffer_context_view::static_size;
 };
 
-std::size_t parse(utility::binary_stream_parser& stream, wnode_header& data);
-
 // See _WMI_BUFFER_HEADER from ntwmi.h
 // There it has the WNODE_HEADER structure included inline
-struct wmi_buffer_header
-{
-    wnode_header wnode;
-    std::uint32_t offset;
-    std::underlying_type_t<etw_buffer_flag> buffer_flag;
-    etw_buffer_type buffer_type;
-    struct
-    {
-        std::int64_t start_time;
-        std::int64_t start_perf_clock;
-    } reference_time;
-};
-
-std::size_t parse(utility::binary_stream_parser& stream, wmi_buffer_header& data);
 
 struct wmi_buffer_header_view : private extract_view_base
 {

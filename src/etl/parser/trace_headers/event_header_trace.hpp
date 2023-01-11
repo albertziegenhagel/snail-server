@@ -5,8 +5,6 @@
 
 #include <type_traits>
 
-#include "binarystream/fwd/binarystream.hpp"
-
 #include "etl/parser/trace.hpp"
 #include "etl/parser/utility.hpp"
 #include "etl/parser/extract.hpp"
@@ -37,19 +35,6 @@ enum class event_header_property_flag : std::uint16_t
 };
 
 // See _EVENT_DESCRIPTOR in evntprov.h
-struct event_descriptor
-{
-    std::uint16_t id;
-    std::uint8_t version;
-    std::uint8_t channel;
-    std::uint8_t level;
-    std::uint8_t opcode;
-    std::uint16_t task;
-    std::uint64_t keyword;
-};
-
-std::size_t parse(utility::binary_stream_parser& stream, event_descriptor& data);
-
 struct event_descriptor_view : private extract_view_base
 {
     using extract_view_base::extract_view_base;
@@ -67,25 +52,6 @@ struct event_descriptor_view : private extract_view_base
 
 // See EVENT_HEADER in evntcons.h
 // the head structure (size, header_type, header_flags) has been adjusted
-struct event_header_trace_header
-{
-    std::uint16_t size;
-    trace_header_type header_type;
-    std::uint8_t header_flags;
-
-    std::underlying_type_t<event_header_flag> flags;
-    std::underlying_type_t<event_header_property_flag> event_property;
-    std::uint32_t thread_id;
-    std::uint32_t process_id;
-    std::uint64_t timestamp;
-    parser::guid provider_id;
-    parser::event_descriptor event_descriptor;
-    std::uint64_t processor_time;
-    parser::guid activity_id;
-};
-
-std::size_t parse(utility::binary_stream_parser& stream, event_header_trace_header& data);
-
 struct event_header_trace_header_view : private extract_view_base
 {
     using extract_view_base::extract_view_base;

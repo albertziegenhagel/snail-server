@@ -6,7 +6,6 @@
 #include "etlfile.hpp"
 
 #include "parser/buffer.hpp"
-#include "parser/generic.hpp"
 #include "parser/records/kernel/header.hpp"
 #include "parser/trace.hpp"
 #include "parser/trace_headers/compact_trace.hpp"
@@ -16,10 +15,7 @@
 #include "parser/trace_headers/perfinfo_trace.hpp"
 #include "parser/trace_headers/system_trace.hpp"
 
-#include "binarystream/memory_stream.hpp"
-
 using namespace perfreader::etl;
-using namespace perfreader::utility;
 
 namespace
 {

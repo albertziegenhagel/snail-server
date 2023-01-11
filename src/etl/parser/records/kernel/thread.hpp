@@ -3,14 +3,18 @@
 
 #include <cstdint>
 
-#include <type_traits>
+#include <array>
 #include <string>
+#include <optional>
 
-#include "binarystream/fwd/binarystream.hpp"
+#include "etl/parser/extract.hpp"
+#include "etl/parser/utility.hpp"
+
+//
+// event records for event_trace_group::thread
+//
 
 namespace perfreader::etl::parser {
-
-// event records for event_trace_group::thread
 
 // `Thread_V3_TypeGroup1:Thread_V3` from wmicore.mof in WDK 10.0.22621.0
 struct thread_v3_type_group1_event_view : private extract_view_dynamic_base

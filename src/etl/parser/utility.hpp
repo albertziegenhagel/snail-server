@@ -4,34 +4,11 @@
 #include <cstdint>
 #include <cstddef>
 
-#include "binarystream/fwd/binarystream.hpp"
-
 #include "etl/parser/extract.hpp"
 
 namespace perfreader::etl::parser {
 
-struct pointer
-{
-    std::uint64_t address; // always store 64-bit addresses
-};
-
-std::size_t parse(utility::binary_stream_parser& stream, pointer& data, std::uint32_t pointer_size);
-
 // See SYSTEMTIME from minwinbase.h
-struct system_time
-{
-    std::int16_t year;
-    std::int16_t month;
-    std::int16_t dayofweek;
-    std::int16_t day;
-    std::int16_t hour;
-    std::int16_t minute;
-    std::int16_t second;
-    std::int16_t milliseconds;
-};
-
-std::size_t parse(utility::binary_stream_parser& stream, system_time& data);
-
 struct system_time_view : private extract_view_base
 {
     using extract_view_base::extract_view_base;
@@ -49,21 +26,10 @@ struct system_time_view : private extract_view_base
 };
 
 // See TIME_ZONE_INFORMATION from timezoneapi.h
-struct time_zone_information
-{
-    static_assert(sizeof(char16_t) == 2);
-
-    std::uint32_t bias;
-    char16_t      standard_name[32];
-    system_time   standard_date;
-    std::uint32_t standard_bias;
-    char16_t      daylight_name[32];
-    system_time   daylight_date;
-    std::uint32_t daylight_bias;
-};
-
 struct time_zone_information_view : private extract_view_base
 {
+    static_assert(sizeof(char16_t) == sizeof(std::uint16_t));
+
     using extract_view_base::extract_view_base;
     
     inline auto bias() const { return extract<std::uint32_t>(0); }
@@ -83,19 +49,7 @@ private:
     mutable std::optional<std::size_t> daylight_name_length;
 };
 
-std::size_t parse(utility::binary_stream_parser& stream, time_zone_information& data);
-
 // See GUID from guiddef.h
-struct guid
-{
-    std::uint32_t data_1;
-    std::uint16_t data_2;
-    std::uint16_t data_3;
-    std::uint8_t  data_4[8];
-};
-
-std::size_t parse(utility::binary_stream_parser& stream, guid& data);
-
 struct guid_view : private extract_view_base
 {
     using extract_view_base::extract_view_base;
@@ -108,17 +62,7 @@ struct guid_view : private extract_view_base
     static inline constexpr std::size_t static_size = 16;
 };
 
-// https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-dtyp/f992ad60-0fe4-4b87-9fed-beb478836861
-struct sid
-{
-    std::uint8_t revision;
-    std::uint8_t sub_authority_count;
-    std::uint8_t identifier_authority[6];
-    std::uint32_t sub_authority[16]; // 16 is max length. actuall length given by sub_authority_count
-};
-
-std::size_t parse(utility::binary_stream_parser& stream, sid& data);
-
+// See https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-dtyp/f992ad60-0fe4-4b87-9fed-beb478836861
 struct sid_view : private extract_view_base
 {
     using extract_view_base::extract_view_base;
@@ -131,8 +75,6 @@ struct sid_view : private extract_view_base
         assert(sub_authority_count() <= 16); // 16 is the max buffer length
         return std::span<const std::uint32_t>(reinterpret_cast<const std::uint32_t*>(buffer_.data() + 8), sub_authority_count());
     }
-
-    // static inline constexpr std::size_t static_size = 24;
 
     std::size_t dynamic_size() const
     {

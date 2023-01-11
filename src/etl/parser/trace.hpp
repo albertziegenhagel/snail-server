@@ -5,8 +5,6 @@
 
 #include <type_traits>
 
-#include "binarystream/fwd/binarystream.hpp"
-
 #include "etl/parser/extract.hpp"
 
 namespace perfreader::etl::parser {
@@ -97,23 +95,12 @@ struct generic_trace_marker_view : private extract_view_base
     static constexpr inline std::uint32_t trace_header_event_trace_flag = 0x40; // shifted `TRACE_HEADER_EVENT_TRACE` from ntwmi.h
     static constexpr inline std::uint32_t trace_message_flag            = 0x10; // shifted `TRACE_MESSAGE` from ntwmi.h
 
-    bool is_trace_header() const;
-    bool is_trace_header_event_trace() const;
-    bool is_trace_message() const;
+    inline bool is_trace_header() const { return (header_flags() & trace_header_flag) != 0; }
+    inline bool is_trace_header_event_trace() const { return (header_flags() & trace_header_event_trace_flag) != 0; }
+    inline bool is_trace_message() const { return (header_flags() & trace_message_flag) != 0; }
 };
-
-std::size_t parse(utility::binary_stream_parser& stream, generic_trace_marker& data);
 
 // See _WMI_TRACE_PACKET from ntwmi.h
-struct wmi_trace_packet
-{
-    std::uint16_t size;
-    std::uint8_t type;
-    event_trace_group group;
-};
-
-std::size_t parse(utility::binary_stream_parser& stream, wmi_trace_packet& data);
-
 struct wmi_trace_packet_view : private extract_view_base
 {
     using extract_view_base::extract_view_base;

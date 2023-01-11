@@ -7,46 +7,17 @@
 #include <array>
 #include <optional>
 
-#include "binarystream/fwd/binarystream.hpp"
-
-#include "etl/parser/utility.hpp"
 #include "etl/parser/extract.hpp"
+#include "etl/parser/utility.hpp"
+
+//
+// Event records for event_trace_group::image
+//
 
 namespace perfreader::etl::parser {
 
-// Event records for event_trace_group::image
-
 // See https://learn.microsoft.com/en-us/windows/win32/etw/image-load
-struct event_image_v2_load
-{
-    enum class event_type : std::uint8_t
-    {
-        load = 10,
-        unload = 2,
-        dc_start = 3,
-        dc_end = 4,
-    };
-    // 10=Load is in event_trace_group::process?? WHY?
-    static inline constexpr std::array<std::uint8_t, 4> event_types     = {2, 3, 4, 10};
-    static inline constexpr std::array<std::uint16_t, 2> event_versions = {2, 3};
-
-    pointer image_base;
-    pointer image_size;
-    std::uint32_t process_id;
-    std::uint32_t image_checksum;
-    std::uint32_t time_date_stamp;
-    std::uint32_t reserved_0;
-    pointer default_base;
-    std::uint32_t reserved_1;
-    std::uint32_t reserved_2;
-    std::uint32_t reserved_3;
-    std::uint32_t reserved_4;
-    std::u16string file_name;
-};
-
-std::size_t parse(utility::binary_stream_parser& stream, event_image_v2_load& data, std::uint32_t pointer_size);
-
-// `Image_Load:Image` from wmicore.mof in WDK 10.0.22621.0
+// or `Image_Load:Image` from wmicore.mof in WDK 10.0.22621.0
 struct image_v2_load_event_view : private extract_view_dynamic_base
 {
     enum class event_type : std::uint8_t
