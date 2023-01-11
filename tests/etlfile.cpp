@@ -101,7 +101,7 @@ public:
            contains(etl::parser::thread_v4_type_group1_event_view::event_types, trace_header.packet().type()) &&
            contains(etl::parser::thread_v4_type_group1_event_view::event_versions, trace_header.version())))
         {
-            [[maybe_unused]] auto event = etl::parser::process_v4_type_group1_event_view(user_data, file_header.pointer_size);
+            [[maybe_unused]] auto event = etl::parser::thread_v4_type_group1_event_view(user_data, file_header.pointer_size);
         }
     }
     virtual void handle(const etl::etl_file::header_data& file_header,
@@ -117,10 +117,10 @@ public:
             [[maybe_unused]] auto event = etl::parser::perfinfo_v2_sampled_profile_event_view(user_data, file_header.pointer_size);
         }
         else if((trace_header.packet().group() == etl::parser::event_trace_group::stackwalk &&
-           contains(etl::parser::stackwalk_v0_stack_event_view::event_types, trace_header.packet().type()) &&
-           contains(etl::parser::stackwalk_v0_stack_event_view::event_versions, trace_header.version())))
+           contains(etl::parser::stackwalk_v2_stack_event_view::event_types, trace_header.packet().type()) &&
+           contains(etl::parser::stackwalk_v2_stack_event_view::event_versions, trace_header.version())))
         {
-            [[maybe_unused]] auto event = etl::parser::stackwalk_v0_stack_event_view(user_data, file_header.pointer_size);
+            [[maybe_unused]] auto event = etl::parser::stackwalk_v2_stack_event_view(user_data, file_header.pointer_size);
         }
     }
 

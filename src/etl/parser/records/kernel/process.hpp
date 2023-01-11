@@ -54,8 +54,8 @@ struct process_v4_type_group1_event_view : private extract_view_dynamic_base
 
     inline auto image_filename() const { return extract_string(dynamic_offset(36 + user_sid().dynamic_size(), 2), image_filename_length); }
     inline auto command_line() const { return extract_u16string(dynamic_offset(36 + user_sid().dynamic_size(), 2) + image_filename().size() + 1, command_line_length); }
-    inline auto package_full_name() const { return extract_u16string(dynamic_offset(36 + user_sid().dynamic_size(), 2) + image_filename().size() + 1 + command_line().size() + 2, package_full_name_length); }
-    inline auto application_id() const { return extract_u16string(dynamic_offset(36 + user_sid().dynamic_size(), 2) + image_filename().size() + 1 + command_line().size() + 2 + package_full_name().size() + 2, application_id_length); }
+    inline auto package_full_name() const { return extract_u16string(dynamic_offset(36 + user_sid().dynamic_size(), 2) + image_filename().size() + 1 + command_line().size()*2 + 2, package_full_name_length); }
+    inline auto application_id() const { return extract_u16string(dynamic_offset(36 + user_sid().dynamic_size(), 2) + image_filename().size() + 1 + command_line().size()*2 + 2 + package_full_name().size()*2 + 2, application_id_length); }
 
 private:
     mutable std::optional<std::size_t> image_filename_length;

@@ -57,7 +57,7 @@ struct event_trace_v2_header_event_view : private extract_view_dynamic_base
     inline auto reserved_flags() const { return extract<std::uint32_t>(dynamic_offset(80 + 4 + time_zone_information_view::static_size, 2)); }
     inline auto buffers_lost() const { return extract<std::uint32_t>(dynamic_offset(84 + 4 + time_zone_information_view::static_size, 2)); }
     inline auto session_name() const { return extract_u16string(dynamic_offset(88 + 4 + time_zone_information_view::static_size, 2), session_name_string_length); }
-    inline auto file_name() const { return extract_u16string(dynamic_offset(88 + 4 + session_name().size()+2, 2), log_file_name_string_length); }
+    inline auto file_name() const { return extract_u16string(dynamic_offset(88 + 4 + time_zone_information_view::static_size + session_name().size()*2+2, 2), log_file_name_string_length); }
 
 private:
     mutable std::optional<std::size_t> session_name_string_length;

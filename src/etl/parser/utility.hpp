@@ -57,7 +57,7 @@ struct guid_view : private extract_view_base
     inline auto data_1() const { return extract<std::uint32_t>(0); }
     inline auto data_2() const { return extract<std::uint16_t>(4); }
     inline auto data_3() const { return extract<std::uint16_t>(6); }
-    inline auto data_4() const { return std::span<const std::uint8_t>(reinterpret_cast<const std::uint8_t*>(buffer_.data() + 8), 8); }
+    inline auto data_4() const { return std::span<const std::uint8_t, 8>(reinterpret_cast<const std::uint8_t*>(buffer_.data() + 8), 8); }
 
     static inline constexpr std::size_t static_size = 16;
 };

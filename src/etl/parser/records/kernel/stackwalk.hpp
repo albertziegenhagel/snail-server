@@ -16,14 +16,14 @@ namespace perfreader::etl::parser {
 
 // or _STACK_WALK_EVENT_DATA in ntwmi.h
 // `StackWalk_Event:StackWalk` from wmicore.mof in WDK 10.0.22621.0
-struct stackwalk_v0_stack_event_view : private extract_view_dynamic_base
+struct stackwalk_v2_stack_event_view : private extract_view_dynamic_base
 {
     enum class event_type : std::uint8_t
     {
         stack = 32
     };
-    static inline constexpr std::array<std::uint8_t, 1> event_types     = {32};
-    static inline constexpr std::array<std::uint16_t, 1> event_versions = {0};
+    static inline constexpr std::array<std::uint8_t, 1>  event_types    = {32};
+    static inline constexpr std::array<std::uint16_t, 1> event_versions = {2};
 
     using extract_view_dynamic_base::extract_view_dynamic_base;
 

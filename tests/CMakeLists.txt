@@ -1,4 +1,11 @@
 
+add_executable(test_etl_parser etl/parser.cpp)
+target_link_libraries(test_etl_parser compile_options)
+target_link_libraries(test_etl_parser etlreader)
+target_link_libraries(test_etl_parser third_party::gtest third_party::gtest_main)
+add_test(NAME test_etl_parser COMMAND test_etl_parser)
+
+
 add_executable(test_etlreader etlreader.cpp)
 target_link_libraries(test_etlreader compile_options)
 target_link_libraries(test_etlreader etlreader)
