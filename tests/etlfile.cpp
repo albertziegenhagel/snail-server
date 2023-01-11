@@ -4,8 +4,18 @@
 #include <gtest/gtest.h>
 
 #include <etl/etlfile.hpp>
+
 #include <etl/parser/trace_headers/system_trace.hpp>
 #include <etl/parser/trace_headers/perfinfo_trace.hpp>
+
+#include <etl/parser/records/kernel/process.hpp>
+#include <etl/parser/records/kernel/thread.hpp>
+#include <etl/parser/records/kernel/image.hpp>
+#include <etl/parser/records/kernel/perfinfo.hpp>
+#include <etl/parser/records/kernel/stackwalk.hpp>
+
+#include <binarystream/binarystream.hpp>
+#include <binarystream/memory_stream.hpp>
 
 using namespace perfreader;
 
@@ -45,6 +55,13 @@ const char* group_to_string(etl::parser::event_trace_group group)
         case etl::parser::event_trace_group::hypervisor: return "hypervisor";
         case etl::parser::event_trace_group::hypervisorx: return "hypervisorx";
     }
+    return "UNKNOWN";
+}
+
+template<typename T, std::size_t N>
+bool contains(const std::array<T, N>& data, const T& entry)
+{
+    return std::ranges::find(data, entry) != std::ranges::end(data);
 }
 
 class my_observer : public etl::event_observer
@@ -55,13 +72,59 @@ public:
 
     }
 
-    virtual void handle(const etl::parser::system_trace_header& header, std::span<std::byte> user_data) override
+    virtual void handle(const etl::etl_file::header_data& file_header,
+                        const etl::parser::system_trace_header_view& trace_header,
+                        std::span<const std::byte> user_data) override
     {
-        ++counters[header.packet.group][header.packet.type];
+        ++counters[trace_header.packet().group()][trace_header.packet().type()];
+
+        if((trace_header.packet().group() == etl::parser::event_trace_group::image &&
+           contains(etl::parser::image_v2_load_event_view::event_types, trace_header.packet().type()) &&
+           contains(etl::parser::image_v2_load_event_view::event_versions, trace_header.version())) ||
+           // for some unknown reason, the LOAD event is reported in the process group
+           (trace_header.packet().group() == etl::parser::event_trace_group::process &&
+           trace_header.packet().type() == static_cast<std::uint8_t>(etl::parser::image_v2_load_event_view::event_type::load) &&
+           contains(etl::parser::image_v2_load_event_view::event_versions, trace_header.version())))
+        {
+            [[maybe_unused]] auto event = etl::parser::image_v2_load_event_view(user_data, file_header.pointer_size);
+        }
+        else if((trace_header.packet().group() == etl::parser::event_trace_group::process &&
+           contains(etl::parser::process_v4_type_group1_event_view::event_types, trace_header.packet().type()) &&
+           contains(etl::parser::process_v4_type_group1_event_view::event_versions, trace_header.version())))
+        {
+            [[maybe_unused]] auto event = etl::parser::process_v4_type_group1_event_view(user_data, file_header.pointer_size);
+        }
+        else if((trace_header.packet().group() == etl::parser::event_trace_group::thread &&
+           contains(etl::parser::thread_v3_type_group1_event_view::event_types, trace_header.packet().type()) &&
+           contains(etl::parser::thread_v3_type_group1_event_view::event_versions, trace_header.version())))
+        {
+            [[maybe_unused]] auto event = etl::parser::thread_v3_type_group1_event_view(user_data, file_header.pointer_size);
+        }
+        else if((trace_header.packet().group() == etl::parser::event_trace_group::thread &&
+           contains(etl::parser::thread_v4_type_group1_event_view::event_types, trace_header.packet().type()) &&
+           contains(etl::parser::thread_v4_type_group1_event_view::event_versions, trace_header.version())))
+        {
+            [[maybe_unused]] auto event = etl::parser::process_v4_type_group1_event_view(user_data, file_header.pointer_size);
+        }
     }
-    virtual void handle(const etl::parser::perfinfo_trace_header& header, std::span<std::byte> user_data) override
+    virtual void handle(const etl::etl_file::header_data& file_header,
+                        const etl::parser::perfinfo_trace_header_view& trace_header,
+                        std::span<const std::byte> user_data) override
     {
-        ++counters[header.packet.group][header.packet.type];
+        ++counters[trace_header.packet().group()][trace_header.packet().type()];
+
+        if((trace_header.packet().group() == etl::parser::event_trace_group::perfinfo &&
+           contains(etl::parser::perfinfo_v2_sampled_profile_event_view::event_types, trace_header.packet().type()) &&
+           contains(etl::parser::perfinfo_v2_sampled_profile_event_view::event_versions, trace_header.version())))
+        {
+            [[maybe_unused]] auto event = etl::parser::perfinfo_v2_sampled_profile_event_view(user_data, file_header.pointer_size);
+        }
+        else if((trace_header.packet().group() == etl::parser::event_trace_group::stackwalk &&
+           contains(etl::parser::stackwalk_v0_stack_event_view::event_types, trace_header.packet().type()) &&
+           contains(etl::parser::stackwalk_v0_stack_event_view::event_versions, trace_header.version())))
+        {
+            [[maybe_unused]] auto event = etl::parser::stackwalk_v0_stack_event_view(user_data, file_header.pointer_size);
+        }
     }
 
     void finish()

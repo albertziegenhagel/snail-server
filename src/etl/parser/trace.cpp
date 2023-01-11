@@ -36,3 +36,18 @@ bool generic_trace_marker::is_trace_message() const
 {
     return (header_flags & trace_message_flag) != 0;
 }
+
+bool generic_trace_marker_view::is_trace_header() const
+{
+    return (header_flags() & trace_header_flag) != 0;
+}
+
+bool generic_trace_marker_view::is_trace_header_event_trace() const
+{
+    return (header_flags() & trace_header_event_trace_flag) != 0;
+}
+
+bool generic_trace_marker_view::is_trace_message() const
+{
+    return (header_flags() & trace_message_flag) != 0;
+}

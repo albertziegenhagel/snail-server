@@ -16,6 +16,11 @@ target_sources(etlreader PRIVATE
   parser/trace_headers/instance_trace.cpp
   
   parser/records/kernel/header.cpp
+  parser/records/kernel/image.cpp
+  parser/records/kernel/process.cpp
+  parser/records/kernel/thread.cpp
+  parser/records/kernel/perfinfo.cpp
+  parser/records/kernel/stackwalk.cpp
   
 )
 

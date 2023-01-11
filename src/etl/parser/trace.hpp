@@ -7,6 +7,8 @@
 
 #include "binarystream/fwd/binarystream.hpp"
 
+#include "etl/parser/extract.hpp"
+
 namespace perfreader::etl::parser {
 
 // See TRACE_HEADER_TYPE_* from ntwmi.h
@@ -81,6 +83,25 @@ struct generic_trace_marker
     bool is_trace_message() const;
 };
 
+struct generic_trace_marker_view : private extract_view_base
+{
+    using extract_view_base::extract_view_base;
+    
+    inline auto reserved() const { return extract<std::uint16_t>(0); } // usually either size or version
+    inline auto header_type() const { return extract<trace_header_type>(2); }
+    inline auto header_flags() const { return extract<std::uint8_t>(3); }
+
+    static inline constexpr std::size_t static_size = 4;
+    
+    static constexpr inline std::uint32_t trace_header_flag             = 0x80; // shifted `TRACE_HEADER_FLAG` from ntwmi.h
+    static constexpr inline std::uint32_t trace_header_event_trace_flag = 0x40; // shifted `TRACE_HEADER_EVENT_TRACE` from ntwmi.h
+    static constexpr inline std::uint32_t trace_message_flag            = 0x10; // shifted `TRACE_MESSAGE` from ntwmi.h
+
+    bool is_trace_header() const;
+    bool is_trace_header_event_trace() const;
+    bool is_trace_message() const;
+};
+
 std::size_t parse(utility::binary_stream_parser& stream, generic_trace_marker& data);
 
 // See _WMI_TRACE_PACKET from ntwmi.h
@@ -92,5 +113,16 @@ struct wmi_trace_packet
 };
 
 std::size_t parse(utility::binary_stream_parser& stream, wmi_trace_packet& data);
+
+struct wmi_trace_packet_view : private extract_view_base
+{
+    using extract_view_base::extract_view_base;
+    
+    inline auto size() const { return extract<std::uint16_t>(0); }
+    inline auto type() const { return extract<std::uint8_t>(2); }
+    inline auto group() const { return extract<event_trace_group>(3); }
+
+    static inline constexpr std::size_t static_size = 4;
+};
 
 } // namespace perfreader::etl::parser
