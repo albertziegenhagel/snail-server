@@ -20,83 +20,59 @@ using namespace perfreader::etl;
 namespace
 {
 
-
 // All known trace headers use 16bit integers for their buffer sizes,
 // hence this size should always be enough.
 // inline constexpr std::size_t buffer_size = 0xFFFFU;
 inline constexpr std::size_t max_buffer_size = 0x10000U;
 
-std::size_t process_system_trace(std::span<const std::byte> payload_buffer,
+// Supports:
+//    parser::system_trace_header_view,
+//    parser::compact_trace_header_view and
+//    parser::perfinfo_trace_header_view
+template<typename TraceHeaderViewType>
+std::size_t process_type_1_trace(std::span<const std::byte> payload_buffer,
                                  const etl_file::header_data& file_header,
                                  event_observer& callbacks)
 {
-    const auto trace_header = parser::system_trace_header_view(payload_buffer);
+    const auto trace_header = TraceHeaderViewType(payload_buffer);
 
-    assert(trace_header.packet().size() >= parser::system_trace_header_view::static_size);
-    const auto user_data_size = trace_header.packet().size() - parser::system_trace_header_view::static_size;
+    assert(trace_header.packet().size() >= TraceHeaderViewType::static_size);
+    const auto user_data_size = trace_header.packet().size() - TraceHeaderViewType::static_size;
     assert(user_data_size <= max_buffer_size);
 
-    const auto user_data_buffer = payload_buffer.subspan(parser::system_trace_header_view::static_size, user_data_size);
+    const auto user_data_buffer = payload_buffer.subspan(TraceHeaderViewType::static_size, user_data_size);
 
     callbacks.handle(file_header, trace_header, user_data_buffer);
 
     return static_cast<std::size_t>(trace_header.packet().size());
 }
 
-std::size_t process_compact_trace(std::span<const std::byte> payload_buffer,
-                                  const etl_file::header_data& file_header,
-                                  event_observer& callbacks)
+// Supports:
+//    parser::full_header_trace_header_view and
+//    parser::instance_trace_header_view
+template<typename TraceHeaderViewType>
+std::size_t process_type_2_trace(std::span<const std::byte> payload_buffer,
+                                 const etl_file::header_data& file_header,
+                                 event_observer& callbacks)
 {
-    const auto trace_header = parser::compact_trace_header_view(payload_buffer);
+    const auto trace_header = TraceHeaderViewType(payload_buffer);
 
-    assert(trace_header.packet().size() >= parser::compact_trace_header_view::static_size);
-    const auto user_data_size = trace_header.packet().size() - parser::compact_trace_header_view::static_size;
+    assert(trace_header.size() >= TraceHeaderViewType::static_size);
+    const auto user_data_size = trace_header.size() - TraceHeaderViewType::static_size;
     assert(user_data_size <= max_buffer_size);
 
-    const auto user_data_buffer = payload_buffer.subspan(parser::compact_trace_header_view::static_size, user_data_size);
-
-    callbacks.handle(file_header, trace_header, user_data_buffer);
-
-    return static_cast<std::size_t>(trace_header.packet().size());
-}
-
-std::size_t process_perfinfo_trace(std::span<const std::byte> payload_buffer,
-                                  const etl_file::header_data& file_header,
-                                  event_observer& callbacks)
-{
-    const auto trace_header = parser::perfinfo_trace_header_view(payload_buffer);
-
-    assert(trace_header.packet().size() >= parser::perfinfo_trace_header_view::static_size);
-    const auto user_data_size = trace_header.packet().size() - parser::perfinfo_trace_header_view::static_size;
-    assert(user_data_size <= max_buffer_size);
-
-    const auto user_data_buffer = payload_buffer.subspan(parser::perfinfo_trace_header_view::static_size, user_data_size);
-
-    callbacks.handle(file_header, trace_header, user_data_buffer);
-
-    return static_cast<std::size_t>(trace_header.packet().size());
-}
-
-std::size_t process_full_header_trace(std::span<const std::byte> payload_buffer,
-                                  const etl_file::header_data& file_header,
-                                  event_observer& callbacks)
-{
-    const auto trace_header = parser::full_header_trace_header_view(payload_buffer);
-
-    assert(trace_header.size() >= parser::full_header_trace_header_view::static_size);
-    const auto user_data_size = trace_header.size() - parser::full_header_trace_header_view::static_size;
-    assert(user_data_size <= max_buffer_size);
-
-    const auto user_data_buffer = payload_buffer.subspan(parser::full_header_trace_header_view::static_size, user_data_size);
+    const auto user_data_buffer = payload_buffer.subspan(TraceHeaderViewType::static_size, user_data_size);
 
     callbacks.handle(file_header, trace_header, user_data_buffer);
 
     return static_cast<std::size_t>(trace_header.size());
 }
 
+// Could basically be handled by `process_type_2_trace`, but `event_header_trace_header_view`
+// can have extended data.
 std::size_t process_event_header_trace(std::span<const std::byte> payload_buffer,
-                                  const etl_file::header_data& file_header,
-                                  event_observer& callbacks)
+                                       const etl_file::header_data& file_header,
+                                       event_observer& callbacks)
 {
     const auto trace_header = parser::event_header_trace_header_view(payload_buffer);
 
@@ -115,23 +91,6 @@ std::size_t process_event_header_trace(std::span<const std::byte> payload_buffer
     return static_cast<std::size_t>(trace_header.size());
 }
 
-std::size_t process_instance_trace(std::span<const std::byte> payload_buffer,
-                                  const etl_file::header_data& file_header,
-                                  event_observer& callbacks)
-{
-    const auto trace_header = parser::instance_trace_header_view(payload_buffer);
-
-    assert(trace_header.size() >= parser::instance_trace_header_view::static_size);
-    const auto user_data_size = trace_header.size() - parser::instance_trace_header_view::static_size;
-    assert(user_data_size <= max_buffer_size);
-
-    const auto user_data_buffer = payload_buffer.subspan(parser::instance_trace_header_view::static_size, user_data_size);
-
-    callbacks.handle(file_header, trace_header, user_data_buffer);
-
-    return static_cast<std::size_t>(trace_header.size());
-}
-
 std::size_t process_next_trace(std::span<const std::byte> payload_buffer,
                                const etl_file::header_data& file_header,
                                event_observer& callbacks)
@@ -144,27 +103,27 @@ std::size_t process_next_trace(std::span<const std::byte> payload_buffer,
     {
     case parser::trace_header_type::system32:
     case parser::trace_header_type::system64:
-        read_bytes = process_system_trace(payload_buffer, file_header, callbacks);
+        read_bytes = process_type_1_trace<parser::system_trace_header_view>(payload_buffer, file_header, callbacks);
         break;
     case parser::trace_header_type::compact32:
     case parser::trace_header_type::compact64:
-        read_bytes = process_compact_trace(payload_buffer, file_header, callbacks);
+        read_bytes = process_type_1_trace<parser::compact_trace_header_view>(payload_buffer, file_header, callbacks);
         break;
     case parser::trace_header_type::perfinfo32:
     case parser::trace_header_type::perfinfo64:
-        read_bytes = process_perfinfo_trace(payload_buffer, file_header, callbacks);
+        read_bytes = process_type_1_trace<parser::perfinfo_trace_header_view>(payload_buffer, file_header, callbacks);
         break;
     case parser::trace_header_type::full_header32:
     case parser::trace_header_type::full_header64:
-        read_bytes = process_full_header_trace(payload_buffer, file_header, callbacks);
+        read_bytes = process_type_2_trace<parser::full_header_trace_header_view>(payload_buffer, file_header, callbacks);
+        break;
+    case parser::trace_header_type::instance32:
+    case parser::trace_header_type::instance64:
+        read_bytes = process_type_2_trace<parser::instance_trace_header_view>(payload_buffer, file_header, callbacks);
         break;
     case parser::trace_header_type::event_header32:
     case parser::trace_header_type::event_header64:
         read_bytes = process_event_header_trace(payload_buffer, file_header, callbacks);
-        break;
-    case parser::trace_header_type::instance32:
-    case parser::trace_header_type::instance64:
-        read_bytes = process_instance_trace(payload_buffer, file_header, callbacks);
         break;
     default:
         throw std::runtime_error(std::format("Unsupported trace header type {}", (int)marker.header_type()));
