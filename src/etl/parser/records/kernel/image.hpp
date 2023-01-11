@@ -28,8 +28,8 @@ struct image_v2_load_event_view : private extract_view_dynamic_base
         dc_end   = 4,
     };
     // `load` is in event_trace_group::process?? WHY?
-    static inline constexpr std::array<std::uint8_t, 4>  event_types    = {2, 3, 4, 10};
-    static inline constexpr std::array<std::uint16_t, 2> event_versions = {3};
+    static inline constexpr std::array<std::uint8_t, 4>  event_types   = {2, 3, 4, 10};
+    static inline constexpr std::uint16_t                event_version = 3;
 
     using extract_view_dynamic_base::extract_view_dynamic_base;
 

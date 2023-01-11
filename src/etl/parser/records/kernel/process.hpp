@@ -28,8 +28,8 @@ struct process_v4_type_group1_event_view : private extract_view_dynamic_base
         dc_end   = 4,
         defunct  = 39,
     };
-    static inline constexpr std::array<std::uint8_t, 5> event_types     = {1, 2, 3, 4, 39};
-    static inline constexpr std::array<std::uint16_t, 2> event_versions = {4};
+    static inline constexpr std::array<std::uint8_t, 5> event_types    = {1, 2, 3, 4, 39};
+    static inline constexpr std::uint16_t                event_version = 4;
 
     using extract_view_dynamic_base::extract_view_dynamic_base;
 

@@ -26,8 +26,8 @@ struct thread_v3_type_group1_event_view : private extract_view_dynamic_base
         dc_start = 3,
         dc_end   = 4,
     };
-    static inline constexpr std::array<std::uint8_t, 4>  event_types    = {1, 2, 3, 4};
-    static inline constexpr std::array<std::uint16_t, 2> event_versions = {3};
+    static inline constexpr std::array<std::uint8_t, 4>  event_types   = {1, 2, 3, 4};
+    static inline constexpr std::uint16_t                event_version = 3;
 
     using extract_view_dynamic_base::extract_view_dynamic_base;
 
@@ -64,8 +64,8 @@ struct thread_v4_type_group1_event_view : private extract_view_dynamic_base
         dc_start = 3,
         dc_end   = 4,
     };
-    static inline constexpr std::array<std::uint8_t, 4>  event_types    = {1, 2, 3, 4};
-    static inline constexpr std::array<std::uint16_t, 2> event_versions = {4};
+    static inline constexpr std::array<std::uint8_t, 4>  event_types   = {1, 2, 3, 4};
+    static inline constexpr std::uint16_t                event_version = 4;
 
     using extract_view_dynamic_base::extract_view_dynamic_base;
 

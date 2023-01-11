@@ -77,29 +77,29 @@ public:
 
         if((trace_header.packet().group() == etl::parser::event_trace_group::image &&
            contains(etl::parser::image_v2_load_event_view::event_types, trace_header.packet().type()) &&
-           contains(etl::parser::image_v2_load_event_view::event_versions, trace_header.version())) ||
+           etl::parser::image_v2_load_event_view::event_version == trace_header.version()) ||
            // for some unknown reason, the LOAD event is reported in the process group
            (trace_header.packet().group() == etl::parser::event_trace_group::process &&
            trace_header.packet().type() == static_cast<std::uint8_t>(etl::parser::image_v2_load_event_view::event_type::load) &&
-           contains(etl::parser::image_v2_load_event_view::event_versions, trace_header.version())))
+           etl::parser::image_v2_load_event_view::event_version == trace_header.version()))
         {
             [[maybe_unused]] auto event = etl::parser::image_v2_load_event_view(user_data, file_header.pointer_size);
         }
         else if((trace_header.packet().group() == etl::parser::event_trace_group::process &&
            contains(etl::parser::process_v4_type_group1_event_view::event_types, trace_header.packet().type()) &&
-           contains(etl::parser::process_v4_type_group1_event_view::event_versions, trace_header.version())))
+           etl::parser::process_v4_type_group1_event_view::event_version == trace_header.version()))
         {
             [[maybe_unused]] auto event = etl::parser::process_v4_type_group1_event_view(user_data, file_header.pointer_size);
         }
         else if((trace_header.packet().group() == etl::parser::event_trace_group::thread &&
            contains(etl::parser::thread_v3_type_group1_event_view::event_types, trace_header.packet().type()) &&
-           contains(etl::parser::thread_v3_type_group1_event_view::event_versions, trace_header.version())))
+           etl::parser::thread_v3_type_group1_event_view::event_version == trace_header.version()))
         {
             [[maybe_unused]] auto event = etl::parser::thread_v3_type_group1_event_view(user_data, file_header.pointer_size);
         }
         else if((trace_header.packet().group() == etl::parser::event_trace_group::thread &&
            contains(etl::parser::thread_v4_type_group1_event_view::event_types, trace_header.packet().type()) &&
-           contains(etl::parser::thread_v4_type_group1_event_view::event_versions, trace_header.version())))
+           etl::parser::thread_v4_type_group1_event_view::event_version == trace_header.version()))
         {
             [[maybe_unused]] auto event = etl::parser::thread_v4_type_group1_event_view(user_data, file_header.pointer_size);
         }
@@ -112,13 +112,13 @@ public:
 
         if((trace_header.packet().group() == etl::parser::event_trace_group::perfinfo &&
            contains(etl::parser::perfinfo_v2_sampled_profile_event_view::event_types, trace_header.packet().type()) &&
-           contains(etl::parser::perfinfo_v2_sampled_profile_event_view::event_versions, trace_header.version())))
+           etl::parser::perfinfo_v2_sampled_profile_event_view::event_version == trace_header.version()))
         {
             [[maybe_unused]] auto event = etl::parser::perfinfo_v2_sampled_profile_event_view(user_data, file_header.pointer_size);
         }
         else if((trace_header.packet().group() == etl::parser::event_trace_group::stackwalk &&
            contains(etl::parser::stackwalk_v2_stack_event_view::event_types, trace_header.packet().type()) &&
-           contains(etl::parser::stackwalk_v2_stack_event_view::event_versions, trace_header.version())))
+           etl::parser::stackwalk_v2_stack_event_view::event_version == trace_header.version()))
         {
             [[maybe_unused]] auto event = etl::parser::stackwalk_v2_stack_event_view(user_data, file_header.pointer_size);
         }

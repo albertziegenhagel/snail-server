@@ -23,8 +23,8 @@ struct event_trace_v2_header_event_view : private extract_view_dynamic_base
     {
         header = 0,
     };
-    static inline constexpr std::array<std::uint8_t,  1> event_types    = {0};
-    static inline constexpr std::array<std::uint16_t, 1> event_versions = {2};
+    static inline constexpr std::array<std::uint8_t,  1> event_types   = {0};
+    static inline constexpr std::uint16_t                event_version = 2;
 
     inline explicit event_trace_v2_header_event_view(std::span<const std::byte> buffer) :
         extract_view_dynamic_base(buffer, parser::extract<std::uint32_t>(buffer, 44))

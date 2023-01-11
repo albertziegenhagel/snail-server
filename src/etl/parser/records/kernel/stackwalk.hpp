@@ -22,8 +22,8 @@ struct stackwalk_v2_stack_event_view : private extract_view_dynamic_base
     {
         stack = 32
     };
-    static inline constexpr std::array<std::uint8_t, 1>  event_types    = {32};
-    static inline constexpr std::array<std::uint16_t, 1> event_versions = {2};
+    static inline constexpr std::array<std::uint8_t, 1>  event_types   = {32};
+    static inline constexpr std::uint16_t                event_version = 2;
 
     using extract_view_dynamic_base::extract_view_dynamic_base;
 

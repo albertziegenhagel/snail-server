@@ -23,8 +23,8 @@ struct perfinfo_v2_sampled_profile_event_view : private extract_view_dynamic_bas
     {
         sampled_profile = 46
     };
-    static inline constexpr std::array<std::uint8_t, 1> event_types     = {46};
-    static inline constexpr std::array<std::uint16_t, 1> event_versions = {2};
+    static inline constexpr std::array<std::uint8_t, 1> event_types    = {46};
+    static inline constexpr std::uint16_t                event_version = 2;
 
     using extract_view_dynamic_base::extract_view_dynamic_base;
 
