@@ -32,4 +32,4 @@ elseif(CMAKE_COMPILER_IS_GNUCC)
   endif()
 endif()
 
-target_compile_features(compile_options INTERFACE cxx_std_20)
+target_compile_features(compile_options INTERFACE cxx_std_23)
