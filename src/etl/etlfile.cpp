@@ -198,7 +198,7 @@ void etl_file::open(const std::filesystem::path& file_path)
         parser::system_trace_header_view::static_size));
 
     header_ = etl_file::header_data{
-        event_trace_header.pointer_size()
+        .pointer_size=event_trace_header.pointer_size()
         // TODO: extract more (all?) relevant data
     };
 

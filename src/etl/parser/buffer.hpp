@@ -73,7 +73,7 @@ struct wnode_header_view : private extract_view_base
     inline auto timestamp() const { return extract<std::int64_t>(16); }
     inline auto sequence_number() const { return extract<std::int64_t>(24); }
     inline auto clock() const { return extract<std::uint64_t>(32); }
-    inline auto client_context() const { return etw_buffer_context_view(buffer_.subspan(40)); }
+    inline auto client_context() const { return etw_buffer_context_view(buffer().subspan(40)); }
     inline auto state() const { return extract<etw_buffer_state>(40 + etw_buffer_context_view::static_size); }
 
     static inline constexpr std::size_t static_size = 44 + etw_buffer_context_view::static_size;
@@ -86,7 +86,7 @@ struct wmi_buffer_header_view : private extract_view_base
 {
     using extract_view_base::extract_view_base;
     
-    inline auto wnode() const { return wnode_header_view(buffer_); }
+    inline auto wnode() const { return wnode_header_view(buffer()); }
     inline auto offset() const { return extract<std::uint32_t>(0 + wnode_header_view::static_size); }
     inline auto buffer_flag() const { return extract<std::underlying_type_t<etw_buffer_flag>>(4 + wnode_header_view::static_size); }
     inline auto buffer_type() const { return extract<etw_buffer_type>(6 + wnode_header_view::static_size); }

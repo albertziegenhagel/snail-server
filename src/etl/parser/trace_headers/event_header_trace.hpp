@@ -55,6 +55,7 @@ struct event_descriptor_view : private extract_view_base
 struct event_header_trace_header_view : private extract_view_base
 {
     using extract_view_base::extract_view_base;
+    using extract_view_base::buffer;
     
     inline auto size() const { return extract<std::uint16_t>(0); }
     inline auto header_type() const { return extract<trace_header_type>(2); }
@@ -68,13 +69,13 @@ struct event_header_trace_header_view : private extract_view_base
 
     inline auto timestamp() const { return extract<std::uint64_t>(16); }
 
-    inline auto provider_id() const { return guid_view(buffer_.subspan(24)); }
+    inline auto provider_id() const { return guid_view(buffer().subspan(24)); }
 
-    inline auto event_descriptor() const { return event_descriptor_view(buffer_.subspan(24 + guid_view::static_size)); }
+    inline auto event_descriptor() const { return event_descriptor_view(buffer().subspan(24 + guid_view::static_size)); }
 
     inline auto processor_time() const { return extract<std::uint64_t>(24 + guid_view::static_size + event_descriptor_view::static_size); }
 
-    inline auto activity_id() const { return guid_view(buffer_.subspan(32 + guid_view::static_size + event_descriptor_view::static_size)); }
+    inline auto activity_id() const { return guid_view(buffer().subspan(32 + guid_view::static_size + event_descriptor_view::static_size)); }
 
     static inline constexpr std::size_t static_size = 32 + 2*guid_view::static_size + event_descriptor_view::static_size;
 };

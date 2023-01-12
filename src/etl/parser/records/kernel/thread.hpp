@@ -9,6 +9,7 @@
 
 #include "etl/parser/extract.hpp"
 #include "etl/parser/utility.hpp"
+#include "etl/parser/records/identifier.hpp"
 
 //
 // event records for event_trace_group::thread
@@ -19,17 +20,16 @@ namespace perfreader::etl::parser {
 // `Thread_V3_TypeGroup1:Thread_V3` from wmicore.mof in WDK 10.0.22621.0
 struct thread_v3_type_group1_event_view : private extract_view_dynamic_base
 {
-    enum class event_type : std::uint8_t
-    {
-        start    = 1,
-        end      = 2,
-        dc_start = 3,
-        dc_end   = 4,
+    static inline constexpr std::uint16_t event_version = 3;
+    static inline constexpr auto          event_types   = std::array{
+        event_identifier_group{ event_trace_group::thread,  1, "start" },
+        event_identifier_group{ event_trace_group::thread,  2, "end" },
+        event_identifier_group{ event_trace_group::thread,  3, "dc_start" },
+        event_identifier_group{ event_trace_group::thread,  4, "dc_end" }
     };
-    static inline constexpr std::array<std::uint8_t, 4>  event_types   = {1, 2, 3, 4};
-    static inline constexpr std::uint16_t                event_version = 3;
 
     using extract_view_dynamic_base::extract_view_dynamic_base;
+    using extract_view_dynamic_base::buffer;
 
     inline auto process_id() const { return extract<std::uint32_t>(dynamic_offset(0, 0)); }
     inline auto thread_id() const { return extract<std::uint32_t>(dynamic_offset(4, 0)); }
@@ -57,15 +57,13 @@ struct thread_v3_type_group1_event_view : private extract_view_dynamic_base
 // `Thread_TypeGroup1:Thread_V4` from wmicore.mof in WDK 10.0.22621.0
 struct thread_v4_type_group1_event_view : private extract_view_dynamic_base
 {
-    enum class event_type : std::uint8_t
-    {
-        start    = 1,
-        end      = 2,
-        dc_start = 3,
-        dc_end   = 4,
+    static inline constexpr std::uint16_t event_version = 4;
+    static inline constexpr auto          event_types   = std::array{
+        event_identifier_group{ event_trace_group::thread,  1, "start" },
+        event_identifier_group{ event_trace_group::thread,  2, "end" },
+        event_identifier_group{ event_trace_group::thread,  3, "dc_start" },
+        event_identifier_group{ event_trace_group::thread,  4, "dc_end" }
     };
-    static inline constexpr std::array<std::uint8_t, 4>  event_types   = {1, 2, 3, 4};
-    static inline constexpr std::uint16_t                event_version = 4;
 
     using extract_view_dynamic_base::extract_view_dynamic_base;
 

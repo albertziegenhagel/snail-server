@@ -96,6 +96,12 @@ protected:
         return std::u16string_view(chars, *string_length);
     }
 
+    inline std::span<const std::byte> buffer() const
+    {
+        return buffer_;
+    }
+
+private:
     std::span<const std::byte> buffer_;
 };
 
@@ -120,9 +126,14 @@ protected:
 
     inline std::uint64_t extract_pointer(std::size_t bytes_offset) const
     {
-        return parser::extract_pointer(buffer_, bytes_offset, pointer_size_);
+        return parser::extract_pointer(buffer(), bytes_offset, pointer_size_);
     }
     
+    inline std::uint32_t pointer_size() const
+    {
+        return pointer_size_;
+    }
+private:
     std::uint32_t pointer_size_;
 };
 

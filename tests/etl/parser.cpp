@@ -5,8 +5,6 @@
 
 #include <etl/parser/buffer.hpp>
 
-#include <etl/parser/buffer.hpp>
-
 #include <etl/parser/trace_headers/system_trace.hpp>
 #include <etl/parser/trace_headers/perfinfo_trace.hpp>
 #include <etl/parser/trace_headers/event_header_trace.hpp>
@@ -18,6 +16,8 @@
 #include <etl/parser/records/kernel/process.hpp>
 #include <etl/parser/records/kernel/stackwalk.hpp>
 #include <etl/parser/records/kernel/thread.hpp>
+
+#include <etl/parser/records/kernel_trace_control/image_id.hpp>
 
 using namespace perfreader;
 
@@ -103,10 +103,7 @@ TEST(EtlParser, FullHeaderTraceHeader)
     EXPECT_EQ(trace_header.thread_id(), 26400);
     EXPECT_EQ(trace_header.process_id(), 0);
     EXPECT_EQ(trace_header.timestamp(), 3072009312284);
-    EXPECT_EQ(trace_header.guid().data_1(), 0xb3e675d7);
-    EXPECT_EQ(trace_header.guid().data_2(), 0x2554);
-    EXPECT_EQ(trace_header.guid().data_3(), 0x4f18);
-    // EXPECT_EQ(trace_header.guid().data_4(), (std::array<std::uint8_t, 8>{0x83, 0x0b, 0x27, 0x62, 0x73, 0x25, 0x60, 0xde}));
+    EXPECT_EQ(trace_header.guid().instantiate(), (etl::guid{0xb3e675d7, 0x2554, 0x4f18, {0x83, 0x0b, 0x27, 0x62, 0x73, 0x25, 0x60, 0xde}}));
     EXPECT_EQ(trace_header.processor_time(), 0);
 }
 
@@ -129,10 +126,7 @@ TEST(EtlParser, EventHeaderTraceHeader)
     EXPECT_EQ(trace_header.thread_id(), 0);
     EXPECT_EQ(trace_header.process_id(), 0);
     EXPECT_EQ(trace_header.timestamp(), 3072041514673);
-    EXPECT_EQ(trace_header.provider_id().data_1(), 0x9e5f9046);
-    EXPECT_EQ(trace_header.provider_id().data_2(), 0x43c6);
-    EXPECT_EQ(trace_header.provider_id().data_3(), 0x4f62);
-    // EXPECT_EQ(trace_header.provider_id().data_4(), (std::array<std::uint8_t, 8>{0xba, 0x13, 0x7b, 0x19, 0x89, 0x62, 0x53, 0xff}));
+    EXPECT_EQ(trace_header.provider_id().instantiate(), (etl::guid{0x9e5f9046, 0x43c6, 0x4f62, {0xba, 0x13, 0x7b, 0x19, 0x89, 0x62, 0x53, 0xff}}));
     EXPECT_EQ(trace_header.event_descriptor().id(), 6);
     EXPECT_EQ(trace_header.event_descriptor().version(), 0);
     EXPECT_EQ(trace_header.event_descriptor().channel(), 0);
@@ -141,10 +135,7 @@ TEST(EtlParser, EventHeaderTraceHeader)
     EXPECT_EQ(trace_header.event_descriptor().task(), 0);
     EXPECT_EQ(trace_header.event_descriptor().keyword(), 0);
     EXPECT_EQ(trace_header.processor_time(), 0);
-    EXPECT_EQ(trace_header.activity_id().data_1(), 0x00000000);
-    EXPECT_EQ(trace_header.activity_id().data_2(), 0x0000);
-    EXPECT_EQ(trace_header.activity_id().data_3(), 0x0000);
-    // EXPECT_EQ(trace_header.activity_id().data_4(), (std::array<std::uint8_t, 8>{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
+    EXPECT_EQ(trace_header.activity_id().instantiate(), (etl::guid{0x00000000, 0x0000, 0x0000, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}}));
 }
 
 TEST(EtlParser, EventTraceV2HeaderEvent)
@@ -315,6 +306,8 @@ TEST(EtlParser, ProcessV4TypeGroup1EventView)
     EXPECT_EQ(event.directory_table_base(), 7587315712);
     EXPECT_EQ(event.flags(), 0);
     
+    EXPECT_TRUE(event.has_sid());
+    EXPECT_EQ(event.user_sid_token_user(), (std::array<std::uint64_t, 2>{0xffffd00dd2ecabc0, 0}));
     EXPECT_EQ(event.user_sid().revision(), 1);
     EXPECT_EQ(event.user_sid().sub_authority_count(), 1);
     // EXPECT_EQ(event.user_sid().identifier_authority(), 0);
@@ -352,4 +345,23 @@ TEST(EtlParser, ThreadV3TypeGroup1EventView)
     EXPECT_EQ(event.page_priority(), 5);
     EXPECT_EQ(event.io_priority(), 0);
     EXPECT_EQ(event.flags(), 0);
+}
+
+TEST(EtlParser, ImageIdV2InfoEventView)
+{
+    const std::array<std::uint8_t, 50> buffer = {
+        0x00, 0x00, 0xe0, 0x2d, 0x03, 0xf8, 0xff, 0xff, 0x00, 0x70, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x6e, 0x00, 0x74, 0x00, 0x6b, 0x00, 0x72, 0x00,
+        0x6e, 0x00, 0x6c, 0x00, 0x6d, 0x00, 0x70, 0x00, 0x2e, 0x00, 0x65, 0x00, 0x78, 0x00, 0x65, 0x00,
+        0x00, 0x00 };
+
+    const auto event = etl::parser::image_id_v2_info_event_view(std::as_bytes(std::span(buffer)), 8);
+
+    const auto fn = event.original_file_name();
+
+    EXPECT_EQ(event.image_base(), 18446735291271086080);
+    EXPECT_EQ(event.image_size(), 17068032);
+    EXPECT_EQ(event.process_id(), 0);
+    EXPECT_EQ(event.time_date_stamp(), 0);
+    EXPECT_EQ(event.original_file_name(), std::u16string(u"ntkrnlmp.exe"));
 }

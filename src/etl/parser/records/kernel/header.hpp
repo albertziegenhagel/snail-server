@@ -9,6 +9,7 @@
 
 #include "etl/parser/extract.hpp"
 #include "etl/parser/utility.hpp"
+#include "etl/parser/records/identifier.hpp"
 
 //
 // event records for event_trace_group::header
@@ -19,18 +20,17 @@ namespace perfreader::etl::parser {
 // `EventTrace_Header:EventTraceEvent` from wmicore.mof in WDK 10.0.22621.0
 struct event_trace_v2_header_event_view : private extract_view_dynamic_base
 {
-    enum class event_type : std::uint8_t
-    {
-        header = 0,
+    static inline constexpr std::uint16_t event_version = 2;
+    static inline constexpr auto          event_types   = std::array{
+        event_identifier_group{ event_trace_group::header, 0, "header" }
     };
-    static inline constexpr std::array<std::uint8_t,  1> event_types   = {0};
-    static inline constexpr std::uint16_t                event_version = 2;
 
     inline explicit event_trace_v2_header_event_view(std::span<const std::byte> buffer) :
         extract_view_dynamic_base(buffer, parser::extract<std::uint32_t>(buffer, 44))
     {}
 
     using extract_view_dynamic_base::extract_view_dynamic_base;
+    using extract_view_dynamic_base::buffer;
 
     inline auto buffer_size() const { return extract<std::uint32_t>(dynamic_offset(0, 0)); }
     inline auto version() const { return extract<std::uint32_t>(dynamic_offset(4, 0)); }
@@ -47,7 +47,7 @@ struct event_trace_v2_header_event_view : private extract_view_dynamic_base
     inline auto cpu_speed() const { return extract<std::uint32_t>(dynamic_offset(52, 0)); }
     inline auto logger_name() const { return extract_pointer(dynamic_offset(56, 0)); }
     inline auto log_file_name() const { return extract_pointer(dynamic_offset(56, 1)); }
-    inline auto time_zone_information() const { return time_zone_information_view(buffer_.subspan(dynamic_offset(56, 2))); }
+    inline auto time_zone_information() const { return time_zone_information_view(buffer().subspan(dynamic_offset(56, 2))); }
     // NOTE: for some reason the size of `time_zone_information` is given as 176 bytes in wmicore.mof
     //       but our data structure is only 172 bytes long. Hence we add an additional 4 bytes to the
     //       offset in the following. 

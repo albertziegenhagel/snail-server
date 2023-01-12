@@ -7,6 +7,7 @@
 
 #include "etl/parser/extract.hpp"
 #include "etl/parser/utility.hpp"
+#include "etl/parser/records/identifier.hpp"
 
 //
 // event records for event_trace_group::stackwalk
@@ -18,14 +19,13 @@ namespace perfreader::etl::parser {
 // `StackWalk_Event:StackWalk` from wmicore.mof in WDK 10.0.22621.0
 struct stackwalk_v2_stack_event_view : private extract_view_dynamic_base
 {
-    enum class event_type : std::uint8_t
-    {
-        stack = 32
+    static inline constexpr std::uint16_t event_version = 2;
+    static inline constexpr auto          event_types   = std::array{
+        event_identifier_group{ event_trace_group::stackwalk, 32, "stack" }
     };
-    static inline constexpr std::array<std::uint8_t, 1>  event_types   = {32};
-    static inline constexpr std::uint16_t                event_version = 2;
 
     using extract_view_dynamic_base::extract_view_dynamic_base;
+    using extract_view_dynamic_base::buffer;
 
     inline auto event_timestamp() const { return extract<std::uint64_t>(0); }
     inline auto process_id() const { return extract<std::uint32_t>(8); }
@@ -35,7 +35,7 @@ struct stackwalk_v2_stack_event_view : private extract_view_dynamic_base
 
     inline std::size_t stack_size() const
     {
-        return (buffer_.size() - stack_base_offset) / pointer_size_;
+        return (buffer().size() - stack_base_offset) / pointer_size();
     }
     inline std::uint64_t stack_address(std::size_t index) const
     {
@@ -45,7 +45,7 @@ struct stackwalk_v2_stack_event_view : private extract_view_dynamic_base
 
     inline std::size_t event_size() const
     {
-        return stack_base_offset + stack_size() * pointer_size_;
+        return stack_base_offset + stack_size() * pointer_size();
     }
 };
 

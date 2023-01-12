@@ -9,6 +9,7 @@
 
 #include "etl/parser/extract.hpp"
 #include "etl/parser/utility.hpp"
+#include "etl/parser/records/identifier.hpp"
 
 //
 // Event records for event_trace_group::image
@@ -20,18 +21,16 @@ namespace perfreader::etl::parser {
 // or `Image_Load:Image` from wmicore.mof in WDK 10.0.22621.0
 struct image_v2_load_event_view : private extract_view_dynamic_base
 {
-    enum class event_type : std::uint8_t
-    {
-        load     = 10,
-        unload   = 2,
-        dc_start = 3,
-        dc_end   = 4,
+    static inline constexpr std::uint16_t event_version = 3;
+    static inline constexpr auto          event_types   = std::array{
+        event_identifier_group{ event_trace_group::process, 10, "load" }, // For an unknown reason, this is reported as in the process group
+        event_identifier_group{ event_trace_group::image,    2, "unload" },
+        event_identifier_group{ event_trace_group::image,    3, "dc_start" },
+        event_identifier_group{ event_trace_group::image,    4, "dc_end" }
     };
-    // `load` is in event_trace_group::process?? WHY?
-    static inline constexpr std::array<std::uint8_t, 4>  event_types   = {2, 3, 4, 10};
-    static inline constexpr std::uint16_t                event_version = 3;
 
     using extract_view_dynamic_base::extract_view_dynamic_base;
+    using extract_view_dynamic_base::buffer;
 
     inline auto image_base() const { return extract<std::uint64_t>(dynamic_offset(0, 0)); }
     inline auto image_size() const { return extract<std::uint64_t>(dynamic_offset(0, 1)); }
