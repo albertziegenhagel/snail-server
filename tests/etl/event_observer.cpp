@@ -3,10 +3,10 @@
 
 #include <gtest/gtest.h>
 
-#include <etl/dispatching_event_observer.hpp>
+#include <snail/etl/dispatching_event_observer.hpp>
 
-#include <etl/parser/records/kernel/perfinfo.hpp>
-#include <etl/parser/records/kernel_trace_control/image_id.hpp>
+#include <snail/etl/parser/records/kernel/perfinfo.hpp>
+#include <snail/etl/parser/records/kernel_trace_control/image_id.hpp>
 
 using namespace snail;
 

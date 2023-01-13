@@ -5,8 +5,8 @@
 
 #include <type_traits>
 
-#include "etl/parser/trace.hpp"
-#include "etl/parser/extract.hpp"
+#include <snail/etl/parser/trace.hpp>
+#include <snail/etl/parser/extract.hpp>
 
 namespace snail::etl::parser {
 

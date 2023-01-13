@@ -2,19 +2,19 @@
 
 #include <gtest/gtest.h>
 
-#include <etl/etlfile.hpp>
+#include <snail/etl/etlfile.hpp>
 
-#include <etl/dispatching_event_observer.hpp>
+#include <snail/etl/dispatching_event_observer.hpp>
 
-#include <etl/parser/records/kernel/process.hpp>
-#include <etl/parser/records/kernel/thread.hpp>
-#include <etl/parser/records/kernel/image.hpp>
-#include <etl/parser/records/kernel/perfinfo.hpp>
-#include <etl/parser/records/kernel/stackwalk.hpp>
+#include <snail/etl/parser/records/kernel/process.hpp>
+#include <snail/etl/parser/records/kernel/thread.hpp>
+#include <snail/etl/parser/records/kernel/image.hpp>
+#include <snail/etl/parser/records/kernel/perfinfo.hpp>
+#include <snail/etl/parser/records/kernel/stackwalk.hpp>
 
-#include <etl/parser/records/kernel_trace_control/image_id.hpp>
+#include <snail/etl/parser/records/kernel_trace_control/image_id.hpp>
 
-#include <etl/detail/dump.hpp>
+#include <snail/etl/detail/dump.hpp>
 
 using namespace snail;
 

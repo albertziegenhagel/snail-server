@@ -3,21 +3,21 @@
 
 #include <gtest/gtest.h>
 
-#include <etl/parser/buffer.hpp>
+#include <snail/etl/parser/buffer.hpp>
 
-#include <etl/parser/trace_headers/system_trace.hpp>
-#include <etl/parser/trace_headers/perfinfo_trace.hpp>
-#include <etl/parser/trace_headers/event_header_trace.hpp>
-#include <etl/parser/trace_headers/full_header_trace.hpp>
+#include <snail/etl/parser/trace_headers/system_trace.hpp>
+#include <snail/etl/parser/trace_headers/perfinfo_trace.hpp>
+#include <snail/etl/parser/trace_headers/event_header_trace.hpp>
+#include <snail/etl/parser/trace_headers/full_header_trace.hpp>
 
-#include <etl/parser/records/kernel/header.hpp>
-#include <etl/parser/records/kernel/image.hpp>
-#include <etl/parser/records/kernel/perfinfo.hpp>
-#include <etl/parser/records/kernel/process.hpp>
-#include <etl/parser/records/kernel/stackwalk.hpp>
-#include <etl/parser/records/kernel/thread.hpp>
+#include <snail/etl/parser/records/kernel/header.hpp>
+#include <snail/etl/parser/records/kernel/image.hpp>
+#include <snail/etl/parser/records/kernel/perfinfo.hpp>
+#include <snail/etl/parser/records/kernel/process.hpp>
+#include <snail/etl/parser/records/kernel/stackwalk.hpp>
+#include <snail/etl/parser/records/kernel/thread.hpp>
 
-#include <etl/parser/records/kernel_trace_control/image_id.hpp>
+#include <snail/etl/parser/records/kernel_trace_control/image_id.hpp>
 
 using namespace snail;
 

@@ -11,4 +11,4 @@ target_link_libraries(etlreader compile_options)
 
 target_link_libraries(etlreader DiaSDK::DiaSDK)
 
-target_include_directories(etlreader PUBLIC ..)
+target_include_directories(etlreader PUBLIC ${CMAKE_SOURCE_DIR})

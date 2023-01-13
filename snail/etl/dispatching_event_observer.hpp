@@ -6,15 +6,15 @@
 #include <unordered_map>
 #include <concepts>
 
-#include "etl/etlfile.hpp"
-#include "etl/guid.hpp"
+#include <snail/etl/etlfile.hpp>
+#include <snail/etl/guid.hpp>
 
-#include "etl/parser/trace_headers/system_trace.hpp"
-#include "etl/parser/trace_headers/compact_trace.hpp"
-#include "etl/parser/trace_headers/perfinfo_trace.hpp"
-#include "etl/parser/trace_headers/instance_trace.hpp"
-#include "etl/parser/trace_headers/full_header_trace.hpp"
-#include "etl/parser/trace_headers/event_header_trace.hpp"
+#include <snail/etl/parser/trace_headers/system_trace.hpp>
+#include <snail/etl/parser/trace_headers/compact_trace.hpp>
+#include <snail/etl/parser/trace_headers/perfinfo_trace.hpp>
+#include <snail/etl/parser/trace_headers/instance_trace.hpp>
+#include <snail/etl/parser/trace_headers/full_header_trace.hpp>
+#include <snail/etl/parser/trace_headers/event_header_trace.hpp>
 
 namespace snail::etl::detail {
 

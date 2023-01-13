@@ -17,11 +17,11 @@
 #include <dia2.h>
 #include <atlbase.h>
 
-#include "etlreader.hpp"
+#include <snail/etl/etlreader.hpp>
 
-using namespace perfreader;
+using namespace snail;
 
-namespace perfreader {
+namespace snail {
 
 struct guid
 {
@@ -90,7 +90,7 @@ struct profile_sample_data
     std::vector<stack_trace> stacks;
 };
 
-} // namespace perfreader
+} // namespace snail
 
 
 // Specialize std::hash

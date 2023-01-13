@@ -6,7 +6,7 @@
 #include <span>
 #include <bit>
 
-#include "etl/parser/trace_headers/fwd.hpp"
+#include <snail/etl/parser/trace_headers/fwd.hpp>
 
 namespace snail::etl {
 

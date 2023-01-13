@@ -1,7 +1,7 @@
 
 #include <concepts>
 
-#include "etl/dispatching_event_observer.hpp"
+#include <snail/etl/dispatching_event_observer.hpp>
 
 using namespace snail::etl;
 

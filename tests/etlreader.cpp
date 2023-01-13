@@ -1,7 +1,7 @@
 
 #include <gtest/gtest.h>
 
-#include <etl/etlreader.hpp>
+#include <snail/etl/etlreader.hpp>
 
 TEST(EtlReader, Init)
 {

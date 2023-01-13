@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(perfreader VERSION 0.1 LANGUAGES CXX)
+project(snail_support VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 
@@ -14,7 +14,7 @@ find_package(DiaSDK REQUIRED)
 # =======
 # LIBRARIES
 
-add_subdirectory(src)
+add_subdirectory(snail)
 
 # =======
 # TESTS

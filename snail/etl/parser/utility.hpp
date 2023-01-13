@@ -4,9 +4,9 @@
 #include <cstdint>
 #include <cstddef>
 
-#include "etl/guid.hpp"
+#include <snail/etl/guid.hpp>
 
-#include "etl/parser/extract.hpp"
+#include <snail/etl/parser/extract.hpp>
 
 namespace snail::etl::parser {
 

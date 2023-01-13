@@ -5,9 +5,9 @@
 
 #include <array>
 
-#include "etl/parser/extract.hpp"
-#include "etl/parser/utility.hpp"
-#include "etl/parser/records/identifier.hpp"
+#include <snail/etl/parser/extract.hpp>
+#include <snail/etl/parser/utility.hpp>
+#include <snail/etl/parser/records/identifier.hpp>
 
 //
 // event records for event_trace_group::stackwalk

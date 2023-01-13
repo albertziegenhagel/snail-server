@@ -3,17 +3,17 @@
 #include <bit>
 #include <iostream>
 
-#include "etlfile.hpp"
+#include <snail/etl/etlfile.hpp>
 
-#include "parser/buffer.hpp"
-#include "parser/records/kernel/header.hpp"
-#include "parser/trace.hpp"
-#include "parser/trace_headers/compact_trace.hpp"
-#include "parser/trace_headers/event_header_trace.hpp"
-#include "parser/trace_headers/full_header_trace.hpp"
-#include "parser/trace_headers/instance_trace.hpp"
-#include "parser/trace_headers/perfinfo_trace.hpp"
-#include "parser/trace_headers/system_trace.hpp"
+#include <snail/etl/parser/buffer.hpp>
+#include <snail/etl/parser/records/kernel/header.hpp>
+#include <snail/etl/parser/trace.hpp>
+#include <snail/etl/parser/trace_headers/compact_trace.hpp>
+#include <snail/etl/parser/trace_headers/event_header_trace.hpp>
+#include <snail/etl/parser/trace_headers/full_header_trace.hpp>
+#include <snail/etl/parser/trace_headers/instance_trace.hpp>
+#include <snail/etl/parser/trace_headers/perfinfo_trace.hpp>
+#include <snail/etl/parser/trace_headers/system_trace.hpp>
 
 using namespace snail::etl;
 

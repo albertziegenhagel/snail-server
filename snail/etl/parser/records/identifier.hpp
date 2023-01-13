@@ -6,8 +6,8 @@
 #include <array>
 #include <string>
 
-#include "etl/parser/trace.hpp"
-#include "etl/guid.hpp"
+#include <snail/etl/parser/trace.hpp>
+#include <snail/etl/guid.hpp>
 
 namespace snail::etl::parser {
 
