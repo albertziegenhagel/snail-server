@@ -1,14 +1,15 @@
 
-add_library(etlreader)
+add_library(etl)
 
-target_sources(etlreader PRIVATE
-  etlreader.cpp
-  etlfile.cpp
+target_sources(etl PRIVATE
+  etl_file.cpp
   dispatching_event_observer.cpp
+  
+  etlreader.cpp
 )
 
-target_link_libraries(etlreader compile_options)
+target_link_libraries(etl compile_options)
 
-target_link_libraries(etlreader DiaSDK::DiaSDK)
+target_link_libraries(etl DiaSDK::DiaSDK)
 
-target_include_directories(etlreader PUBLIC ${CMAKE_SOURCE_DIR})
+target_include_directories(etl PUBLIC ${CMAKE_SOURCE_DIR})

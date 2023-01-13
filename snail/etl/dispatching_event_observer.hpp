@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <concepts>
 
-#include <snail/etl/etlfile.hpp>
+#include <snail/etl/etl_file.hpp>
 #include <snail/etl/guid.hpp>
 
 #include <snail/etl/parser/trace_headers/system_trace.hpp>
