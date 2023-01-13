@@ -15,7 +15,7 @@
 // event records for event_trace_group::process
 //
 
-namespace perfreader::etl::parser {
+namespace snail::etl::parser {
 
 // See https://learn.microsoft.com/en-us/windows/win32/etw/process-typegroup1
 // or `Process_V4_TypeGroup1:Process_V4` from wmicore.mof in WDK 10.0.22621.0
@@ -70,4 +70,4 @@ private:
     mutable std::optional<std::size_t> application_id_length;
 };
 
-} // namespace perfreader::etl::parser
+} // namespace snail::etl::parser

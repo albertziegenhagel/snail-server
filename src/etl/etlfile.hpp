@@ -8,7 +8,7 @@
 
 #include "etl/parser/trace_headers/fwd.hpp"
 
-namespace perfreader::etl {
+namespace snail::etl {
 
 class event_observer;
 
@@ -46,4 +46,4 @@ public:
     virtual void handle(const etl_file::header_data& /*file_header*/, const parser::instance_trace_header_view& /*trace_header*/, std::span<const std::byte> /*user_data*/) {}
 };
 
-} // namespace perfreader::etl
+} // namespace snail::etl

@@ -9,7 +9,7 @@
 #include "etl/parser/utility.hpp"
 #include "etl/parser/extract.hpp"
 
-namespace perfreader::etl::parser {
+namespace snail::etl::parser {
 
 // See EVENT_HEADER_FLAG_* in evntcons.h
 enum class event_header_flag : std::uint16_t
@@ -80,4 +80,4 @@ struct event_header_trace_header_view : private extract_view_base
     static inline constexpr std::size_t static_size = 32 + 2*guid_view::static_size + event_descriptor_view::static_size;
 };
 
-} // namespace perfreader::etl::parser
+} // namespace snail::etl::parser

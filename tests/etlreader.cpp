@@ -5,5 +5,5 @@
 
 TEST(EtlReader, Init)
 {
-    perfreader::etl_reader reader(R"(C:\Users\aziegenhagel\source\perfreader\tests\data\hidden_sc.user_aux.etl)");
+    snail::etl_reader reader(R"(C:\Users\aziegenhagel\source\snail-support\tests\data\hidden_sc.user_aux.etl)");
 }

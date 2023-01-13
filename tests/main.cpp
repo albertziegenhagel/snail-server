@@ -14,7 +14,7 @@
 
 #pragma comment(lib, "tdh.lib")
 
-#define LOGFILE_PATH L"C:\\Users\\aziegenhagel\\source\\perfreader\\tests\\data\\sc.user_aux.etl"
+#define LOGFILE_PATH L"C:\\Users\\aziegenhagel\\source\\snail-support\\tests\\data\\hidden_sc.user_aux.etl"
 
 static const GUID GUID_NULL = 
 { 0x00000000, 0x0000, 0x0000, { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 } };

@@ -8,7 +8,7 @@
 #include "etl/parser/trace.hpp"
 #include "etl/parser/extract.hpp"
 
-namespace perfreader::etl::parser {
+namespace snail::etl::parser {
 
 struct compact_trace_header_view : private extract_view_base
 {
@@ -29,4 +29,4 @@ struct compact_trace_header_view : private extract_view_base
     static inline constexpr std::size_t static_size = 20 + wmi_trace_packet_view::static_size;
 };
 
-} // namespace perfreader::etl::parser
+} // namespace snail::etl::parser

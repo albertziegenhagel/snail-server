@@ -11,7 +11,7 @@
 
 #include "etl/parser/trace_headers/common.hpp"
 
-namespace perfreader::etl::parser {
+namespace snail::etl::parser {
 
 // See EVENT_TRACE_HEADER in evntrace.h
 struct full_header_trace_header_view : private extract_view_base
@@ -40,4 +40,4 @@ struct full_header_trace_header_view : private extract_view_base
     static inline constexpr std::size_t static_size = 28 + trace_class_view::static_size + guid_view::static_size;
 };
 
-} // namespace perfreader::etl::parser
+} // namespace snail::etl::parser

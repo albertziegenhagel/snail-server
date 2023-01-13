@@ -7,7 +7,7 @@
 
 #include "etl/parser/extract.hpp"
 
-namespace perfreader::etl::parser {
+namespace snail::etl::parser {
 
 struct trace_class_view : private extract_view_base
 {
@@ -20,4 +20,4 @@ struct trace_class_view : private extract_view_base
     static inline constexpr std::size_t static_size = 4;
 };
 
-} // namespace perfreader::etl::parser
+} // namespace snail::etl::parser

@@ -13,7 +13,7 @@
 // event records for event_trace_group::stackwalk
 //
 
-namespace perfreader::etl::parser {
+namespace snail::etl::parser {
 
 // or _STACK_WALK_EVENT_DATA in ntwmi.h
 // `StackWalk_Event:StackWalk` from wmicore.mof in WDK 10.0.22621.0
@@ -49,4 +49,4 @@ struct stackwalk_v2_stack_event_view : private extract_view_dynamic_base
     }
 };
 
-} // namespace perfreader::etl::parser
+} // namespace snail::etl::parser

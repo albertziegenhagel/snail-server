@@ -7,7 +7,7 @@
 #include <format>
 #include <bit>
 
-namespace perfreader::etl::detail {
+namespace snail::etl::detail {
 
 // this can be used to generate tests
 void dump_buffer(std::span<const std::byte> buffer, std::size_t offset, std::size_t size)
@@ -27,4 +27,4 @@ void dump_buffer(std::span<const std::byte> buffer, std::size_t offset, std::siz
     std::cout << " };" << std::endl;
 }
 
-} // perfreader::etl::detail
+} // snail::etl::detail

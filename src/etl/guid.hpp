@@ -6,7 +6,7 @@
 #include <array>
 #include <functional>
 
-namespace perfreader::etl {
+namespace snail::etl {
 
 // See GUID from guiddef.h
 struct guid
@@ -25,15 +25,15 @@ struct guid
     }
 };
 
-} // namespace perfreader::etl
+} // namespace snail::etl
 
 
 namespace std {
 
 template<>
-struct hash<perfreader::etl::guid>
+struct hash<snail::etl::guid>
 {
-    size_t operator()(const perfreader::etl::guid& guid) const noexcept
+    size_t operator()(const snail::etl::guid& guid) const noexcept
     {
         const std::uint64_t* p = reinterpret_cast<const std::uint64_t*>(&guid);
         std::hash<std::uint64_t> hash;

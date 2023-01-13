@@ -15,7 +15,7 @@
 #include "parser/trace_headers/perfinfo_trace.hpp"
 #include "parser/trace_headers/system_trace.hpp"
 
-using namespace perfreader::etl;
+using namespace snail::etl;
 
 namespace
 {

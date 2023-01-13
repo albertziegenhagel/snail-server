@@ -13,7 +13,7 @@
 // event records for event_trace_group::perfinfo
 //
 
-namespace perfreader::etl::parser {
+namespace snail::etl::parser {
 
 // See https://learn.microsoft.com/en-us/windows/win32/etw/sampledprofile
 // or _PERFINFO_SAMPLED_PROFILE_INFORMATION in ntwmi.h
@@ -33,4 +33,4 @@ struct perfinfo_v2_sampled_profile_event_view : private extract_view_dynamic_bas
     inline auto count() const { return extract<std::uint32_t>(dynamic_offset(4, 1)); }
 };
 
-} // namespace perfreader::etl::parser
+} // namespace snail::etl::parser

@@ -95,9 +95,9 @@ struct profile_sample_data
 
 // Specialize std::hash
 namespace std {
-template<> struct hash<perfreader::guid>
+template<> struct hash<snail::guid>
 {
-    size_t operator()(const perfreader::guid& guid) const noexcept {
+    size_t operator()(const snail::guid& guid) const noexcept {
         const std::uint64_t* p = reinterpret_cast<const std::uint64_t*>(&guid);
         std::hash<std::uint64_t> hash;
         return hash(p[0]) ^ hash(p[1]);
@@ -105,7 +105,7 @@ template<> struct hash<perfreader::guid>
 };
 } // namespace std
 
-static std::unordered_map<perfreader::guid, std::map<std::uint8_t, std::size_t>> count_by_provider;
+static std::unordered_map<snail::guid, std::map<std::uint8_t, std::size_t>> count_by_provider;
 static std::map<std::uint32_t, std::string> known_processes;
 static std::map<std::uint32_t, std::uint32_t> thread_to_process;
 
@@ -132,16 +132,16 @@ static std::size_t debug_count_2;
 
 static std::map<std::uint64_t, std::vector<profile_sample_data>> profile_samples;
 
-perfreader::guid to_internal(const GUID& guid)
+snail::guid to_internal(const GUID& guid)
 {
-    return perfreader::guid{guid.Data1, guid.Data2, guid.Data3, {guid.Data4[0], guid.Data4[1], guid.Data4[2], guid.Data4[3],
+    return snail::guid{guid.Data1, guid.Data2, guid.Data3, {guid.Data4[0], guid.Data4[1], guid.Data4[2], guid.Data4[3],
         guid.Data4[4], guid.Data4[5], guid.Data4[6], guid.Data4[7]}};
 }
-constexpr inline auto guid_perf_info = perfreader::guid{0xce1dbfb4, 0x137e, 0x4da6, {0x87, 0xb0, 0x3f, 0x59, 0xaa, 0x10, 0x2c, 0xbc}};
-constexpr inline auto guid_stack_walk = perfreader::guid{0xdef2fe46, 0x7bd6, 0x4b80, {0xbd, 0x94, 0xf5, 0x7f, 0xe2, 0x0d, 0x0c, 0xe3}};
-constexpr inline auto guid_process = perfreader::guid{0x3d6fa8d0, 0xfe05, 0x11d0, {0x9d, 0xda, 0x00, 0xc0, 0x4f, 0xd7, 0xba, 0x7c}};
-constexpr inline auto guid_thread = perfreader::guid{0x3d6fa8d1, 0xfe05, 0x11d0, {0x9d, 0xda, 0x00, 0xc0, 0x4f, 0xd7, 0xba, 0x7c}};
-constexpr inline auto guid_image = perfreader::guid{0x2cb15d1d, 0x5fc1, 0x11d2, {0xab, 0xe1, 0x00, 0xa0, 0xc9, 0x11, 0xf5, 0x18}};
+constexpr inline auto guid_perf_info = snail::guid{0xce1dbfb4, 0x137e, 0x4da6, {0x87, 0xb0, 0x3f, 0x59, 0xaa, 0x10, 0x2c, 0xbc}};
+constexpr inline auto guid_stack_walk = snail::guid{0xdef2fe46, 0x7bd6, 0x4b80, {0xbd, 0x94, 0xf5, 0x7f, 0xe2, 0x0d, 0x0c, 0xe3}};
+constexpr inline auto guid_process = snail::guid{0x3d6fa8d0, 0xfe05, 0x11d0, {0x9d, 0xda, 0x00, 0xc0, 0x4f, 0xd7, 0xba, 0x7c}};
+constexpr inline auto guid_thread = snail::guid{0x3d6fa8d1, 0xfe05, 0x11d0, {0x9d, 0xda, 0x00, 0xc0, 0x4f, 0xd7, 0xba, 0x7c}};
+constexpr inline auto guid_image = snail::guid{0x2cb15d1d, 0x5fc1, 0x11d2, {0xab, 0xe1, 0x00, 0xa0, 0xc9, 0x11, 0xf5, 0x18}};
 
 
 // 68fdd900-4a3e-11d1-84f40000f80464e3 EventTraceEvent: 17 -> header
@@ -166,7 +166,7 @@ void print_guid(const GUID& guid)
         guid.Data4[4], guid.Data4[5], guid.Data4[6], guid.Data4[7]);
 }
 
-void print_guid(const perfreader::guid& guid)
+void print_guid(const snail::guid& guid)
 {
     std::cout << std::format("{:08x}-{:04x}-{:04x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
         guid.data_1, guid.data_2, guid.data_3,

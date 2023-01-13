@@ -3,7 +3,7 @@
 
 #include "etl/dispatching_event_observer.hpp"
 
-using namespace perfreader::etl;
+using namespace snail::etl;
 
 namespace {
 

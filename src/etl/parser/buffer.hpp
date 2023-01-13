@@ -7,7 +7,7 @@
 
 #include "etl/parser/extract.hpp"
 
-namespace perfreader::etl::parser {
+namespace snail::etl::parser {
 
 // See _ETW_BUFFER_STATE from ntwmi.h
 enum class etw_buffer_state : std::uint32_t
@@ -96,4 +96,4 @@ struct wmi_buffer_header_view : private extract_view_base
     static inline constexpr std::size_t static_size = 24 + wnode_header_view::static_size;
 };
 
-} // namespace perfreader::etl::parser
+} // namespace snail::etl::parser

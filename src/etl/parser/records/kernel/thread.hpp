@@ -15,7 +15,7 @@
 // event records for event_trace_group::thread
 //
 
-namespace perfreader::etl::parser {
+namespace snail::etl::parser {
 
 // `Thread_V3_TypeGroup1:Thread_V3` from wmicore.mof in WDK 10.0.22621.0
 struct thread_v3_type_group1_event_view : private extract_view_dynamic_base
@@ -94,4 +94,4 @@ private:
     mutable std::optional<std::size_t> thread_name_length;
 };
 
-} // namespace perfreader::etl::parser
+} // namespace snail::etl::parser

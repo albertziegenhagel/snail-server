@@ -8,7 +8,7 @@
 
 #include "etl/parser/extract.hpp"
 
-namespace perfreader::etl::parser {
+namespace snail::etl::parser {
 
 // See SYSTEMTIME from minwinbase.h
 struct system_time_view : private extract_view_base
@@ -90,4 +90,4 @@ struct sid_view : private extract_view_base
     }
 };
 
-} // namespace perfreader::etl::parser
+} // namespace snail::etl::parser

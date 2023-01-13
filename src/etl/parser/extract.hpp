@@ -7,7 +7,7 @@
 #include <optional>
 #include <string>
 
-namespace perfreader::etl::parser {
+namespace snail::etl::parser {
 
 // ETL files are written on Windows, hence they are always little-endian.
 inline constexpr auto etl_file_byte_order = std::endian::little;
@@ -137,4 +137,4 @@ private:
     std::uint32_t pointer_size_;
 };
 
-} // perfreader::etl::parser
+} // snail::etl::parser

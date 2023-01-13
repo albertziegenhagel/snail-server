@@ -19,7 +19,7 @@
 
 #include <etl/parser/records/kernel_trace_control/image_id.hpp>
 
-using namespace perfreader;
+using namespace snail;
 
 TEST(EtlParser, WmiBufferHeader)
 {

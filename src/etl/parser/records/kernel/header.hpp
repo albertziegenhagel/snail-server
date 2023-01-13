@@ -15,7 +15,7 @@
 // event records for event_trace_group::header
 //
 
-namespace perfreader::etl::parser {
+namespace snail::etl::parser {
 
 // `EventTrace_Header:EventTraceEvent` from wmicore.mof in WDK 10.0.22621.0
 struct event_trace_v2_header_event_view : private extract_view_dynamic_base
@@ -64,4 +64,4 @@ private:
     mutable std::optional<std::size_t> log_file_name_string_length;
 };
 
-} // namespace perfreader::etl::parser
+} // namespace snail::etl::parser

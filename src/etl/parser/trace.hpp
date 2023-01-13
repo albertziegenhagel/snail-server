@@ -7,7 +7,7 @@
 
 #include "etl/parser/extract.hpp"
 
-namespace perfreader::etl::parser {
+namespace snail::etl::parser {
 
 // See TRACE_HEADER_TYPE_* from ntwmi.h
 enum class trace_header_type : std::uint8_t
@@ -112,4 +112,4 @@ struct wmi_trace_packet_view : private extract_view_base
     static inline constexpr std::size_t static_size = 4;
 };
 
-} // namespace perfreader::etl::parser
+} // namespace snail::etl::parser

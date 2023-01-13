@@ -11,7 +11,7 @@
 #include "etl/parser/utility.hpp"
 #include "etl/parser/records/identifier.hpp"
 
-namespace perfreader::etl::parser {
+namespace snail::etl::parser {
 
 constexpr inline auto image_id_task_guid = guid{0xb3e675d7, 0x2554, 0x4f18, { 0x83, 0x0b, 0x27, 0x62, 0x73, 0x25, 0x60, 0xde }};
 
@@ -37,4 +37,4 @@ private:
     mutable std::optional<std::size_t> original_file_name_length;
 };
 
-} // namespace perfreader::etl::parser
+} // namespace snail::etl::parser

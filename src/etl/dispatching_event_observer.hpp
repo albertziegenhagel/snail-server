@@ -16,7 +16,7 @@
 #include "etl/parser/trace_headers/full_header_trace.hpp"
 #include "etl/parser/trace_headers/event_header_trace.hpp"
 
-namespace perfreader::etl::detail {
+namespace snail::etl::detail {
 
 struct group_handler_key
 {
@@ -46,15 +46,15 @@ struct guid_handler_key
     }
 };
 
-} // namespace perfreader::etl::detail
+} // namespace snail::etl::detail
 
 
 namespace std {
 
 template<>
-struct hash<perfreader::etl::detail::group_handler_key>
+struct hash<snail::etl::detail::group_handler_key>
 {
-    std::size_t operator()(const perfreader::etl::detail::group_handler_key& key) const noexcept
+    std::size_t operator()(const snail::etl::detail::group_handler_key& key) const noexcept
     {
         std::hash<std::uint32_t> hash;
         return hash((std::uint32_t(key.group) << 24) |
@@ -64,11 +64,11 @@ struct hash<perfreader::etl::detail::group_handler_key>
 };
 
 template<>
-struct hash<perfreader::etl::detail::guid_handler_key>
+struct hash<snail::etl::detail::guid_handler_key>
 {
-    std::size_t operator()(const perfreader::etl::detail::guid_handler_key& key) const noexcept
+    std::size_t operator()(const snail::etl::detail::guid_handler_key& key) const noexcept
     {
-        std::hash<perfreader::etl::guid> guid_hash;
+        std::hash<snail::etl::guid> guid_hash;
         std::hash<std::uint32_t> int_hash;
         return guid_hash(key.guid) ^ int_hash((std::uint32_t(key.type) << 16) | std::uint32_t(key.version));
     }
@@ -76,7 +76,7 @@ struct hash<perfreader::etl::detail::guid_handler_key>
 
 } // namespace std
 
-namespace perfreader::etl {
+namespace snail::etl {
 
 using any_group_trace_header = std::variant<
     parser::system_trace_header_view,
@@ -234,4 +234,4 @@ inline void dispatching_event_observer::register_event(HandlerType&& handler)
     }
 }
 
-} // namespace perfreader::etl
+} // namespace snail::etl

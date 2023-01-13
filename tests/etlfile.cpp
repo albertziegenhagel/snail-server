@@ -16,7 +16,7 @@
 
 #include <etl/detail/dump.hpp>
 
-using namespace perfreader;
+using namespace snail;
 
 const char* group_to_string(etl::parser::event_trace_group group)
 {
@@ -59,7 +59,7 @@ const char* group_to_string(etl::parser::event_trace_group group)
 
 TEST(EtlFile, Process)
 {
-    etl::etl_file file(R"(C:\Users\aziegenhagel\source\perfreader\tests\data\hidden_sc.user_aux.etl)");
+    etl::etl_file file(R"(C:\Users\aziegenhagel\source\snail-support\tests\data\hidden_sc.user_aux.etl)");
 
     etl::dispatching_event_observer observer;
 

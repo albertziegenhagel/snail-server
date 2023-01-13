@@ -9,7 +9,7 @@
 #include "etl/parser/trace.hpp"
 #include "etl/guid.hpp"
 
-namespace perfreader::etl::parser {
+namespace snail::etl::parser {
 
 struct event_identifier_group
 {
@@ -25,4 +25,4 @@ struct event_identifier_guid
     std::string_view  name;
 };
 
-} // namespace perfreader::etl::parser
+} // namespace snail::etl::parser

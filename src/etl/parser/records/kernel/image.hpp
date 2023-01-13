@@ -15,7 +15,7 @@
 // Event records for event_trace_group::image
 //
 
-namespace perfreader::etl::parser {
+namespace snail::etl::parser {
 
 // See https://learn.microsoft.com/en-us/windows/win32/etw/image-load
 // or `Image_Load:Image` from wmicore.mof in WDK 10.0.22621.0
@@ -59,4 +59,4 @@ private:
     mutable std::optional<std::size_t> file_name_length;
 };
 
-} // namespace perfreader::etl::parser
+} // namespace snail::etl::parser

@@ -3,7 +3,7 @@
 
 #include <filesystem>
 
-namespace perfreader {
+namespace snail {
 
 class etl_reader
 {
@@ -14,4 +14,4 @@ private:
 
 };
 
-}
+} // namespace snail

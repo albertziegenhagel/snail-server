@@ -1,7 +1,7 @@
 
 add_library(compile_options INTERFACE)
 
-option(PERFREADER_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
+option(SNAIL_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 
 if(MSVC)
   if(CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
@@ -13,7 +13,7 @@ if(MSVC)
     "/permissive-"
     "$<$<CONFIG:Release>:/arch:AVX2>"
   )
-  if(PERFREADER_WARNINGS_AS_ERRORS)
+  if(SNAIL_WARNINGS_AS_ERRORS)
     target_compile_options(compile_options INTERFACE
         "/WX"
     )
@@ -25,7 +25,7 @@ elseif(CMAKE_COMPILER_IS_GNUCC)
     "-pedantic"
     "$<$<CONFIG:Release>:-march=native"
   )
-  if(PERFREADER_WARNINGS_AS_ERRORS)
+  if(SNAIL_WARNINGS_AS_ERRORS)
     target_compile_options(compile_options INTERFACE
         "-Werror"
     )
