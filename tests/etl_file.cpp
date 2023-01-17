@@ -14,7 +14,7 @@
 
 #include <snail/etl/parser/records/kernel_trace_control/image_id.hpp>
 
-#include <snail/etl/detail/dump.hpp>
+#include <snail/common/detail/dump.hpp>
 
 using namespace snail;
 
@@ -76,9 +76,9 @@ TEST(EtlFile, Process)
             [[maybe_unused]] const auto instruction_pointer = event.instruction_pointer();
             
             // std::visit([]<typename T>(const T& header) {
-            //     etl::detail::dump_buffer(header.buffer(), 0, header.packet().size());
+            //     common::detail::dump_buffer(header.buffer(), 0, header.packet().size());
             // }, header);
-            // etl::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
+            // common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
             // exit(0);
         });
     observer.register_event<etl::parser::process_v4_type_group1_event_view>(

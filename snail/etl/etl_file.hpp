@@ -25,12 +25,12 @@ public:
 
     void open(const std::filesystem::path& file_path);
 
-    void process(event_observer& callbacks);
-
     void close();
+    
+    void process(event_observer& callbacks);
 private:
     std::ifstream file_stream_;
-    header_data header_;
+    header_data   header_;
 };
 
 class event_observer

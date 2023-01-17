@@ -7,10 +7,10 @@
 #include <format>
 #include <bit>
 
-namespace snail::etl::detail {
+namespace snail::common::detail {
 
 // this can be used to generate tests
-void dump_buffer(std::span<const std::byte> buffer, std::size_t offset, std::size_t size)
+inline void dump_buffer(std::span<const std::byte> buffer, std::size_t offset, std::size_t size)
 {
     std::cout << "    const std::array<std::uint8_t, " << size << "> buffer = {\n";
     std::cout << "        ";
@@ -27,4 +27,4 @@ void dump_buffer(std::span<const std::byte> buffer, std::size_t offset, std::siz
     std::cout << " };" << std::endl;
 }
 
-} // snail::etl::detail
+} // snail::common::detail

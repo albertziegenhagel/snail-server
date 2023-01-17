@@ -18,12 +18,12 @@ inline constexpr auto etl_file_byte_order = std::endian::little;
 // Precondition: There have to be enough bytes in the buffer.
 template<typename T>
     requires std::is_integral_v<T>
-T extract(std::span<const std::byte> data, std::size_t bytes_offset)
+T extract(std::span<const std::byte> data, std::size_t bytes_offset, std::endian data_byte_order)
 {
     assert(bytes_offset + sizeof(T) <= data.size());
 
     auto value = *reinterpret_cast<const T*>(data.data() + bytes_offset);
-    if constexpr(etl_file_byte_order != std::endian::native)
+    if(data_byte_order != std::endian::native)
     {
         return std::byteswap(value);
     }
@@ -31,6 +31,13 @@ T extract(std::span<const std::byte> data, std::size_t bytes_offset)
     {
         return value;
     }
+}
+
+template<typename T>
+    requires std::is_integral_v<T>
+T extract(std::span<const std::byte> data, std::size_t bytes_offset)
+{
+    return extract<T>(data, bytes_offset, etl_file_byte_order);
 }
 
 // Extract a value of enum type `T` in the native byte order starting at

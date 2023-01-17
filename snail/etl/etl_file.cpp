@@ -22,8 +22,7 @@ namespace
 
 // All known trace headers use 16bit integers for their buffer sizes,
 // hence this size should always be enough.
-// inline constexpr std::size_t buffer_size = 0xFFFFU;
-inline constexpr std::size_t max_buffer_size = 0x10000U;
+inline constexpr std::size_t max_buffer_size = 0xFFFF + 1;
 
 // Supports:
 //    parser::system_trace_header_view,
