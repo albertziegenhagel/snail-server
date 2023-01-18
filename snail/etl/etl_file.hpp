@@ -1,10 +1,10 @@
 
 #pragma once
 
-#include <fstream>
-#include <filesystem>
-#include <span>
 #include <bit>
+#include <filesystem>
+#include <fstream>
+#include <span>
 
 #include <snail/etl/parser/trace_headers/fwd.hpp>
 
@@ -26,8 +26,9 @@ public:
     void open(const std::filesystem::path& file_path);
 
     void close();
-    
+
     void process(event_observer& callbacks);
+
 private:
     std::ifstream file_stream_;
     header_data   header_;

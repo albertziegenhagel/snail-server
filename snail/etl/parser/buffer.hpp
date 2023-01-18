@@ -55,7 +55,7 @@ struct etw_buffer_context_view : private extract_view_base
 
     inline auto processor_index() const { return extract<std::uint16_t>(0); }
     inline auto logger_id() const { return extract<std::uint16_t>(2); }
-    
+
     static inline constexpr std::size_t static_size = 4;
 };
 
@@ -65,7 +65,7 @@ struct etw_buffer_context_view : private extract_view_base
 struct wnode_header_view : private extract_view_base
 {
     using extract_view_base::extract_view_base;
-    
+
     inline auto buffer_size() const { return extract<std::uint32_t>(0); }
     inline auto saved_offset() const { return extract<std::uint32_t>(4); }
     inline auto current_offset() const { return extract<std::uint32_t>(8); }
@@ -85,7 +85,7 @@ struct wnode_header_view : private extract_view_base
 struct wmi_buffer_header_view : private extract_view_base
 {
     using extract_view_base::extract_view_base;
-    
+
     inline auto wnode() const { return wnode_header_view(buffer()); }
     inline auto offset() const { return extract<std::uint32_t>(0 + wnode_header_view::static_size); }
     inline auto buffer_flag() const { return extract<std::underlying_type_t<etw_buffer_flag>>(4 + wnode_header_view::static_size); }

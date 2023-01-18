@@ -15,6 +15,7 @@ struct stream_position_resetter
     {
         stream_.seekg(pos_);
     }
+
 private:
     std::ifstream& stream_;
     std::streampos pos_;

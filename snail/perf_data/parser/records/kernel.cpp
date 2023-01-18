@@ -8,7 +8,7 @@ using namespace snail::perf_data::parser;
 
 sample_id snail::perf_data::parser::parse_sample_id(const sample_format_flags& sample_format,
                                                     std::span<const std::byte> buffer,
-                                                    std::endian byte_order)
+                                                    std::endian                byte_order)
 {
     sample_id result;
 
@@ -26,9 +26,9 @@ sample_id snail::perf_data::parser::parse_sample_id(const sample_format_flags& s
 }
 
 template<>
-sample_event snail::perf_data::parser::parse_event(const event_attributes& attributes,
+sample_event snail::perf_data::parser::parse_event(const event_attributes&    attributes,
                                                    std::span<const std::byte> buffer,
-                                                   std::endian byte_order)
+                                                   std::endian                byte_order)
 {
     sample_event result;
 
@@ -50,7 +50,7 @@ sample_event snail::perf_data::parser::parse_event(const event_attributes& attri
 
     if(attributes.sample_format.test(parser::sample_format::call_chain))
     {
-        const auto size = extract_move<std::uint64_t>(buffer, offset, byte_order);
+        const auto                 size = extract_move<std::uint64_t>(buffer, offset, byte_order);
         std::vector<std::uint64_t> ips(static_cast<std::size_t>(size));
         for(auto& ip : ips)
         {
@@ -61,7 +61,7 @@ sample_event snail::perf_data::parser::parse_event(const event_attributes& attri
 
     if(attributes.sample_format.test(parser::sample_format::raw))
     {
-        const auto size = extract_move<std::uint64_t>(buffer, offset, byte_order);
+        const auto                size = extract_move<std::uint64_t>(buffer, offset, byte_order);
         std::vector<std::uint8_t> data(static_cast<std::size_t>(size));
         for(auto& entry : data)
         {

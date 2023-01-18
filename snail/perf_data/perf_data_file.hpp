@@ -1,10 +1,10 @@
 
 #pragma once
 
+#include <bit>
 #include <filesystem>
 #include <fstream>
 #include <span>
-#include <bit>
 
 namespace snail::perf_data {
 
@@ -34,8 +34,9 @@ public:
     void open(const std::filesystem::path& file_path);
 
     void close();
-    
+
     void process(event_observer& callbacks);
+
 private:
     std::ifstream file_stream_;
 

@@ -5,9 +5,9 @@
 
 #include <type_traits>
 
+#include <snail/etl/parser/extract.hpp>
 #include <snail/etl/parser/trace.hpp>
 #include <snail/etl/parser/utility.hpp>
-#include <snail/etl/parser/extract.hpp>
 
 #include <snail/etl/parser/trace_headers/common.hpp>
 
@@ -16,9 +16,9 @@ namespace snail::etl::parser {
 // See _EVENT_INSTANCE_GUID_HEADER in ntwmi.h
 struct instance_trace_header_view : private extract_view_base
 {
-    using extract_view_base::extract_view_base;
     using extract_view_base::buffer;
-    
+    using extract_view_base::extract_view_base;
+
     inline auto size() const { return extract<std::uint16_t>(0); }
     inline auto header_type() const { return extract<trace_header_type>(2); }
     inline auto header_flags() const { return extract<std::uint8_t>(3); }
@@ -42,7 +42,7 @@ struct instance_trace_header_view : private extract_view_base
 
     inline auto parent_guid() const { return guid_view(buffer().subspan(36 + trace_class_view::static_size + guid_view::static_size)); }
 
-    static inline constexpr std::size_t static_size = 36 + trace_class_view::static_size + 2*guid_view::static_size;
+    static inline constexpr std::size_t static_size = 36 + trace_class_view::static_size + 2 * guid_view::static_size;
 };
 
 } // namespace snail::etl::parser

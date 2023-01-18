@@ -3,13 +3,13 @@
 
 #include <cstdint>
 
-#include <string>
 #include <array>
 #include <optional>
+#include <string>
 
 #include <snail/etl/parser/extract.hpp>
-#include <snail/etl/parser/utility.hpp>
 #include <snail/etl/parser/records/identifier.hpp>
+#include <snail/etl/parser/utility.hpp>
 
 //
 // event records for event_trace_group::process
@@ -23,15 +23,15 @@ struct process_v4_type_group1_event_view : private extract_view_dynamic_base
 {
     static inline constexpr std::uint16_t event_version = 4;
     static inline constexpr auto          event_types   = std::array{
-        event_identifier_group{ event_trace_group::process,  1, "load" },
-        event_identifier_group{ event_trace_group::process,  2, "unload" },
-        event_identifier_group{ event_trace_group::process,  3, "dc_start" },
-        event_identifier_group{ event_trace_group::process,  4, "dc_end" },
-        event_identifier_group{ event_trace_group::process, 39, "defunct" }
+        event_identifier_group{event_trace_group::process, 1,  "load"    },
+        event_identifier_group{event_trace_group::process, 2,  "unload"  },
+        event_identifier_group{event_trace_group::process, 3,  "dc_start"},
+        event_identifier_group{event_trace_group::process, 4,  "dc_end"  },
+        event_identifier_group{event_trace_group::process, 39, "defunct" }
     };
 
-    using extract_view_dynamic_base::extract_view_dynamic_base;
     using extract_view_dynamic_base::buffer;
+    using extract_view_dynamic_base::extract_view_dynamic_base;
 
     inline auto unique_process_key() const { return extract_pointer(dynamic_offset(0, 0)); }
 
@@ -47,10 +47,10 @@ struct process_v4_type_group1_event_view : private extract_view_dynamic_base
 
     // See the explanation for the `Sid` extension in
     // https://learn.microsoft.com/en-us/windows/win32/etw/event-tracing-mof-qualifiers
-    inline bool has_sid() const { return extract<std::uint32_t>(dynamic_offset(20, 2)) != 0; }
+    inline bool                         has_sid() const { return extract<std::uint32_t>(dynamic_offset(20, 2)) != 0; }
     inline std::array<std::uint64_t, 2> user_sid_token_user() const
     {
-        return { extract_pointer(dynamic_offset(20, 2)), extract_pointer(dynamic_offset(20, 3))};
+        return {extract_pointer(dynamic_offset(20, 2)), extract_pointer(dynamic_offset(20, 3))};
     }
     inline auto user_sid() const
     {
@@ -60,8 +60,8 @@ struct process_v4_type_group1_event_view : private extract_view_dynamic_base
 
     inline auto image_filename() const { return extract_string(dynamic_offset(20 + (has_sid() ? user_sid().dynamic_size() : 0), has_sid() ? 4 : 2), image_filename_length); }
     inline auto command_line() const { return extract_u16string(dynamic_offset(20 + (has_sid() ? user_sid().dynamic_size() : 0), has_sid() ? 4 : 2) + image_filename().size() + 1, command_line_length); }
-    inline auto package_full_name() const { return extract_u16string(dynamic_offset(20 + (has_sid() ? user_sid().dynamic_size() : 0), has_sid() ? 4 : 2) + image_filename().size() + 1 + command_line().size()*2 + 2, package_full_name_length); }
-    inline auto application_id() const { return extract_u16string(dynamic_offset(20 + (has_sid() ? user_sid().dynamic_size() : 0), has_sid() ? 4 : 2) + image_filename().size() + 1 + command_line().size()*2 + 2 + package_full_name().size()*2 + 2, application_id_length); }
+    inline auto package_full_name() const { return extract_u16string(dynamic_offset(20 + (has_sid() ? user_sid().dynamic_size() : 0), has_sid() ? 4 : 2) + image_filename().size() + 1 + command_line().size() * 2 + 2, package_full_name_length); }
+    inline auto application_id() const { return extract_u16string(dynamic_offset(20 + (has_sid() ? user_sid().dynamic_size() : 0), has_sid() ? 4 : 2) + image_filename().size() + 1 + command_line().size() * 2 + 2 + package_full_name().size() * 2 + 2, application_id_length); }
 
 private:
     mutable std::optional<std::size_t> image_filename_length;

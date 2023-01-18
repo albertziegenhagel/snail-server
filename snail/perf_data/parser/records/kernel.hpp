@@ -2,8 +2,8 @@
 
 #include <cstdint>
 
-#include <type_traits>
 #include <optional>
+#include <type_traits>
 #include <vector>
 
 #include <snail/perf_data/parser/event.hpp>
@@ -28,7 +28,7 @@ struct sample_id
 
 inline sample_id parse_sample_id(const sample_format_flags& sample_format,
                                  std::span<const std::byte> buffer,
-                                 std::endian byte_order);
+                                 std::endian                byte_order);
 
 struct comm_event_view : private parser::event_view_base
 {
@@ -203,8 +203,8 @@ struct sample_event
 };
 
 template<>
-sample_event parse_event(const event_attributes& attributes,
+sample_event parse_event(const event_attributes&    attributes,
                          std::span<const std::byte> buffer,
-                         std::endian byte_order);
+                         std::endian                byte_order);
 
 } // namespace snail::perf_data::parser

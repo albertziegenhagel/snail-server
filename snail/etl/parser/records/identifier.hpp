@@ -6,8 +6,8 @@
 #include <array>
 #include <string>
 
-#include <snail/etl/parser/trace.hpp>
 #include <snail/etl/guid.hpp>
+#include <snail/etl/parser/trace.hpp>
 
 namespace snail::etl::parser {
 
@@ -20,9 +20,9 @@ struct event_identifier_group
 
 struct event_identifier_guid
 {
-    etl::guid         guid;
-    std::uint8_t      type;
-    std::string_view  name;
+    etl::guid        guid;
+    std::uint8_t     type;
+    std::string_view name;
 };
 
 } // namespace snail::etl::parser

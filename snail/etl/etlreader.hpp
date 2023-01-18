@@ -11,7 +11,6 @@ public:
     explicit etl_reader(const std::filesystem::path& etl_file_path);
 
 private:
-
 };
 
 } // namespace snail

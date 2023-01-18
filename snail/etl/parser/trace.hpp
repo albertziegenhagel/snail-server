@@ -68,9 +68,9 @@ enum class event_trace_group : std::uint8_t
 
 struct generic_trace_marker
 {
-    std::uint16_t reserved; // usually either size or version
+    std::uint16_t     reserved; // usually either size or version
     trace_header_type header_type;
-    std::uint8_t  header_flags;
+    std::uint8_t      header_flags;
 
     static constexpr inline std::uint32_t trace_header_flag             = 0x80; // shifted `TRACE_HEADER_FLAG` from ntwmi.h
     static constexpr inline std::uint32_t trace_header_event_trace_flag = 0x40; // shifted `TRACE_HEADER_EVENT_TRACE` from ntwmi.h
@@ -84,13 +84,13 @@ struct generic_trace_marker
 struct generic_trace_marker_view : private extract_view_base
 {
     using extract_view_base::extract_view_base;
-    
+
     inline auto reserved() const { return extract<std::uint16_t>(0); } // usually either size or version
     inline auto header_type() const { return extract<trace_header_type>(2); }
     inline auto header_flags() const { return extract<std::uint8_t>(3); }
 
     static inline constexpr std::size_t static_size = 4;
-    
+
     static constexpr inline std::uint32_t trace_header_flag             = 0x80; // shifted `TRACE_HEADER_FLAG` from ntwmi.h
     static constexpr inline std::uint32_t trace_header_event_trace_flag = 0x40; // shifted `TRACE_HEADER_EVENT_TRACE` from ntwmi.h
     static constexpr inline std::uint32_t trace_message_flag            = 0x10; // shifted `TRACE_MESSAGE` from ntwmi.h
@@ -104,7 +104,7 @@ struct generic_trace_marker_view : private extract_view_base
 struct wmi_trace_packet_view : private extract_view_base
 {
     using extract_view_base::extract_view_base;
-    
+
     inline auto size() const { return extract<std::uint16_t>(0); }
     inline auto type() const { return extract<std::uint8_t>(2); }
     inline auto group() const { return extract<event_trace_group>(3); }

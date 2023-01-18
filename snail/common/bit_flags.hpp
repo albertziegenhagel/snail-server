@@ -43,7 +43,7 @@ public:
     {
         data_.reset();
     }
-    
+
     [[nodiscard]] inline std::size_t count() const noexcept
     {
         return data_.count();
@@ -57,6 +57,7 @@ public:
     {
         return data_;
     }
+
 private:
     std::bitset<MaxBits> data_;
 };

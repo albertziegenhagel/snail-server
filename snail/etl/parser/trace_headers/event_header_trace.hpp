@@ -5,9 +5,9 @@
 
 #include <type_traits>
 
+#include <snail/etl/parser/extract.hpp>
 #include <snail/etl/parser/trace.hpp>
 #include <snail/etl/parser/utility.hpp>
-#include <snail/etl/parser/extract.hpp>
 
 namespace snail::etl::parser {
 
@@ -38,7 +38,7 @@ enum class event_header_property_flag : std::uint16_t
 struct event_descriptor_view : private extract_view_base
 {
     using extract_view_base::extract_view_base;
-    
+
     inline auto id() const { return extract<std::uint16_t>(0); }
     inline auto version() const { return extract<std::uint8_t>(2); }
     inline auto channel() const { return extract<std::uint8_t>(3); }
@@ -54,9 +54,9 @@ struct event_descriptor_view : private extract_view_base
 // the head structure (size, header_type, header_flags) has been adjusted
 struct event_header_trace_header_view : private extract_view_base
 {
-    using extract_view_base::extract_view_base;
     using extract_view_base::buffer;
-    
+    using extract_view_base::extract_view_base;
+
     inline auto size() const { return extract<std::uint16_t>(0); }
     inline auto header_type() const { return extract<trace_header_type>(2); }
     inline auto header_flags() const { return extract<std::uint8_t>(3); }
@@ -77,7 +77,7 @@ struct event_header_trace_header_view : private extract_view_base
 
     inline auto activity_id() const { return guid_view(buffer().subspan(32 + guid_view::static_size + event_descriptor_view::static_size)); }
 
-    static inline constexpr std::size_t static_size = 32 + 2*guid_view::static_size + event_descriptor_view::static_size;
+    static inline constexpr std::size_t static_size = 32 + 2 * guid_view::static_size + event_descriptor_view::static_size;
 };
 
 } // namespace snail::etl::parser

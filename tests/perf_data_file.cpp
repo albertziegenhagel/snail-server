@@ -1,8 +1,8 @@
 
 #include <gtest/gtest.h>
 
-#include <snail/perf_data/perf_data_file.hpp>
 #include <snail/perf_data/dispatching_event_observer.hpp>
+#include <snail/perf_data/perf_data_file.hpp>
 
 #include <snail/perf_data/parser/records/kernel.hpp>
 #include <snail/perf_data/parser/records/perf.hpp>
@@ -33,21 +33,24 @@ TEST(PerfDataFile, Process)
         {
             switch(event.type())
             {
-            case perf_data::parser::cpu_map_type::cpus: {
-                [[maybe_unused]] const auto data = event.cpus_data();
+            case perf_data::parser::cpu_map_type::cpus:
+            {
+                [[maybe_unused]] const auto data  = event.cpus_data();
                 [[maybe_unused]] const auto count = data.nr();
                 break;
             }
-            case perf_data::parser::cpu_map_type::mask: {
-                [[maybe_unused]] const auto data = event.mask_data();
+            case perf_data::parser::cpu_map_type::mask:
+            {
+                [[maybe_unused]] const auto data  = event.mask_data();
                 [[maybe_unused]] const auto count = data.nr();
                 break;
             }
-            case perf_data::parser::cpu_map_type::range_cpus: {
-                [[maybe_unused]] const auto data = event.range_cpus_data();
-                [[maybe_unused]] const auto any_cpu = data.any_cpu();
+            case perf_data::parser::cpu_map_type::range_cpus:
+            {
+                [[maybe_unused]] const auto data      = event.range_cpus_data();
+                [[maybe_unused]] const auto any_cpu   = data.any_cpu();
                 [[maybe_unused]] const auto start_cpu = data.start_cpu();
-                [[maybe_unused]] const auto end_cpu = data.end_cpu();
+                [[maybe_unused]] const auto end_cpu   = data.end_cpu();
                 break;
             }
             }
@@ -76,7 +79,6 @@ TEST(PerfDataFile, Process)
         {
             [[maybe_unused]] const auto pid = event.pid();
         });
-
 
     observer.register_event<perf_data::parser::sample_event>(
         [](const perf_data::parser::event_header_view& /*header*/,

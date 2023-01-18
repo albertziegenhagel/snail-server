@@ -3,8 +3,8 @@
 #include <cassert>
 
 #include <bit>
-#include <span>
 #include <optional>
+#include <span>
 #include <string>
 
 namespace snail::etl::parser {
@@ -55,12 +55,12 @@ template<typename CharIntType>
 inline std::size_t detect_string_length(std::span<const std::byte> data, std::size_t bytes_offset)
 {
     std::size_t size = 0;
-    while(size*sizeof(CharIntType) < data.size())
+    while(size * sizeof(CharIntType) < data.size())
     {
-        if(extract<CharIntType>(data, bytes_offset + size*sizeof(CharIntType)) == 0) break;
+        if(extract<CharIntType>(data, bytes_offset + size * sizeof(CharIntType)) == 0) break;
         ++size;
     }
-    assert(size*sizeof(CharIntType) < data.size()); // we could not find a null-terminated string
+    assert(size * sizeof(CharIntType) < data.size()); // we could not find a null-terminated string
     return size;
 }
 
@@ -90,7 +90,7 @@ protected:
         if(!string_length) string_length = detect_string_length<std::uint8_t>(buffer_, bytes_offset);
         return std::string_view(chars, *string_length);
     }
-    
+
     inline std::u16string_view extract_u16string(std::size_t bytes_offset, std::optional<std::size_t>& string_length) const
     {
         // Just a stupid sanity check. Actually this should never be able to be false, since
@@ -112,7 +112,6 @@ private:
     std::span<const std::byte> buffer_;
 };
 
-
 struct extract_view_dynamic_base : protected extract_view_base
 {
     inline explicit extract_view_dynamic_base(std::span<const std::byte> buffer, std::uint32_t pointer_size) :
@@ -121,7 +120,6 @@ struct extract_view_dynamic_base : protected extract_view_base
     {}
 
 protected:
-
     // Computes the offset of a member within a record depending on the used pointer_size.
     //
     // @param previous_bytes_count   The size in bytes of all non-pointer values before the value to compute the offset of.
@@ -135,13 +133,14 @@ protected:
     {
         return parser::extract_pointer(buffer(), bytes_offset, pointer_size_);
     }
-    
+
     inline std::uint32_t pointer_size() const
     {
         return pointer_size_;
     }
+
 private:
     std::uint32_t pointer_size_;
 };
 
-} // snail::etl::parser
+} // namespace snail::etl::parser

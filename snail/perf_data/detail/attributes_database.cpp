@@ -22,33 +22,33 @@ void event_attributes_database::validate()
     const auto& main_attributes = all_attributes.front();
 
     if(main_attributes.sample_format.test(parser::sample_format::read) &&
-        !main_attributes.read_format.test(parser::read_format::id))
+       !main_attributes.read_format.test(parser::read_format::id))
     {
         std::cout << "Non matching read format" << std::endl;
         std::exit(EXIT_FAILURE); // TODO: handle error
     }
 
-    id_offset = calculate_id_offset(main_attributes.sample_format);
+    id_offset      = calculate_id_offset(main_attributes.sample_format);
     id_back_offset = calculate_id_back_offset(main_attributes.sample_format);
 
     for(const auto& attributes : all_attributes)
     {
         if(id_offset != calculate_id_offset(attributes.sample_format) ||
-            id_back_offset != calculate_id_back_offset(attributes.sample_format))
+           id_back_offset != calculate_id_back_offset(attributes.sample_format))
         {
             std::cout << "ERROR: Different id positions" << std::endl;
             std::exit(EXIT_FAILURE); // TODO: handle error
         }
 
         if(main_attributes.flags.test(parser::attribute_flag::sample_id_all) !=
-            attributes.flags.test(parser::attribute_flag::sample_id_all))
+           attributes.flags.test(parser::attribute_flag::sample_id_all))
         {
             std::cout << "ERROR: Different sample_id_all" << std::endl;
             std::exit(EXIT_FAILURE); // TODO: handle error
         }
-        
+
         if(main_attributes.read_format.data() !=
-            attributes.read_format.data())
+           attributes.read_format.data())
         {
             std::cout << "ERROR: Different read_format" << std::endl;
             std::exit(EXIT_FAILURE); // TODO: handle error
@@ -86,8 +86,8 @@ std::optional<std::size_t> event_attributes_database::calculate_id_back_offset(c
 
 const parser::event_attributes& event_attributes_database::get_event_attributes(
     const detail::perf_data_file_header_data& file_header,
-    const parser::event_header_view& event_header,
-    std::span<const std::byte> event_data) const
+    const parser::event_header_view&          event_header,
+    std::span<const std::byte>                event_data) const
 {
     assert(!all_attributes.empty());
 
@@ -105,8 +105,8 @@ const parser::event_attributes& event_attributes_database::get_event_attributes(
     }
 
     const auto id = event_header.type() == parser::event_type::sample ?
-        common::parser::extract<std::uint64_t>(event_data, *id_offset, file_header.byte_order) :
-        common::parser::extract<std::uint64_t>(event_data, event_data.size() - *id_back_offset, file_header.byte_order);
+                        common::parser::extract<std::uint64_t>(event_data, *id_offset, file_header.byte_order) :
+                        common::parser::extract<std::uint64_t>(event_data, event_data.size() - *id_back_offset, file_header.byte_order);
 
     if(id == 0)
     {

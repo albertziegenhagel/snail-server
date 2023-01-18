@@ -5,9 +5,9 @@
 
 #include <type_traits>
 
+#include <snail/etl/parser/extract.hpp>
 #include <snail/etl/parser/trace.hpp>
 #include <snail/etl/parser/utility.hpp>
-#include <snail/etl/parser/extract.hpp>
 
 #include <snail/etl/parser/trace_headers/common.hpp>
 
@@ -16,13 +16,13 @@ namespace snail::etl::parser {
 // See EVENT_TRACE_HEADER in evntrace.h
 struct full_header_trace_header_view : private extract_view_base
 {
-    using extract_view_base::extract_view_base;
     using extract_view_base::buffer;
-    
+    using extract_view_base::extract_view_base;
+
     inline auto size() const { return extract<std::uint16_t>(0); }
     inline auto header_type() const { return extract<trace_header_type>(2); }
     inline auto header_flags() const { return extract<std::uint8_t>(3); }
-    
+
     inline auto trace_class() const { return trace_class_view(buffer().subspan(4)); }
 
     inline auto thread_id() const { return extract<std::uint32_t>(4 + trace_class_view::static_size); }

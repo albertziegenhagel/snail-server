@@ -6,8 +6,8 @@
 #include <array>
 
 #include <snail/etl/parser/extract.hpp>
-#include <snail/etl/parser/utility.hpp>
 #include <snail/etl/parser/records/identifier.hpp>
+#include <snail/etl/parser/utility.hpp>
 
 //
 // event records for event_trace_group::perfinfo
@@ -22,11 +22,11 @@ struct perfinfo_v2_sampled_profile_event_view : private extract_view_dynamic_bas
 {
     static inline constexpr std::uint16_t event_version = 2;
     static inline constexpr auto          event_types   = std::array{
-        event_identifier_group{ event_trace_group::perfinfo, 46, "sampled_profile" }
+        event_identifier_group{event_trace_group::perfinfo, 46, "sampled_profile"}
     };
 
-    using extract_view_dynamic_base::extract_view_dynamic_base;
     using extract_view_dynamic_base::buffer;
+    using extract_view_dynamic_base::extract_view_dynamic_base;
 
     inline auto instruction_pointer() const { return extract_pointer(dynamic_offset(0, 0)); }
     inline auto thread_id() const { return extract<std::uint32_t>(dynamic_offset(0, 1)); }

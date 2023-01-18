@@ -17,8 +17,7 @@
 
 using namespace snail::etl;
 
-namespace
-{
+namespace {
 
 // All known trace headers use 16bit integers for their buffer sizes,
 // hence this size should always be enough.
@@ -29,9 +28,9 @@ inline constexpr std::size_t max_buffer_size = 0xFFFF + 1;
 //    parser::compact_trace_header_view and
 //    parser::perfinfo_trace_header_view
 template<typename TraceHeaderViewType>
-std::size_t process_type_1_trace(std::span<const std::byte> payload_buffer,
+std::size_t process_type_1_trace(std::span<const std::byte>   payload_buffer,
                                  const etl_file::header_data& file_header,
-                                 event_observer& callbacks)
+                                 event_observer&              callbacks)
 {
     const auto trace_header = TraceHeaderViewType(payload_buffer);
 
@@ -50,9 +49,9 @@ std::size_t process_type_1_trace(std::span<const std::byte> payload_buffer,
 //    parser::full_header_trace_header_view and
 //    parser::instance_trace_header_view
 template<typename TraceHeaderViewType>
-std::size_t process_type_2_trace(std::span<const std::byte> payload_buffer,
+std::size_t process_type_2_trace(std::span<const std::byte>   payload_buffer,
                                  const etl_file::header_data& file_header,
-                                 event_observer& callbacks)
+                                 event_observer&              callbacks)
 {
     const auto trace_header = TraceHeaderViewType(payload_buffer);
 
@@ -69,9 +68,9 @@ std::size_t process_type_2_trace(std::span<const std::byte> payload_buffer,
 
 // Could basically be handled by `process_type_2_trace`, but `event_header_trace_header_view`
 // can have extended data.
-std::size_t process_event_header_trace(std::span<const std::byte> payload_buffer,
+std::size_t process_event_header_trace(std::span<const std::byte>   payload_buffer,
                                        const etl_file::header_data& file_header,
-                                       event_observer& callbacks)
+                                       event_observer&              callbacks)
 {
     const auto trace_header = parser::event_header_trace_header_view(payload_buffer);
 
@@ -90,13 +89,13 @@ std::size_t process_event_header_trace(std::span<const std::byte> payload_buffer
     return static_cast<std::size_t>(trace_header.size());
 }
 
-std::size_t process_next_trace(std::span<const std::byte> payload_buffer,
+std::size_t process_next_trace(std::span<const std::byte>   payload_buffer,
                                const etl_file::header_data& file_header,
-                               event_observer& callbacks)
+                               event_observer&              callbacks)
 {
     const auto marker = parser::generic_trace_marker_view(payload_buffer);
     assert(marker.is_trace_header() && marker.is_trace_header_event_trace() && !marker.is_trace_message());
-           
+
     std::size_t read_bytes = 0;
     switch(marker.header_type())
     {
@@ -183,7 +182,7 @@ void etl_file::open(const std::filesystem::path& file_path)
     assert(marker.is_trace_header() && marker.is_trace_header_event_trace() && !marker.is_trace_message());
     assert(marker.header_type() == parser::trace_header_type::system32 ||
            marker.header_type() == parser::trace_header_type::system64);
-           
+
     const auto system_trace_header = parser::system_trace_header_view(file_buffer.subspan(
         parser::wmi_buffer_header_view::static_size));
 
@@ -197,7 +196,7 @@ void etl_file::open(const std::filesystem::path& file_path)
         parser::system_trace_header_view::static_size));
 
     header_ = etl_file::header_data{
-        .pointer_size=event_trace_header.pointer_size()
+        .pointer_size = event_trace_header.pointer_size()
         // TODO: extract more (all?) relevant data
     };
 
@@ -224,10 +223,11 @@ void etl_file::process(event_observer& callbacks)
         if(read_bytes < parser::wmi_buffer_header_view::static_size)
         {
             std::cout << std::format(
-                "ERROR: Invalid ETL file: insufficient size for buffer header (index {}). Expected {} but read only {}.",
-                buffer_index,
-                parser::wmi_buffer_header_view::static_size,
-                read_bytes) << std::endl;
+                             "ERROR: Invalid ETL file: insufficient size for buffer header (index {}). Expected {} but read only {}.",
+                             buffer_index,
+                             parser::wmi_buffer_header_view::static_size,
+                             read_bytes)
+                      << std::endl;
             return; // TODO: handle error
         }
 
@@ -240,18 +240,20 @@ void etl_file::process(event_observer& callbacks)
         if(buffer_header.wnode().buffer_size() > file_buffer_data.size())
         {
             std::cout << std::format(
-                "ERROR: Unsupported ETL file: buffer size ({}) exceeds maximum buffer size ({})",
-                buffer_header.wnode().buffer_size(),
-                file_buffer.size()) << std::endl;
+                             "ERROR: Unsupported ETL file: buffer size ({}) exceeds maximum buffer size ({})",
+                             buffer_header.wnode().buffer_size(),
+                             file_buffer.size())
+                      << std::endl;
             return; // TODO: handle error
         }
         if(read_bytes < buffer_header.wnode().saved_offset())
         {
             std::cout << std::format(
-                "ERROR: Invalid ETL file: insufficient size for buffer (index {}). Expected {} but read only {}.",
-                buffer_index,
-                buffer_header.wnode().saved_offset(),
-                read_bytes) << std::endl;
+                             "ERROR: Invalid ETL file: insufficient size for buffer (index {}). Expected {} but read only {}.",
+                             buffer_index,
+                             buffer_header.wnode().saved_offset(),
+                             read_bytes)
+                      << std::endl;
             return; // TODO: handle error
         }
 

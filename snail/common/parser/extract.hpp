@@ -3,8 +3,8 @@
 #include <cassert>
 
 #include <bit>
-#include <span>
 #include <optional>
+#include <span>
 #include <string>
 
 namespace snail::common::parser {
@@ -70,12 +70,12 @@ template<typename CharIntType>
 inline std::size_t detect_string_length(std::span<const std::byte> data, std::size_t bytes_offset, std::endian data_byte_order)
 {
     std::size_t size = 0;
-    while(size*sizeof(CharIntType) < data.size())
+    while(size * sizeof(CharIntType) < data.size())
     {
-        if(extract<CharIntType>(data, bytes_offset + size*sizeof(CharIntType), data_byte_order) == 0) break;
+        if(extract<CharIntType>(data, bytes_offset + size * sizeof(CharIntType), data_byte_order) == 0) break;
         ++size;
     }
-    assert(size*sizeof(CharIntType) < data.size()); // we could not find a null-terminated string
+    assert(size * sizeof(CharIntType) < data.size()); // we could not find a null-terminated string
     return size;
 }
 
@@ -99,7 +99,7 @@ protected:
         if(!string_length) string_length = detect_string_length<std::uint8_t>(buffer_, bytes_offset, byte_order_);
         return std::string_view(chars, *string_length);
     }
-    
+
     inline std::u16string_view extract_u16string(std::size_t bytes_offset, std::optional<std::size_t>& string_length) const
     {
         // Just a stupid sanity check. Actually this should never be able to be false, since
@@ -123,7 +123,7 @@ protected:
 
 private:
     std::span<const std::byte> buffer_;
-    std::endian byte_order_;
+    std::endian                byte_order_;
 };
 
-} // snail::common::parser
+} // namespace snail::common::parser

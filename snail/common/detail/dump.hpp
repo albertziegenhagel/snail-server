@@ -2,10 +2,10 @@
 
 #include <cstdint>
 
+#include <bit>
+#include <format>
 #include <iostream>
 #include <span>
-#include <format>
-#include <bit>
 
 namespace snail::common::detail {
 
@@ -17,14 +17,14 @@ inline void dump_buffer(std::span<const std::byte> buffer, std::size_t offset, s
     for(std::size_t i = 0; i < size; ++i)
     {
         std::cout << std::format("{:#04x}", std::uint8_t(buffer[offset + i]));
-        if(i+1 < size)
+        if(i + 1 < size)
         {
             std::cout << ",";
-            if((i+1) % 16 == 0) std::cout << "\n        ";
+            if((i + 1) % 16 == 0) std::cout << "\n        ";
             else std::cout << " ";
         }
     }
     std::cout << " };" << std::endl;
 }
 
-} // snail::common::detail
+} // namespace snail::common::detail

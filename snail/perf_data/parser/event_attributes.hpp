@@ -2,10 +2,10 @@
 
 #include <cstdint>
 
-#include <type_traits>
-#include <utility>
 #include <optional>
 #include <string>
+#include <type_traits>
+#include <utility>
 
 #include <snail/common/bit_flags.hpp>
 #include <snail/common/parser/extract.hpp>
@@ -64,7 +64,6 @@ enum class read_format
 
 using read_format_flags = common::bit_flags<read_format, 64>;
 
-
 enum class attribute_flag
 {
     disabled                 = 0,  // off by default
@@ -108,7 +107,6 @@ enum class attribute_flag
 
 using attribute_flags = common::bit_flags<attribute_flag, 64>;
 
-
 enum class skid_constraint_type
 {
     can_have_arbitrary_skid,
@@ -124,9 +122,9 @@ struct event_attributes
     // std::uint64_t sample_period / sample_freq;
 
     sample_format_flags sample_format;
-    read_format_flags read_format;
+    read_format_flags   read_format;
 
-    attribute_flags flags;
+    attribute_flags      flags;
     skid_constraint_type precise_ip;
 
     std::optional<std::string> name;
@@ -135,11 +133,11 @@ struct event_attributes
 struct event_attributes_view : protected common::parser::extract_view_base
 {
     using extract_view_base::extract_view_base;
-    
+
     inline auto type() const { return extract<attribute_type>(0); }
     inline auto size() const { return extract<std::uint32_t>(4); }
     inline auto config() const { return extract<std::uint64_t>(8); }
-    
+
     // union
     inline auto sample_period() const
     {
@@ -151,12 +149,12 @@ struct event_attributes_view : protected common::parser::extract_view_base
         assert(flags().test(attribute_flag::freq));
         return extract<std::uint64_t>(16);
     }
-    
+
     inline auto sample_format() const { return sample_format_flags(extract<std::uint64_t>(24)); }
     inline auto read_format() const { return read_format_flags(extract<std::uint64_t>(32)); }
 
     inline attribute_flags flags() const { return attribute_flags(extract<std::uint64_t>(40)); }
-    inline auto precise_ip() const
+    inline auto            precise_ip() const
     {
         const auto precise_ip_type = (extract<std::uint64_t>(40) >> 15) & 0x03;
         switch(precise_ip_type)
@@ -166,7 +164,7 @@ struct event_attributes_view : protected common::parser::extract_view_base
         case 2: return skid_constraint_type::requested_to_have_0_skid;
         case 3: return skid_constraint_type::must_have_0_skid;
         }
-		std::unreachable();
+        std::unreachable();
     }
 
     // union
@@ -180,36 +178,36 @@ struct event_attributes_view : protected common::parser::extract_view_base
         assert(flags().test(attribute_flag::watermark));
         return extract<std::uint32_t>(48);
     }
-    
+
     inline auto bp_type() const { return extract<std::uint32_t>(52); }
-    
+
     // union
     inline auto bp_addr() const { return extract<std::uint64_t>(56); }
     inline auto kprobe_func() const { return extract<std::uint64_t>(56); }
     inline auto uprobe_path() const { return extract<std::uint64_t>(56); }
     inline auto config1() const { return extract<std::uint64_t>(56); }
-    
+
     // union
     inline auto bp_len() const { return extract<std::uint64_t>(64); }
     inline auto kprobe_addr() const { return extract<std::uint64_t>(64); }  /* when kprobe_func == NULL */
     inline auto probe_offset() const { return extract<std::uint64_t>(64); } /* for perf_[k,u]probe */
     inline auto config2() const { return extract<std::uint64_t>(64); }
-    
+
     inline auto branch_sample_type() const { return extract<std::uint64_t>(72); } // enum perf_branch_sample_type
-    
+
     inline auto sample_regs_user() const { return extract<std::uint64_t>(80); }
     inline auto sample_stack_user() const { return extract<std::uint32_t>(88); }
-    
+
     inline auto clockid() const { return extract<std::int32_t>(92); }
 
     inline auto sample_regs_intr() const { return extract<std::uint64_t>(96); }
-    
+
     inline auto aux_watermark() const { return extract<std::uint32_t>(104); }
     inline auto sample_max_stack() const { return extract<std::uint16_t>(108); }
     // inline auto reserved_2() const { return extract<std::uint16_t>(110); }
     inline auto aux_sample_size() const { return extract<std::uint32_t>(112); }
     // inline auto reserved_3() const { return extract<std::uint32_t>(116); }
-    
+
     inline auto sig_data() const { return extract<std::uint64_t>(120); }
 
     static inline constexpr std::size_t static_size = 128;
@@ -217,13 +215,13 @@ struct event_attributes_view : protected common::parser::extract_view_base
     inline auto instantiate() const
     {
         return event_attributes{
-            .type = type(),
+            .type          = type(),
             .sample_format = sample_format(),
-            .read_format = read_format(),
-            .flags = flags(),
-            .precise_ip = precise_ip(),
+            .read_format   = read_format(),
+            .flags         = flags(),
+            .precise_ip    = precise_ip(),
         };
     }
 };
 
-} // namespace snail::etl::parser
+} // namespace snail::perf_data::parser

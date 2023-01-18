@@ -68,7 +68,7 @@ enum class event_type : std::uint32_t
 struct event_header_view : protected common::parser::extract_view_base
 {
     using extract_view_base::extract_view_base;
-    
+
     inline auto type() const { return extract<event_type>(0); }
     inline auto misc() const { return extract<std::uint16_t>(4); }
     inline auto size() const { return extract<std::uint16_t>(6); }
@@ -88,13 +88,14 @@ protected:
     {
         return *attributes_;
     }
+
 private:
     const event_attributes* attributes_;
 };
 
 template<typename T>
-T parse_event(const event_attributes& attributes,
+T parse_event(const event_attributes&    attributes,
               std::span<const std::byte> buffer,
-              std::endian byte_order);
+              std::endian                byte_order);
 
-} // namespace snail::etl::parser
+} // namespace snail::perf_data::parser

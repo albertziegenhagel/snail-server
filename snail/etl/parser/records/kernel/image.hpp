@@ -3,13 +3,13 @@
 
 #include <cstdint>
 
-#include <string>
 #include <array>
 #include <optional>
+#include <string>
 
 #include <snail/etl/parser/extract.hpp>
-#include <snail/etl/parser/utility.hpp>
 #include <snail/etl/parser/records/identifier.hpp>
+#include <snail/etl/parser/utility.hpp>
 
 //
 // Event records for event_trace_group::image
@@ -23,14 +23,14 @@ struct image_v2_load_event_view : private extract_view_dynamic_base
 {
     static inline constexpr std::uint16_t event_version = 3;
     static inline constexpr auto          event_types   = std::array{
-        event_identifier_group{ event_trace_group::process, 10, "load" }, // For an unknown reason, this is reported as in the process group
-        event_identifier_group{ event_trace_group::image,    2, "unload" },
-        event_identifier_group{ event_trace_group::image,    3, "dc_start" },
-        event_identifier_group{ event_trace_group::image,    4, "dc_end" }
+        event_identifier_group{event_trace_group::process, 10, "load"    }, // For an unknown reason, this is reported as in the process group
+        event_identifier_group{event_trace_group::image,   2,  "unload"  },
+        event_identifier_group{event_trace_group::image,   3,  "dc_start"},
+        event_identifier_group{event_trace_group::image,   4,  "dc_end"  }
     };
 
-    using extract_view_dynamic_base::extract_view_dynamic_base;
     using extract_view_dynamic_base::buffer;
+    using extract_view_dynamic_base::extract_view_dynamic_base;
 
     inline auto image_base() const { return extract<std::uint64_t>(dynamic_offset(0, 0)); }
     inline auto image_size() const { return extract<std::uint64_t>(dynamic_offset(0, 1)); }
@@ -52,7 +52,7 @@ struct image_v2_load_event_view : private extract_view_dynamic_base
     // inline auto reserved_2() const { return extract<std::uint32_t>(dynamic_offset(20, 3)); }
     // inline auto reserved_3() const { return extract<std::uint32_t>(dynamic_offset(24, 3)); }
     // inline auto reserved_4() const { return extract<std::uint32_t>(dynamic_offset(28, 3)); }
- 
+
     inline auto file_name() const { return extract_u16string(dynamic_offset(32, 3), file_name_length); }
 
 private:

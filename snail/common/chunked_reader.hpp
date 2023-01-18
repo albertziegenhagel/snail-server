@@ -1,14 +1,14 @@
 #pragma once
 
-#include <fstream>
-#include <type_traits>
-#include <span>
 #include <array>
 #include <bit>
+#include <fstream>
+#include <span>
+#include <type_traits>
 
 // TODO: error handling. Remove includes if not required anymore
-#include <iostream>
 #include <format>
+#include <iostream>
 
 namespace snail::common {
 
@@ -59,7 +59,9 @@ public:
 
         const auto max_remaining_buffer_size = chunk_buffer_.size() - last_chunk_remaining_bytes;
 
-        const auto chunk_bytes_to_read = remaining_data_bytes_to_read > max_remaining_buffer_size ? max_remaining_buffer_size : remaining_data_bytes_to_read;
+        const auto chunk_bytes_to_read = remaining_data_bytes_to_read > max_remaining_buffer_size ?
+                                             max_remaining_buffer_size :
+                                             remaining_data_bytes_to_read;
 
         const auto initial_file_pos = file_stream_.tellg();
         file_stream_.read(reinterpret_cast<char*>(chunk_buffer_.data() + last_chunk_remaining_bytes), chunk_bytes_to_read);
@@ -68,9 +70,10 @@ public:
         if(chunk_read_bytes != static_cast<std::streamoff>(chunk_bytes_to_read))
         {
             std::cout << std::format(
-                "ERROR: Could not read from perf.data: Expected to read {} bytes but only got {}.",
-                chunk_bytes_to_read,
-                chunk_read_bytes) << std::endl;
+                             "ERROR: Could not read from perf.data: Expected to read {} bytes but only got {}.",
+                             chunk_bytes_to_read,
+                             chunk_read_bytes)
+                      << std::endl;
             std::exit(EXIT_FAILURE); // TODO: handle error
         }
 
@@ -93,8 +96,8 @@ public:
             is_chunk_exhausted_ = true;
             return {};
         }
-        
-        const auto result_data =  current_chunk_data_.subspan(chunk_processed_size_, size);
+
+        const auto result_data = current_chunk_data_.subspan(chunk_processed_size_, size);
 
         if(!peek) chunk_processed_size_ += size;
 
@@ -121,7 +124,7 @@ public:
         {
             if(!read_next_chunk())
             {
-                 // The current chunk was the final one. There is no more data to read. We are now done.
+                // The current chunk was the final one. There is no more data to read. We are now done.
                 assert(done());
                 return false;
             }
@@ -130,6 +133,7 @@ public:
         // There is still data in the current chunk, or we have read a new one.
         return true;
     }
+
 private:
     std::ifstream& file_stream_;
 
@@ -137,7 +141,7 @@ private:
 
     std::size_t total_size_;
     std::size_t total_processed_size_ = 0;
-    
+
     std::span<const std::byte> current_chunk_data_;
 
     std::size_t chunk_processed_size_ = 0;
