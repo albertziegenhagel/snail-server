@@ -60,7 +60,7 @@ struct etw_buffer_context_view : private extract_view_base
 };
 
 // See WNODE_HEADER from wmistr.h or the beginning of _WMI_BUFFER_HEADER from ntwmi.h
-// The documentated version (from wmistr.h) differs slightly and does not specifify the
+// The documented version (from wmistr.h) differs slightly and does not specify the
 // ETW sub-structures
 struct wnode_header_view : private extract_view_base
 {
