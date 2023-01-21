@@ -17,7 +17,8 @@ class etl_file
 public:
     struct header_data
     {
-        std::uint32_t pointer_size = 0;
+        std::uint32_t pointer_size;
+        std::uint64_t start_time;
     };
 
     etl_file() = default;
