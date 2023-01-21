@@ -32,7 +32,8 @@ TEST(EtlDispatchEventObserver, Dispatch)
 
     bool common_perfinfo_called = false;
     observer.register_event<etl::parser::perfinfo_v2_sampled_profile_event_view>(
-        [&common_perfinfo_called](const etl::common_trace_header&                            header,
+        [&common_perfinfo_called](const etl::etl_file::header_data& /*file_header*/,
+                                  const etl::common_trace_header&                            header,
                                   const etl::parser::perfinfo_v2_sampled_profile_event_view& event)
         {
             EXPECT_EQ(header.timestamp, 3072009310573);
@@ -44,7 +45,8 @@ TEST(EtlDispatchEventObserver, Dispatch)
         });
     bool variant_perfinfo_called = false;
     observer.register_event<etl::parser::perfinfo_v2_sampled_profile_event_view>(
-        [&variant_perfinfo_called](const etl::any_group_trace_header&                         header,
+        [&variant_perfinfo_called](const etl::etl_file::header_data& /*file_header*/,
+                                   const etl::any_group_trace_header&                         header,
                                    const etl::parser::perfinfo_v2_sampled_profile_event_view& event)
         {
             const auto* full_header = std::get_if<etl::parser::perfinfo_trace_header_view>(&header);
@@ -62,7 +64,8 @@ TEST(EtlDispatchEventObserver, Dispatch)
 
     bool common_image_called = false;
     observer.register_event<etl::parser::image_id_v2_info_event_view>(
-        [&common_image_called](const etl::common_trace_header&                 header,
+        [&common_image_called](const etl::etl_file::header_data& /*file_header*/,
+                               const etl::common_trace_header&                 header,
                                const etl::parser::image_id_v2_info_event_view& event)
         {
             EXPECT_EQ(header.timestamp, 3072009312284);
@@ -74,7 +77,8 @@ TEST(EtlDispatchEventObserver, Dispatch)
         });
     bool variant_image_called = false;
     observer.register_event<etl::parser::image_id_v2_info_event_view>(
-        [&variant_image_called](const etl::any_guid_trace_header&               header,
+        [&variant_image_called](const etl::etl_file::header_data& /*file_header*/,
+                                const etl::any_guid_trace_header&               header,
                                 const etl::parser::image_id_v2_info_event_view& event)
         {
             const auto* full_header = std::get_if<etl::parser::full_header_trace_header_view>(&header);

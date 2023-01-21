@@ -64,13 +64,15 @@ TEST(EtlFile, Process)
     etl::dispatching_event_observer observer;
 
     observer.register_event<etl::parser::stackwalk_v2_stack_event_view>(
-        [](const etl::common_trace_header& /*header*/,
+        [](const etl::etl_file::header_data& /*file_header*/,
+           const etl::common_trace_header& /*header*/,
            const etl::parser::stackwalk_v2_stack_event_view& event)
         {
             [[maybe_unused]] const auto stack_size = event.stack_size();
         });
     observer.register_event<etl::parser::perfinfo_v2_sampled_profile_event_view>(
-        [](const etl::common_trace_header& /*header*/,
+        [](const etl::etl_file::header_data& /*file_header*/,
+           const etl::common_trace_header& /*header*/,
            const etl::parser::perfinfo_v2_sampled_profile_event_view& event)
         {
             [[maybe_unused]] const auto instruction_pointer = event.instruction_pointer();
@@ -82,26 +84,30 @@ TEST(EtlFile, Process)
             // exit(0);
         });
     observer.register_event<etl::parser::process_v4_type_group1_event_view>(
-        [](const etl::common_trace_header& /*header*/,
+        [](const etl::etl_file::header_data& /*file_header*/,
+           const etl::common_trace_header& /*header*/,
            const etl::parser::process_v4_type_group1_event_view& event)
         {
             [[maybe_unused]] const auto process_id = event.process_id();
         });
     observer.register_event<etl::parser::thread_v3_type_group1_event_view>(
-        [](const etl::common_trace_header& /*header*/,
+        [](const etl::etl_file::header_data& /*file_header*/,
+           const etl::common_trace_header& /*header*/,
            const etl::parser::thread_v3_type_group1_event_view& event)
         {
             [[maybe_unused]] const auto process_id = event.process_id();
         });
     observer.register_event<etl::parser::image_v2_load_event_view>(
-        [](const etl::common_trace_header& /*header*/,
+        [](const etl::etl_file::header_data& /*file_header*/,
+           const etl::common_trace_header& /*header*/,
            const etl::parser::image_v2_load_event_view& event)
         {
             [[maybe_unused]] const auto image_base = event.image_base();
         });
 
     observer.register_event<etl::parser::image_id_v2_info_event_view>(
-        [](const etl::common_trace_header& /*header*/,
+        [](const etl::etl_file::header_data& /*file_header*/,
+           const etl::common_trace_header& /*header*/,
            const etl::parser::image_id_v2_info_event_view& event)
         {
             [[maybe_unused]] const auto image_base = event.image_base();
