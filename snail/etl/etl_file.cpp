@@ -2,6 +2,7 @@
 #include <array>
 #include <bit>
 #include <iostream>
+#include <queue>
 
 #include <snail/etl/etl_file.hpp>
 
@@ -22,6 +23,119 @@ namespace {
 // All known trace headers use 16bit integers for their buffer sizes,
 // hence this size should always be enough.
 inline constexpr std::size_t max_buffer_size = 0xFFFF + 1;
+
+struct buffer_info
+{
+    std::span<const std::byte> header_buffer;
+    std::span<const std::byte> payload_buffer;
+    std::size_t                current_payload_offset;
+};
+
+struct processor_data
+{
+    std::array<std::byte, max_buffer_size> current_buffer_data;
+
+    buffer_info current_buffer_info;
+
+    struct file_buffer_info
+    {
+        std::streampos start_pos;
+        std::int64_t   sequence_number;
+    };
+
+    std::vector<file_buffer_info> remaining_buffers;
+};
+
+struct next_event_priority_info
+{
+    std::uint64_t next_event_time;
+    std::size_t   processor_index;
+
+    bool operator<(const next_event_priority_info& other) const
+    {
+        // event with lowest timestamp has highest priority
+        return next_event_time > other.next_event_time;
+    }
+};
+
+buffer_info read_buffer(std::ifstream&                          file_stream,
+                        std::streampos                          buffer_start_pos,
+                        std::array<std::byte, max_buffer_size>& buffer_data)
+{
+    file_stream.seekg(buffer_start_pos);
+    file_stream.read(reinterpret_cast<char*>(buffer_data.data()), buffer_data.size());
+
+    const auto read_bytes = file_stream.tellg() - buffer_start_pos;
+    if(read_bytes < parser::wmi_buffer_header_view::static_size)
+    {
+        std::cout << std::format(
+                            "ERROR: Invalid ETL file: insufficient size for buffer header. Expected {} but read only {}.",
+                            parser::wmi_buffer_header_view::static_size,
+                            read_bytes)
+                    << std::endl;
+        std::exit(EXIT_FAILURE); // TODO: handle error
+    }
+    const auto total_buffer = std::span(buffer_data);
+
+    const auto header_buffer = total_buffer.subspan(0, parser::wmi_buffer_header_view::static_size);
+
+    const auto header = parser::wmi_buffer_header_view(header_buffer);
+
+    if(header.wnode().buffer_size() > total_buffer.size())
+    {
+        std::cout << std::format(
+                            "ERROR: Unsupported ETL file: buffer size ({}) exceeds maximum buffer size ({})",
+                            header.wnode().buffer_size(),
+                            total_buffer.size())
+                    << std::endl;
+        std::exit(EXIT_FAILURE); // TODO: handle error
+    }
+    if(read_bytes < header.wnode().saved_offset())
+    {
+        std::cout << std::format(
+                            "ERROR: Invalid ETL file: insufficient size for buffer. Expected {} but read only {}.",
+                            header.wnode().saved_offset(),
+                            read_bytes)
+                    << std::endl;
+        std::exit(EXIT_FAILURE); // TODO: handle error
+    }
+
+    const auto payload_size   = header.wnode().saved_offset() - parser::wmi_buffer_header_view::static_size;
+    const auto payload_buffer = total_buffer.subspan(parser::wmi_buffer_header_view::static_size, payload_size);
+
+    return buffer_info{header_buffer, payload_buffer, 0};
+}
+
+std::uint64_t peak_next_event_time(const buffer_info& buffer)
+{
+    const auto event_buffer = buffer.payload_buffer.subspan(buffer.current_payload_offset);
+    const auto marker = parser::generic_trace_marker_view(event_buffer);
+    assert(marker.is_trace_header() && marker.is_trace_header_event_trace() && !marker.is_trace_message());
+
+    switch(marker.header_type())
+    {
+    case parser::trace_header_type::system32:
+    case parser::trace_header_type::system64:
+        return parser::system_trace_header_view(event_buffer).system_time();
+    case parser::trace_header_type::compact32:
+    case parser::trace_header_type::compact64:
+        return parser::compact_trace_header_view(event_buffer).system_time();
+    case parser::trace_header_type::perfinfo32:
+    case parser::trace_header_type::perfinfo64:
+        return parser::perfinfo_trace_header_view(event_buffer).system_time();
+    case parser::trace_header_type::full_header32:
+    case parser::trace_header_type::full_header64:
+        return parser::full_header_trace_header_view(event_buffer).timestamp();
+    case parser::trace_header_type::instance32:
+    case parser::trace_header_type::instance64:
+        return parser::instance_trace_header_view(event_buffer).timestamp();
+    case parser::trace_header_type::event_header32:
+    case parser::trace_header_type::event_header64:
+        return parser::event_header_trace_header_view(event_buffer).timestamp();
+    default:
+        throw std::runtime_error(std::format("Unsupported trace header type {}", (int)marker.header_type()));
+    }
+}
 
 // Supports:
 //    parser::system_trace_header_view,
@@ -191,13 +305,15 @@ void etl_file::open(const std::filesystem::path& file_path)
     assert(system_trace_header.packet().type() == 0);
     assert(system_trace_header.version() == 2);
 
-    const auto event_trace_header = parser::event_trace_v2_header_event_view(file_buffer.subspan(
+    const auto header_event = parser::event_trace_v2_header_event_view(file_buffer.subspan(
         parser::wmi_buffer_header_view::static_size +
         parser::system_trace_header_view::static_size));
 
     header_ = etl_file::header_data{
-        .pointer_size = event_trace_header.pointer_size(),
-        .start_time   = system_trace_header.system_time()
+        .pointer_size = header_event.pointer_size(),
+        .start_time   = header_event.start_time(),
+        .number_of_processors = header_event.number_of_processors(),
+        .number_of_buffers = header_event.buffers_written()
         // TODO: extract more (all?) relevant data
     };
 
@@ -211,71 +327,149 @@ void etl_file::close()
 
 void etl_file::process(event_observer& callbacks)
 {
-    std::array<std::byte, max_buffer_size> file_buffer_data;
+    std::vector<processor_data> per_processor_data{header_.number_of_processors};
 
-    // read all buffers
-    for(std::size_t buffer_index = 0; file_stream_.good() && file_stream_.peek() != EOF; ++buffer_index)
+    // build a list of file buffers per processor
     {
-        const auto init_position = file_stream_.tellg();
-
-        file_stream_.read(reinterpret_cast<char*>(file_buffer_data.data()), file_buffer_data.size());
-
-        const auto read_bytes = file_stream_.tellg() - init_position;
-        if(read_bytes < parser::wmi_buffer_header_view::static_size)
+        std::array<std::byte, parser::wmi_buffer_header_view::static_size> header_buffer_data;
+        for(std::size_t buffer_index = 0; buffer_index < header_.number_of_buffers; ++buffer_index)
         {
-            std::cout << std::format(
-                             "ERROR: Invalid ETL file: insufficient size for buffer header (index {}). Expected {} but read only {}.",
-                             buffer_index,
-                             parser::wmi_buffer_header_view::static_size,
-                             read_bytes)
-                      << std::endl;
-            return; // TODO: handle error
-        }
+            const auto init_position = file_stream_.tellg();
 
-        const auto file_buffer = std::span(file_buffer_data);
+            file_stream_.read(reinterpret_cast<char*>(header_buffer_data.data()), header_buffer_data.size());
 
-        const auto buffer_header = parser::wmi_buffer_header_view(file_buffer);
+            assert(file_stream_.good());
 
-        // assert(buffer_header.buffer_type() == parser::etw_buffer_type::header);
+            const auto read_bytes = file_stream_.tellg() - init_position;
+            if(read_bytes < parser::wmi_buffer_header_view::static_size)
+            {
+                std::cout << std::format(
+                                    "ERROR: Invalid ETL file: insufficient size for buffer header (index {}). Expected {} but read only {}.",
+                                    buffer_index,
+                                    parser::wmi_buffer_header_view::static_size,
+                                    read_bytes)
+                            << std::endl;
+                std::exit(EXIT_FAILURE); // TODO: handle error
+            }
+            const auto buffer_header = parser::wmi_buffer_header_view(std::span(header_buffer_data));
 
-        if(buffer_header.wnode().buffer_size() > file_buffer_data.size())
-        {
-            std::cout << std::format(
-                             "ERROR: Unsupported ETL file: buffer size ({}) exceeds maximum buffer size ({})",
-                             buffer_header.wnode().buffer_size(),
-                             file_buffer.size())
-                      << std::endl;
-            return; // TODO: handle error
-        }
-        if(read_bytes < buffer_header.wnode().saved_offset())
-        {
-            std::cout << std::format(
-                             "ERROR: Invalid ETL file: insufficient size for buffer (index {}). Expected {} but read only {}.",
-                             buffer_index,
-                             buffer_header.wnode().saved_offset(),
-                             read_bytes)
-                      << std::endl;
-            return; // TODO: handle error
-        }
+            const auto sequence_number = buffer_header.wnode().sequence_number();
+            
+            if(sequence_number > header_.number_of_buffers)
+            {
+                std::cout << std::format(
+                                    "ERROR: Invalid ETL file: invalid header sequence value. Expected at max {} buffers but sequence number is {}.",
+                                    header_.number_of_buffers,
+                                    sequence_number)
+                            << std::endl;
+                std::exit(EXIT_FAILURE); // TODO: handle error
+            }
 
-        const auto payload_size   = buffer_header.wnode().saved_offset() - parser::wmi_buffer_header_view::static_size;
-        const auto payload_buffer = file_buffer.subspan(parser::wmi_buffer_header_view::static_size, payload_size);
+            const auto processor_index = buffer_header.wnode().client_context().processor_index();
 
-        // read traces as long as there is payload data left to read
-        std::size_t payload_offset = 0;
-        while(payload_offset < payload_size)
-        {
-            const auto trace_read_bytes = process_next_trace(payload_buffer.subspan(payload_offset), header_, callbacks);
-            payload_offset += trace_read_bytes;
-        }
+            if(processor_index > header_.number_of_processors)
+            {
+                std::cout << std::format(
+                                    "ERROR: Invalid ETL file: invalid processor index. Expected at max {} processors but process index is {}.",
+                                    header_.number_of_processors,
+                                    processor_index)
+                            << std::endl;
+                std::exit(EXIT_FAILURE); // TODO: handle error
+            }
 
-        // If we have read to much data, reset the file pointer to the end of the current buffer
-        // We expect that usually the actual buffer size will exactly match the max buffer size, hence
-        // we do not expect this branch to be taken. If our assumption is incorrect, this would actually
-        // be very inefficient.
-        if(buffer_header.wnode().buffer_size() < max_buffer_size)
-        {
+            per_processor_data[processor_index].remaining_buffers.push_back(
+                processor_data::file_buffer_info{
+                    .start_pos       = init_position,
+                    .sequence_number = sequence_number});
+
+            // seek to start of next buffer
             file_stream_.seekg(init_position + std::streamoff(buffer_header.wnode().buffer_size()));
+        }
+    }
+
+    // Sort the buffers per processor by their sequence number and read the first buffer
+    // for each process.
+    // Then extract the time of the first event in each of the processor buffers and initialize
+    // a priority queue with the first event times per processor.
+    std::priority_queue<next_event_priority_info> event_queue;
+    for(std::size_t processor_index = 0; processor_index < per_processor_data.size(); ++processor_index)
+    {
+        auto& processor_data    = per_processor_data[processor_index];
+        auto& remaining_buffers = processor_data.remaining_buffers;
+
+        if(remaining_buffers.empty()) continue;
+
+        std::ranges::sort(remaining_buffers, [](const processor_data::file_buffer_info& lhs, const processor_data::file_buffer_info& rhs){
+            return lhs.sequence_number > rhs.sequence_number;
+        });
+
+        processor_data.current_buffer_info = read_buffer(file_stream_,
+                                                         remaining_buffers.back().start_pos,
+                                                         processor_data.current_buffer_data);
+        remaining_buffers.pop_back();
+
+        event_queue.push(next_event_priority_info{
+            .next_event_time = peak_next_event_time(processor_data.current_buffer_info),
+            .processor_index = processor_index
+        });
+    }
+
+    // Extract all events in the correct time order:
+    //   - Retrieve the processor index that has the event with the lowest time stamp
+    //   - Extract all events of that that process until the next event of that process has a later
+    //     timestamp than the earliest event of any other processor.
+    //   - If any processors buffer is exhausted after an event extraction, we will try to load
+    //     the next buffer for that processor (if there are any buffers left).
+    while(!event_queue.empty())
+    {
+        // Get the processor that has the earliest event to extract next.
+        const auto [_, processor_index] = event_queue.top();
+        event_queue.pop();
+
+        auto& processor_data = per_processor_data[processor_index];
+
+        // Extract events for this processor as long as possible
+        while(true)
+        {
+            auto& buffer_info = processor_data.current_buffer_info;
+            
+            // Extract and process the next event
+            const auto trace_read_bytes = process_next_trace(buffer_info.payload_buffer.subspan(buffer_info.current_payload_offset), header_, callbacks);
+            buffer_info.current_payload_offset += trace_read_bytes;
+
+            // Check whether this was the last event in the current processors buffer
+            const auto buffer_exhausted = buffer_info.current_payload_offset >= buffer_info.payload_buffer.size();
+            if(buffer_exhausted)  
+            {
+                callbacks.handle(header_, parser::wmi_buffer_header_view(buffer_info.header_buffer));
+
+                auto& remaining_buffers = processor_data.remaining_buffers;
+
+                // If there are no remaining buffers for this processor, stop extracting events for it.
+                if(remaining_buffers.empty()) break;
+
+                // Read the next buffer for this processor.
+                // Keep in mind, that `remaining_buffers` is sorted.
+                buffer_info = read_buffer(file_stream_,
+                                          remaining_buffers.back().start_pos,
+                                          processor_data.current_buffer_data);
+                remaining_buffers.pop_back();
+            }
+            
+            const auto next_event_time = peak_next_event_time(buffer_info);
+
+            if(!event_queue.empty() && event_queue.top().next_event_time < next_event_time)
+            {
+                // There is another processor which's next event is earlier than the
+                // next event for the current processor. Hence, insert the current processors
+                // event into the priority queue and stop extracting events for the current
+                // processor.
+                event_queue.push(next_event_priority_info{
+                    .next_event_time = next_event_time,
+                    .processor_index = processor_index
+                });
+                break;
+            }
         }
     }
 }
