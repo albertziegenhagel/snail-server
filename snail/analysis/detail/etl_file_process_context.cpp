@@ -1,0 +1,402 @@
+
+#include <snail/analysis/detail/etl_file_process_context.hpp>
+
+#include <ranges>
+
+#include <snail/etl/parser/records/kernel/config.hpp>
+#include <snail/etl/parser/records/kernel/image.hpp>
+#include <snail/etl/parser/records/kernel/perfinfo.hpp>
+#include <snail/etl/parser/records/kernel/process.hpp>
+#include <snail/etl/parser/records/kernel/stackwalk.hpp>
+#include <snail/etl/parser/records/kernel/thread.hpp>
+#include <snail/etl/parser/records/kernel_trace_control/image_id.hpp>
+#include <snail/etl/parser/records/visual_studio/diagnostics_hub.hpp>
+
+#include <snail/common/unicode.hpp>
+
+using namespace snail;
+using namespace snail::analysis::detail;
+
+namespace {
+
+struct stack_hasher
+{
+    std::size_t operator()(const std::vector<std::uint64_t>& stack) const
+    {
+        std::size_t hash = stack.size();
+        for(auto ip : stack)
+        {
+            hash ^= instruction_pointer_hash(ip) + (hash << 6) + (hash >> 2);
+        }
+        return hash;
+    }
+    std::size_t operator()(const etl::parser::stackwalk_v2_stack_event_view& stack_event) const
+    {
+        const auto  stack_size = stack_event.stack_size();
+        std::size_t hash       = stack_size;
+        for(std::size_t i = 0; i < stack_size; ++i)
+        {
+            hash ^= instruction_pointer_hash(stack_event.stack_address(i)) + (hash << 6) + (hash >> 2);
+        }
+        return hash;
+    }
+
+private:
+    std::hash<std::uint64_t> instruction_pointer_hash;
+};
+
+bool stack_equals(const std::vector<std::uint64_t>&                 stack,
+                  const etl::parser::stackwalk_v2_stack_event_view& stack_event)
+{
+    if(stack.size() != stack_event.stack_size()) return false;
+
+    for(std::size_t i = 0; i < stack.size(); ++i)
+    {
+        if(stack[i] != stack_event.stack_address(i)) return false;
+    }
+
+    return true;
+}
+
+bool is_kernel_address(std::uint64_t address, std::uint32_t pointer_size)
+{
+    // See https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/user-space-and-system-space
+    return pointer_size == 4 ?
+               address >= 0x80000000 :        // 32bit
+               address >= 0x0000800000000000; // 64bit
+}
+
+} // namespace
+
+etl_file_process_context::etl_file_process_context()
+{
+    register_event<etl::parser::system_config_v2_physical_disk_event_view>();
+    register_event<etl::parser::system_config_v2_logical_disk_event_view>();
+    register_event<etl::parser::process_v4_type_group1_event_view>();
+    register_event<etl::parser::thread_v3_type_group1_event_view>();
+    register_event<etl::parser::image_v2_load_event_view>();
+    register_event<etl::parser::perfinfo_v2_sampled_profile_event_view>();
+    register_event<etl::parser::stackwalk_v2_stack_event_view>();
+    register_event<etl::parser::vs_diagnostics_hub_target_profiling_started_event_view>();
+}
+
+etl_file_process_context::~etl_file_process_context()
+{}
+
+etl::dispatching_event_observer& etl_file_process_context::observer()
+{
+    return observer_;
+}
+
+void etl_file_process_context::resolve_nt_paths()
+{
+    static constexpr std::string_view nt_drive_name_prefix = "\\Device\\HarddiskVolume";
+
+    for(auto& [process_id, process_modules] : modules_per_process)
+    {
+        for(auto& module : process_modules)
+        {
+            if(!module.file_name.starts_with(nt_drive_name_prefix)) continue;
+
+            const auto    path_start        = module.file_name.find_first_of('\\', nt_drive_name_prefix.size());
+            const auto    partition_num_str = std::string_view(module.file_name).substr(nt_drive_name_prefix.size(), path_start - nt_drive_name_prefix.size());
+            std::uint32_t partition_num;
+            auto          result = std::from_chars(partition_num_str.data(), partition_num_str.data() + partition_num_str.size(), partition_num);
+            if(result.ec != std::errc{} || result.ptr != partition_num_str.data() + partition_num_str.size()) continue;
+
+            auto partition_iter = nt_partition_to_dos_volume_mapping.find(partition_num);
+            if(partition_iter == nt_partition_to_dos_volume_mapping.end()) continue;
+            std::string new_file_name;
+            const auto  remaining_file_name = std::string_view(module.file_name).substr(path_start);
+            new_file_name.reserve(partition_iter->second.size() + remaining_file_name.size());
+
+            std::copy(partition_iter->second.begin(), partition_iter->second.end(), std::back_inserter(new_file_name));
+            std::copy(remaining_file_name.begin(), remaining_file_name.end(), std::back_inserter(new_file_name));
+
+            module.file_name = new_file_name;
+        }
+    }
+}
+
+const std::unordered_map<etl_file_process_context::process_id_t, etl_file_process_context::profiler_process_info>& etl_file_process_context::profiler_processes() const
+{
+    return profiler_processes_;
+}
+
+template<typename T>
+void etl_file_process_context::register_event()
+{
+    observer_.register_event<T>(
+        [this](const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const T& event)
+        {
+            this->handle_event(file_header, header, event);
+        });
+}
+
+void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
+                                            const etl::common_trace_header& /*header*/,
+                                            const etl::parser::system_config_v2_physical_disk_event_view& event)
+{
+    const auto disk_number     = event.disk_number();
+    const auto partition_count = event.partition_count();
+
+    number_of_partitions_per_disk[disk_number] = partition_count;
+}
+
+void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
+                                            const etl::common_trace_header& /*header*/,
+                                            const etl::parser::system_config_v2_logical_disk_event_view& event)
+{
+    const auto disk_number = event.disk_number();
+    assert(event.drive_type() == etl::parser::drive_type::partition);
+
+    auto global_partition_number = event.partition_number();
+    for(const auto [disk, partition_count] : number_of_partitions_per_disk)
+    {
+        if(disk >= disk_number) break;
+        global_partition_number += partition_count;
+    }
+
+    nt_partition_to_dos_volume_mapping[global_partition_number] = common::utf16_to_utf8<char>(event.drive_letter());
+}
+
+void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
+                                            const etl::common_trace_header&                       header,
+                                            const etl::parser::process_v4_type_group1_event_view& event)
+{
+    if(header.type != 1 && header.type != 3) return; // We do only handle start events
+
+    const auto process_id = event.process_id();
+
+    auto& processes = processes_by_id[process_id];
+
+    if(processes.empty() ||
+       std::string_view(processes.back().image_filename) != event.image_filename() ||
+       std::u16string_view(processes.back().command_line) != event.command_line())
+    {
+        processes.push_back(process_info{
+            .process_id       = process_id,
+            .first_event_time = header.timestamp,
+            .image_filename   = std::string(event.image_filename()),
+            .command_line     = std::u16string(event.command_line())});
+    }
+}
+
+void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
+                                            const etl::common_trace_header&                      header,
+                                            const etl::parser::thread_v3_type_group1_event_view& event)
+{
+    if(header.type != 1 && header.type != 3) return; // We do only handle start events
+
+    const auto thread_id  = event.thread_id();
+    const auto process_id = event.process_id();
+
+    auto& threads = threads_by_id[thread_id];
+
+    if(threads.empty() || threads.back().process_id != process_id)
+    {
+        assert(threads.empty() || threads.back().first_event_time <= header.timestamp);
+        threads.push_back(thread_info{
+            .thread_id        = thread_id,
+            .first_event_time = header.timestamp,
+            .process_id       = process_id});
+    }
+}
+
+void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
+                                            const etl::common_trace_header&              header,
+                                            const etl::parser::image_v2_load_event_view& event)
+{
+    if(header.type != 10 && header.type != 3) return; // We do only handle load events
+
+    const auto process_id = event.process_id();
+
+    auto& modules = modules_per_process[process_id];
+
+    modules.push_back(module_info{
+        .load_timestamp = header.timestamp,
+        .image_base     = event.image_base(),
+        .image_size     = event.image_size(),
+        .file_name      = common::utf16_to_utf8<char>(event.file_name())});
+}
+
+void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
+                                            const etl::common_trace_header&                            header,
+                                            const etl::parser::perfinfo_v2_sampled_profile_event_view& event)
+{
+    const auto        thread_id = event.thread_id();
+    const auto* const thread    = try_get_thread_at(thread_id, header.timestamp);
+
+    if(!thread) return;
+
+    const auto process_id = thread->process_id;
+
+    auto& process_samples = samples_per_process[process_id];
+
+    process_samples.push_back(sample_info{
+        .thread_id           = thread_id,
+        .timestamp           = header.timestamp,
+        .instruction_pointer = event.instruction_pointer()});
+}
+
+void etl_file_process_context::handle_event(const etl::etl_file::header_data& file_header,
+                                            const etl::common_trace_header& /*header*/,
+                                            const etl::parser::stackwalk_v2_stack_event_view& event)
+{
+    const auto process_id = event.process_id();
+    auto       iter       = samples_per_process.find(process_id);
+    if(iter == samples_per_process.end()) return;
+
+    const auto thread_id        = event.thread_id();
+    const auto sample_timestamp = event.event_timestamp();
+
+    auto& process_samples = iter->second;
+
+    for(auto& sample : std::views::reverse(process_samples))
+    {
+        if(sample.timestamp < sample_timestamp) break;
+        if(sample.timestamp > sample_timestamp) continue;
+
+        assert(sample.timestamp == sample_timestamp);
+
+        if(sample.thread_id != thread_id) continue;
+
+        const auto stack_hash = stack_hasher()(event);
+
+        auto& saved_stack_indices = stack_map[stack_hash];
+
+        std::optional<std::size_t> existing_stack_index;
+        for(const auto& stack_index : saved_stack_indices)
+        {
+            const auto& saved_stack = stacks[stack_index];
+            if(!stack_equals(saved_stack, event)) continue;
+
+            existing_stack_index = stack_index;
+        }
+
+        const auto starts_in_kernel = is_kernel_address(event.stack_address(event.stack_size() - 1), file_header.pointer_size);
+
+        auto& sample_stack_index = starts_in_kernel ? sample.kernel_mode_stack : sample.user_mode_stack;
+
+        if(existing_stack_index)
+        {
+            assert(sample_stack_index == std::nullopt);
+            sample_stack_index = *existing_stack_index;
+        }
+        else
+        {
+            const auto                         stack_size = event.stack_size();
+            std::vector<instruction_pointer_t> stack;
+            stack.reserve(stack_size);
+            for(std::size_t index = 0; index < stack_size; ++index)
+            {
+                stack.push_back(event.stack_address(index));
+            }
+
+            const auto new_stack_index = stacks.size();
+            stacks.push_back(std::move(stack));
+            saved_stack_indices.push_back(new_stack_index);
+
+            assert(sample_stack_index == std::nullopt);
+            sample_stack_index = new_stack_index;
+        }
+
+        // break;
+    }
+}
+
+void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
+                                            const etl::common_trace_header&                                            header,
+                                            const etl::parser::vs_diagnostics_hub_target_profiling_started_event_view& event)
+{
+    const auto process_id           = event.process_id();
+    profiler_processes_[process_id] = profiler_process_info{
+        .process_id      = process_id,
+        .start_timestamp = header.timestamp};
+}
+
+etl_file_process_context::process_info* etl_file_process_context::try_get_process_at(process_id_t process_id, timestamp_t timestamp)
+{
+    auto* const const_result = static_cast<const etl_file_process_context*>(this)->try_get_process_at(process_id, timestamp);
+    return const_cast<process_info*>(const_result);
+}
+
+const etl_file_process_context::process_info* etl_file_process_context::try_get_process_at(process_id_t process_id, timestamp_t timestamp) const
+{
+    auto iter = processes_by_id.find(process_id);
+    if(iter == processes_by_id.end()) return nullptr;
+
+    // Processes should be sorted as latest thread comes last.
+    for(auto& process : std::views::reverse(iter->second))
+    {
+        if(process.first_event_time <= timestamp) return &process;
+    }
+
+    // We should never end up here.
+    // But in case of error, we just return the latest process with that id
+    assert(false);
+    return &iter->second.back();
+}
+
+etl_file_process_context::thread_info* etl_file_process_context::try_get_thread_at(thread_id_t thread_id, timestamp_t timestamp)
+{
+    auto* const const_result = static_cast<const etl_file_process_context*>(this)->try_get_thread_at(thread_id, timestamp);
+    return const_cast<thread_info*>(const_result);
+}
+
+const etl_file_process_context::thread_info* etl_file_process_context::try_get_thread_at(thread_id_t thread_id, timestamp_t timestamp) const
+{
+    auto iter = threads_by_id.find(thread_id);
+    if(iter == threads_by_id.end()) return nullptr;
+
+    // Threads should be sorted as latest thread comes last.
+    for(auto& thread : std::views::reverse(iter->second))
+    {
+        if(thread.first_event_time <= timestamp) return &thread;
+    }
+
+    // We should never end up here.
+    // But in case of error, we just return the latest thread with that id
+    assert(false);
+    return &iter->second.back();
+}
+
+const etl_file_process_context::module_info* etl_file_process_context::try_get_module_at(process_id_t process_id, instruction_pointer_t address, timestamp_t timestamp) const
+{
+    const auto iter = modules_per_process.find(process_id);
+    if(iter == modules_per_process.end()) return nullptr;
+
+    const auto& modules = iter->second;
+
+    const module_info* current_best_mod = nullptr;
+
+    // TODO: speed this up!
+    for(const auto& mod : modules)
+    {
+        if(address < mod.image_base) continue;
+        if(address >= mod.image_base + mod.image_size) continue;
+
+        if(mod.load_timestamp > timestamp) continue;
+
+        if(current_best_mod == nullptr ||
+           mod.load_timestamp > current_best_mod->load_timestamp)
+        {
+            current_best_mod = &mod;
+        }
+    }
+    return current_best_mod;
+}
+
+const std::vector<etl_file_process_context::sample_info>& etl_file_process_context::process_samples(process_id_t process_id) const
+{
+    auto iter = samples_per_process.find(process_id);
+    if(iter != samples_per_process.end()) return iter->second;
+
+    static const std::vector<etl_file_process_context::sample_info> empty;
+    return empty;
+}
+
+const std::vector<etl_file_process_context::instruction_pointer_t>& etl_file_process_context::stack(std::size_t stack_index) const
+{
+    return stacks.at(stack_index);
+}
