@@ -11,6 +11,6 @@ target_sources(perf_data PRIVATE
   parser/records/kernel.cpp
 )
 
-target_link_libraries(perf_data compile_options)
+target_link_libraries(perf_data compile_options common)
 
 target_include_directories(perf_data PUBLIC ${CMAKE_SOURCE_DIR})

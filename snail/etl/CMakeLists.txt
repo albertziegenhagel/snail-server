@@ -8,7 +8,7 @@ target_sources(etl PRIVATE
   # etlreader.cpp
 )
 
-target_link_libraries(etl compile_options)
+target_link_libraries(etl compile_options common)
 
 # target_link_libraries(etl DiaSDK::DiaSDK)
 
