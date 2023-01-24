@@ -9,8 +9,6 @@ set(CMAKE_CXX_STANDARD 23)
 
 include(cmake/compile_options.cmake)
 
-find_package(DiaSDK REQUIRED)
-
 find_package(LLVM REQUIRED CONFIG
   COMPONENTS
     LLVMDebugInfoPDB
