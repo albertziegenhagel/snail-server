@@ -6,6 +6,8 @@
 #include <array>
 #include <functional>
 
+#include <snail/common/hash_combine.hpp>
+
 namespace snail::etl {
 
 // See GUID from guiddef.h
@@ -36,7 +38,7 @@ struct hash<snail::etl::guid>
     {
         const std::uint64_t*     p = reinterpret_cast<const std::uint64_t*>(&guid);
         std::hash<std::uint64_t> hash;
-        return hash(p[0]) ^ hash(p[1]);
+        return snail::common::hash_combine(hash(p[0]), hash(p[1]));
     }
 };
 

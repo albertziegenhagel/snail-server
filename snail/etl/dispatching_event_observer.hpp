@@ -16,6 +16,8 @@
 #include <snail/etl/parser/trace_headers/perfinfo_trace.hpp>
 #include <snail/etl/parser/trace_headers/system_trace.hpp>
 
+#include <snail/common/hash_combine.hpp>
+
 namespace snail::etl::detail {
 
 struct group_handler_key
@@ -69,7 +71,7 @@ struct hash<snail::etl::detail::guid_handler_key>
     {
         std::hash<snail::etl::guid> guid_hash;
         std::hash<std::uint32_t>    int_hash;
-        return guid_hash(key.guid) ^ int_hash((std::uint32_t(key.type) << 16) | std::uint32_t(key.version));
+        return snail::common::hash_combine(guid_hash(key.guid), int_hash((std::uint32_t(key.type) << 16) | std::uint32_t(key.version)));
     }
 };
 

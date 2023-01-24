@@ -19,6 +19,8 @@
 
 #include <snail/etl/etlreader.hpp>
 
+#include <snail/common/hash_combine.hpp>
+
 using namespace snail;
 
 namespace snail {
@@ -101,7 +103,7 @@ struct hash<snail::guid>
     {
         const std::uint64_t*     p = reinterpret_cast<const std::uint64_t*>(&guid);
         std::hash<std::uint64_t> hash;
-        return hash(p[0]) ^ hash(p[1]);
+        return snail::common::hash_combine(hash(p[0]), hash(p[1]));
     }
 };
 } // namespace std
