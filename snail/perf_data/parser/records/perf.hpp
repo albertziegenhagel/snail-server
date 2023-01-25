@@ -100,7 +100,7 @@ struct range_cpu_map_view : private common::parser::extract_view_base
 
 struct cpu_map_event_view : private parser::event_view_base
 {
-    static inline constexpr parser::event_type event_type = parser::event_type::thread_map;
+    static inline constexpr parser::event_type event_type = parser::event_type::cpu_map;
 
     using event_view_base::event_view_base;
 
