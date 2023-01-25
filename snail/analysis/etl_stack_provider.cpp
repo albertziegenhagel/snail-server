@@ -147,7 +147,7 @@ common::generator<const process_info&> etl_stack_provider::processes() const
 
         current_info.process_id_ = process_id;
         current_info.start_time_ = profiler_process_info.start_timestamp;
-        current_info.image_name_ = process->image_filename;
+        current_info.image_name_ = process->payload.image_filename;
 
         co_yield current_info;
     }

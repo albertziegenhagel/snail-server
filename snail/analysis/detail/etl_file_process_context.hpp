@@ -12,6 +12,7 @@
 #include <snail/data/types.hpp>
 
 #include <snail/analysis/detail/module_map.hpp>
+#include <snail/analysis/detail/process_history.hpp>
 #include <snail/analysis/detail/stack_cache.hpp>
 
 namespace snail::etl::parser {
@@ -41,9 +42,34 @@ public:
     using instruction_pointer_t = std::uint64_t;
 
     struct profiler_process_info;
-    struct process_info;
-    struct thread_info;
     struct sample_info;
+
+    struct process_data
+    {
+        std::string    image_filename;
+        std::u16string command_line;
+
+        [[nodiscard]] friend bool operator==(const process_data& lhs, const process_data& rhs)
+        {
+            return lhs.image_filename == rhs.image_filename &&
+                   lhs.command_line == rhs.command_line;
+        }
+    };
+    struct thread_data
+    {
+        process_id_t process_id;
+
+        [[nodiscard]] friend bool operator==(const thread_data& lhs, const thread_data& rhs)
+        {
+            return lhs.process_id == rhs.process_id;
+        }
+    };
+
+    using process_history = detail::history<process_id_t, timestamp_t, process_data>;
+    using thread_history  = detail::history<thread_id_t, timestamp_t, thread_data>;
+
+    using process_info = process_history::entry;
+    using thread_info  = thread_history::entry;
 
     explicit etl_file_process_context();
 
@@ -76,18 +102,13 @@ private:
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::stackwalk_v2_stack_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::vs_diagnostics_hub_target_profiling_started_event_view& event);
 
-    process_info* try_get_process_at(process_id_t process_id, timestamp_t timestamp);
-
-    const thread_info* try_get_thread_at(thread_id_t thread_id, timestamp_t timestamp) const;
-    thread_info*       try_get_thread_at(thread_id_t thread_id, timestamp_t timestamp);
-
     etl::dispatching_event_observer observer_;
 
     std::map<std::uint32_t, std::uint32_t>         number_of_partitions_per_disk;
     std::unordered_map<std::uint32_t, std::string> nt_partition_to_dos_volume_mapping;
 
-    std::unordered_map<process_id_t, std::vector<process_info>> processes_by_id;
-    std::unordered_map<thread_id_t, std::vector<thread_info>>   threads_by_id;
+    process_history processes;
+    thread_history  threads;
 
     std::unordered_map<process_id_t, profiler_process_info> profiler_processes_;
 
@@ -96,25 +117,6 @@ private:
     std::unordered_map<process_id_t, std::vector<sample_info>> samples_per_process;
 
     stack_cache stacks;
-};
-
-struct etl_file_process_context::process_info
-{
-    process_id_t process_id;
-
-    timestamp_t first_event_time;
-
-    std::string    image_filename;
-    std::u16string command_line;
-};
-
-struct etl_file_process_context::thread_info
-{
-    thread_id_t thread_id;
-
-    timestamp_t first_event_time;
-
-    process_id_t process_id;
 };
 
 struct etl_file_process_context::profiler_process_info

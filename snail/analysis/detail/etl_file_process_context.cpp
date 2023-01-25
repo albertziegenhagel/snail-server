@@ -127,20 +127,7 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
 {
     if(header.type != 1 && header.type != 3) return; // We do only handle start events
 
-    const auto process_id = event.process_id();
-
-    auto& processes = processes_by_id[process_id];
-
-    if(processes.empty() ||
-       std::string_view(processes.back().image_filename) != event.image_filename() ||
-       std::u16string_view(processes.back().command_line) != event.command_line())
-    {
-        processes.push_back(process_info{
-            .process_id       = process_id,
-            .first_event_time = header.timestamp,
-            .image_filename   = std::string(event.image_filename()),
-            .command_line     = std::u16string(event.command_line())});
-    }
+    processes.insert(event.process_id(), header.timestamp, process_data{.image_filename = std::string(event.image_filename()), .command_line = std::u16string(event.command_line())});
 }
 
 void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
@@ -149,19 +136,7 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
 {
     if(header.type != 1 && header.type != 3) return; // We do only handle start events
 
-    const auto thread_id  = event.thread_id();
-    const auto process_id = event.process_id();
-
-    auto& threads = threads_by_id[thread_id];
-
-    if(threads.empty() || threads.back().process_id != process_id)
-    {
-        assert(threads.empty() || threads.back().first_event_time <= header.timestamp);
-        threads.push_back(thread_info{
-            .thread_id        = thread_id,
-            .first_event_time = header.timestamp,
-            .process_id       = process_id});
-    }
+    threads.insert(event.thread_id(), header.timestamp, thread_data{.process_id = event.process_id()});
 }
 
 void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
@@ -170,9 +145,7 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
 {
     if(header.type != 10 && header.type != 3) return; // We do only handle load events
 
-    const auto process_id = event.process_id();
-
-    auto& modules = modules_per_process[process_id];
+    auto& modules = modules_per_process[event.process_id()];
 
     modules.insert(module_info{
                        .base      = event.image_base(),
@@ -185,17 +158,15 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
                                             const etl::common_trace_header&                            header,
                                             const etl::parser::perfinfo_v2_sampled_profile_event_view& event)
 {
-    const auto        thread_id = event.thread_id();
-    const auto* const thread    = try_get_thread_at(thread_id, header.timestamp);
-
+    const auto* const thread = threads.find_at(event.thread_id(), header.timestamp);
     if(!thread) return;
 
-    const auto process_id = thread->process_id;
+    const auto process_id = thread->payload.process_id;
 
     auto& process_samples = samples_per_process[process_id];
 
     process_samples.push_back(sample_info{
-        .thread_id           = thread_id,
+        .thread_id           = thread->id,
         .timestamp           = header.timestamp,
         .instruction_pointer = event.instruction_pointer()});
 }
@@ -240,50 +211,9 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
         .start_timestamp = header.timestamp};
 }
 
-etl_file_process_context::process_info* etl_file_process_context::try_get_process_at(process_id_t process_id, timestamp_t timestamp)
-{
-    auto* const const_result = static_cast<const etl_file_process_context*>(this)->try_get_process_at(process_id, timestamp);
-    return const_cast<process_info*>(const_result);
-}
-
 const etl_file_process_context::process_info* etl_file_process_context::try_get_process_at(process_id_t process_id, timestamp_t timestamp) const
 {
-    auto iter = processes_by_id.find(process_id);
-    if(iter == processes_by_id.end()) return nullptr;
-
-    // Processes should be sorted as latest thread comes last.
-    for(auto& process : std::views::reverse(iter->second))
-    {
-        if(process.first_event_time <= timestamp) return &process;
-    }
-
-    // We should never end up here.
-    // But in case of error, we just return the latest process with that id
-    assert(false);
-    return &iter->second.back();
-}
-
-etl_file_process_context::thread_info* etl_file_process_context::try_get_thread_at(thread_id_t thread_id, timestamp_t timestamp)
-{
-    auto* const const_result = static_cast<const etl_file_process_context*>(this)->try_get_thread_at(thread_id, timestamp);
-    return const_cast<thread_info*>(const_result);
-}
-
-const etl_file_process_context::thread_info* etl_file_process_context::try_get_thread_at(thread_id_t thread_id, timestamp_t timestamp) const
-{
-    auto iter = threads_by_id.find(thread_id);
-    if(iter == threads_by_id.end()) return nullptr;
-
-    // Threads should be sorted as latest thread comes last.
-    for(auto& thread : std::views::reverse(iter->second))
-    {
-        if(thread.first_event_time <= timestamp) return &thread;
-    }
-
-    // We should never end up here.
-    // But in case of error, we just return the latest thread with that id
-    assert(false);
-    return &iter->second.back();
+    return processes.find_at(process_id, timestamp);
 }
 
 std::pair<const module_info*, data::timestamp_t> etl_file_process_context::try_get_module_at(process_id_t process_id, instruction_pointer_t address, timestamp_t timestamp) const
