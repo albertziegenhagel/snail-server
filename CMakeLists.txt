@@ -28,3 +28,6 @@ enable_testing()
 add_subdirectory(third-party/gtest)
 
 add_subdirectory(tests)
+
+# Just for testing/development
+add_subdirectory(apps)

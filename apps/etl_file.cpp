@@ -1,7 +1,4 @@
 
-
-#include <gtest/gtest.h>
-
 #include <snail/etl/etl_file.hpp>
 
 #include <snail/etl/dispatching_event_observer.hpp>
@@ -57,7 +54,7 @@ const char* group_to_string(etl::parser::event_trace_group group)
     return "UNKNOWN";
 }
 
-TEST(EtlFile, Process)
+int main(int /*argc*/, char* /*argv[]*/)
 {
     etl::etl_file file(R"(C:\Users\aziegenhagel\source\snail-support\tests\data\hidden_sc.user_aux.etl)");
 
