@@ -19,45 +19,6 @@ using namespace snail::analysis::detail;
 
 namespace {
 
-struct stack_hasher
-{
-    std::size_t operator()(const std::vector<std::uint64_t>& stack) const
-    {
-        std::size_t hash = stack.size();
-        for(auto ip : stack)
-        {
-            hash ^= instruction_pointer_hash(ip) + (hash << 6) + (hash >> 2);
-        }
-        return hash;
-    }
-    std::size_t operator()(const etl::parser::stackwalk_v2_stack_event_view& stack_event) const
-    {
-        const auto  stack_size = stack_event.stack_size();
-        std::size_t hash       = stack_size;
-        for(std::size_t i = 0; i < stack_size; ++i)
-        {
-            hash ^= instruction_pointer_hash(stack_event.stack_address(i)) + (hash << 6) + (hash >> 2);
-        }
-        return hash;
-    }
-
-private:
-    std::hash<std::uint64_t> instruction_pointer_hash;
-};
-
-bool stack_equals(const std::vector<std::uint64_t>&                 stack,
-                  const etl::parser::stackwalk_v2_stack_event_view& stack_event)
-{
-    if(stack.size() != stack_event.stack_size()) return false;
-
-    for(std::size_t i = 0; i < stack.size(); ++i)
-    {
-        if(stack[i] != stack_event.stack_address(i)) return false;
-    }
-
-    return true;
-}
-
 bool is_kernel_address(std::uint64_t address, std::uint32_t pointer_size)
 {
     // See https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/user-space-and-system-space
@@ -261,47 +222,11 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& fi
 
         if(sample.thread_id != thread_id) continue;
 
-        const auto stack_hash = stack_hasher()(event);
+        const auto starts_in_kernel   = is_kernel_address(event.stack().back(), file_header.pointer_size);
+        auto&      sample_stack_index = starts_in_kernel ? sample.kernel_mode_stack : sample.user_mode_stack;
 
-        auto& saved_stack_indices = stack_map[stack_hash];
-
-        std::optional<std::size_t> existing_stack_index;
-        for(const auto& stack_index : saved_stack_indices)
-        {
-            const auto& saved_stack = stacks[stack_index];
-            if(!stack_equals(saved_stack, event)) continue;
-
-            existing_stack_index = stack_index;
-        }
-
-        const auto starts_in_kernel = is_kernel_address(event.stack_address(event.stack_size() - 1), file_header.pointer_size);
-
-        auto& sample_stack_index = starts_in_kernel ? sample.kernel_mode_stack : sample.user_mode_stack;
-
-        if(existing_stack_index)
-        {
-            assert(sample_stack_index == std::nullopt);
-            sample_stack_index = *existing_stack_index;
-        }
-        else
-        {
-            const auto                         stack_size = event.stack_size();
-            std::vector<instruction_pointer_t> stack;
-            stack.reserve(stack_size);
-            for(std::size_t index = 0; index < stack_size; ++index)
-            {
-                stack.push_back(event.stack_address(index));
-            }
-
-            const auto new_stack_index = stacks.size();
-            stacks.push_back(std::move(stack));
-            saved_stack_indices.push_back(new_stack_index);
-
-            assert(sample_stack_index == std::nullopt);
-            sample_stack_index = new_stack_index;
-        }
-
-        // break;
+        assert(sample_stack_index == std::nullopt);
+        sample_stack_index = stacks.insert(event.stack());
     }
 }
 
@@ -382,5 +307,5 @@ const std::vector<etl_file_process_context::sample_info>& etl_file_process_conte
 
 const std::vector<etl_file_process_context::instruction_pointer_t>& etl_file_process_context::stack(std::size_t stack_index) const
 {
-    return stacks.at(stack_index);
+    return stacks.get(stack_index);
 }

@@ -12,6 +12,7 @@
 #include <snail/data/types.hpp>
 
 #include <snail/analysis/detail/module_map.hpp>
+#include <snail/analysis/detail/stack_cache.hpp>
 
 namespace snail::etl::parser {
 
@@ -94,8 +95,7 @@ private:
 
     std::unordered_map<process_id_t, std::vector<sample_info>> samples_per_process;
 
-    std::vector<std::vector<instruction_pointer_t>>           stacks;
-    std::unordered_map<std::size_t, std::vector<std::size_t>> stack_map;
+    stack_cache stacks;
 };
 
 struct etl_file_process_context::process_info
