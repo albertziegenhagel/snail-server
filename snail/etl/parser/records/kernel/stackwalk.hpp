@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include <array>
+#include <ranges>
 
 #include <snail/etl/parser/extract.hpp>
 #include <snail/etl/parser/records/identifier.hpp>
@@ -46,6 +47,114 @@ struct stackwalk_v2_stack_event_view : private extract_view_dynamic_base
     inline std::size_t event_size() const
     {
         return stack_base_offset + stack_size() * pointer_size();
+    }
+
+    struct stack_iterator
+    {
+        using iterator_category = std::random_access_iterator_tag;
+        using difference_type   = std::ptrdiff_t;
+        using value_type        = std::uint64_t;
+        using reference         = std::uint64_t;
+        using pointer           = std::uint64_t*;
+
+        reference operator*() const
+        {
+            return event_view->stack_address(index);
+        }
+
+        stack_iterator& operator++()
+        {
+            ++index;
+            return *this;
+        }
+        stack_iterator operator++(int)
+        {
+            auto tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+        stack_iterator& operator--()
+        {
+            --index;
+            return *this;
+        }
+        stack_iterator operator--(int)
+        {
+            auto tmp = *this;
+            --(*this);
+            return tmp;
+        }
+
+        stack_iterator& operator+=(difference_type n)
+        {
+            index += n;
+            return *this;
+        }
+
+        stack_iterator& operator-=(difference_type n)
+        {
+            index -= n;
+            return *this;
+        }
+
+        friend constexpr stack_iterator operator+(const stack_iterator& i, difference_type n)
+        {
+            return {i.event_view, i.index + n};
+        }
+        friend constexpr stack_iterator operator+(difference_type n, const stack_iterator& i)
+        {
+            return {i.event_view, i.index + n};
+        }
+
+        friend constexpr stack_iterator operator-(const stack_iterator& i, difference_type n)
+        {
+            return {i.event_view, i.index - n};
+        }
+        friend constexpr stack_iterator operator-(difference_type n, const stack_iterator& i)
+        {
+            return {i.event_view, i.index - n};
+        }
+
+        friend bool operator==(const stack_iterator& lhs, const stack_iterator& rhs)
+        {
+            return lhs.index == rhs.index;
+        }
+        friend bool operator!=(const stack_iterator& lhs, const stack_iterator& rhs)
+        {
+            return lhs.index != rhs.index;
+        }
+        friend bool operator<(const stack_iterator& lhs, const stack_iterator& rhs)
+        {
+            return lhs.index < rhs.index;
+        }
+        friend bool operator>(const stack_iterator& lhs, const stack_iterator& rhs)
+        {
+            return lhs.index > rhs.index;
+        }
+        friend bool operator<=(const stack_iterator& lhs, const stack_iterator& rhs)
+        {
+            return lhs.index < rhs.index;
+        }
+        friend bool operator>=(const stack_iterator& lhs, const stack_iterator& rhs)
+        {
+            return lhs.index > rhs.index;
+        }
+
+        friend difference_type operator-(const stack_iterator& lhs, const stack_iterator& rhs)
+        {
+            return difference_type(lhs.index) - difference_type(rhs.index);
+        }
+
+        const stackwalk_v2_stack_event_view* event_view;
+        std::size_t                          index;
+    };
+
+    inline std::ranges::subrange<stack_iterator> stack() const
+    {
+        return {
+            stack_iterator{this, 0           },
+            stack_iterator{this, stack_size()}
+        };
     }
 };
 
