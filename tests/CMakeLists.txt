@@ -17,3 +17,11 @@ add_executable(test_perf_data
 target_link_libraries(test_perf_data compile_options perf_data)
 target_link_libraries(test_perf_data third_party::gtest third_party::gtest_main)
 gtest_discover_tests(test_perf_data)
+
+add_executable(test_analysis
+    analysis/module_map.cpp
+)
+target_link_libraries(test_analysis compile_options analysis)
+target_link_libraries(test_analysis third_party::gtest third_party::gtest_main)
+add_test(NAME test_analysis COMMAND test_analysis)
+gtest_discover_tests(test_analysis)

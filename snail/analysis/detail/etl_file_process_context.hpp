@@ -11,6 +11,8 @@
 
 #include <snail/data/types.hpp>
 
+#include <snail/analysis/detail/module_map.hpp>
+
 namespace snail::etl::parser {
 
 struct system_config_v2_physical_disk_event_view;
@@ -40,7 +42,6 @@ public:
     struct profiler_process_info;
     struct process_info;
     struct thread_info;
-    struct module_info;
     struct sample_info;
 
     explicit etl_file_process_context();
@@ -55,9 +56,7 @@ public:
 
     const process_info* try_get_process_at(process_id_t process_id, timestamp_t timestamp) const;
 
-    const thread_info* try_get_thread_at(thread_id_t thread_id, timestamp_t timestamp) const;
-
-    const module_info* try_get_module_at(process_id_t process_id, instruction_pointer_t address, timestamp_t timestamp) const;
+    std::pair<const module_info*, data::timestamp_t> try_get_module_at(process_id_t process_id, instruction_pointer_t address, timestamp_t timestamp) const;
 
     const std::vector<sample_info>& process_samples(process_id_t process_id) const;
 
@@ -77,7 +76,9 @@ private:
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::vs_diagnostics_hub_target_profiling_started_event_view& event);
 
     process_info* try_get_process_at(process_id_t process_id, timestamp_t timestamp);
-    thread_info*  try_get_thread_at(thread_id_t thread_id, timestamp_t timestamp);
+
+    const thread_info* try_get_thread_at(thread_id_t thread_id, timestamp_t timestamp) const;
+    thread_info*       try_get_thread_at(thread_id_t thread_id, timestamp_t timestamp);
 
     etl::dispatching_event_observer observer_;
 
@@ -89,7 +90,7 @@ private:
 
     std::unordered_map<process_id_t, profiler_process_info> profiler_processes_;
 
-    std::unordered_map<process_id_t, std::vector<module_info>> modules_per_process;
+    std::unordered_map<process_id_t, module_map> modules_per_process;
 
     std::unordered_map<process_id_t, std::vector<sample_info>> samples_per_process;
 
@@ -121,18 +122,6 @@ struct etl_file_process_context::profiler_process_info
     process_id_t process_id;
 
     timestamp_t start_timestamp;
-};
-
-struct etl_file_process_context::module_info
-{
-    std::size_t unique_id;
-
-    timestamp_t load_timestamp;
-
-    std::uint64_t image_base;
-    std::uint64_t image_size;
-
-    std::string file_name;
 };
 
 struct etl_file_process_context::sample_info

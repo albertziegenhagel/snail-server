@@ -6,6 +6,7 @@ target_sources(analysis PRIVATE
 
   call_tree.cpp
 
+  detail/module_map.cpp
   detail/etl_file_process_context.cpp
   detail/pdb_resolver.cpp
 

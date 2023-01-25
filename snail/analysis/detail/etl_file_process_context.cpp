@@ -92,9 +92,9 @@ void etl_file_process_context::resolve_nt_paths()
 {
     static constexpr std::string_view nt_drive_name_prefix = "\\Device\\HarddiskVolume";
 
-    for(auto& [process_id, process_modules] : modules_per_process)
+    for(auto& [process_id, process_module_map] : modules_per_process)
     {
-        for(auto& module : process_modules)
+        for(auto& module : process_module_map.all_modules())
         {
             if(!module.file_name.starts_with(nt_drive_name_prefix)) continue;
 
@@ -213,11 +213,11 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
 
     auto& modules = modules_per_process[process_id];
 
-    modules.push_back(module_info{
-        .load_timestamp = header.timestamp,
-        .image_base     = event.image_base(),
-        .image_size     = event.image_size(),
-        .file_name      = common::utf16_to_utf8<char>(event.file_name())});
+    modules.insert(module_info{
+                       .base      = event.image_base(),
+                       .size      = event.image_size(),
+                       .file_name = common::utf16_to_utf8<char>(event.file_name())},
+                   header.timestamp);
 }
 
 void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
@@ -361,30 +361,14 @@ const etl_file_process_context::thread_info* etl_file_process_context::try_get_t
     return &iter->second.back();
 }
 
-const etl_file_process_context::module_info* etl_file_process_context::try_get_module_at(process_id_t process_id, instruction_pointer_t address, timestamp_t timestamp) const
+std::pair<const module_info*, data::timestamp_t> etl_file_process_context::try_get_module_at(process_id_t process_id, instruction_pointer_t address, timestamp_t timestamp) const
 {
     const auto iter = modules_per_process.find(process_id);
-    if(iter == modules_per_process.end()) return nullptr;
+    if(iter == modules_per_process.end()) return {nullptr, 0};
 
     const auto& modules = iter->second;
 
-    const module_info* current_best_mod = nullptr;
-
-    // TODO: speed this up!
-    for(const auto& mod : modules)
-    {
-        if(address < mod.image_base) continue;
-        if(address >= mod.image_base + mod.image_size) continue;
-
-        if(mod.load_timestamp > timestamp) continue;
-
-        if(current_best_mod == nullptr ||
-           mod.load_timestamp > current_best_mod->load_timestamp)
-        {
-            current_best_mod = &mod;
-        }
-    }
-    return current_best_mod;
+    return modules.find(address, timestamp);
 }
 
 const std::vector<etl_file_process_context::sample_info>& etl_file_process_context::process_samples(process_id_t process_id) const

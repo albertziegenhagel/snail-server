@@ -50,15 +50,15 @@ struct etl_sample_data : public sample_data
         {
             for(const auto instruction_pointer : std::views::reverse(*user_stack))
             {
-                const auto* module = context->try_get_module_at(process_id, instruction_pointer, user_timestamp);
+                const auto [module, load_timestamp] = context->try_get_module_at(process_id, instruction_pointer, user_timestamp);
 
                 const auto& symbol = (module == nullptr) ?
                                          resolver->make_generic_symbol(instruction_pointer) :
                                          resolver->resolve_symbol(detail::pdb_resolver::module_info{
                                                                       .image_filename = module->file_name,
-                                                                      .image_base     = module->image_base,
+                                                                      .image_base     = module->base,
                                                                       .process_id     = process_id,
-                                                                      .load_timestamp = module->load_timestamp},
+                                                                      .load_timestamp = load_timestamp},
                                                                   instruction_pointer);
 
                 current_stack_entry.ip           = instruction_pointer;
@@ -70,15 +70,15 @@ struct etl_sample_data : public sample_data
         {
             for(const auto instruction_pointer : std::views::reverse(*kernel_stack))
             {
-                const auto* module = context->try_get_module_at(process_id, instruction_pointer, kernel_timestamp);
+                const auto [module, load_timestamp] = context->try_get_module_at(process_id, instruction_pointer, kernel_timestamp);
 
                 const auto& symbol = (module == nullptr) ?
                                          resolver->make_generic_symbol(instruction_pointer) :
                                          resolver->resolve_symbol(detail::pdb_resolver::module_info{
                                                                       .image_filename = module->file_name,
-                                                                      .image_base     = module->image_base,
+                                                                      .image_base     = module->base,
                                                                       .process_id     = process_id,
-                                                                      .load_timestamp = module->load_timestamp,
+                                                                      .load_timestamp = load_timestamp,
                                                                   },
                                                                   instruction_pointer);
 
