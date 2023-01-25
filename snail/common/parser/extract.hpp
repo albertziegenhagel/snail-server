@@ -66,6 +66,24 @@ inline std::optional<T> extract_move_if(bool condition, std::span<const std::byt
     return extract_move<T>(buffer, offset, byte_order);
 }
 
+template<typename T>
+    requires std::is_integral_v<T>
+inline T extract_move_back(std::span<const std::byte> buffer, std::size_t& bytes_offset, std::endian byte_order)
+{
+    assert(bytes_offset >= sizeof(T));
+    bytes_offset -= sizeof(T);
+    const auto value = common::parser::extract<T>(buffer, bytes_offset, byte_order);
+    return value;
+}
+
+template<typename T>
+    requires std::is_integral_v<T>
+inline std::optional<T> extract_move_back_if(bool condition, std::span<const std::byte> buffer, std::size_t& offset, std::endian byte_order)
+{
+    if(!condition) return std::nullopt;
+    return extract_move_back<T>(buffer, offset, byte_order);
+}
+
 template<typename CharIntType>
 inline std::size_t detect_string_length(std::span<const std::byte> data, std::size_t bytes_offset, std::endian data_byte_order)
 {

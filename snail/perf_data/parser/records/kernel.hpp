@@ -26,35 +26,46 @@ struct sample_id
     std::optional<std::uint32_t> res;
 };
 
-inline sample_id parse_sample_id(const sample_format_flags& sample_format,
-                                 std::span<const std::byte> buffer,
-                                 std::endian                byte_order);
+sample_id parse_sample_id(const sample_format_flags& sample_format,
+                          std::span<const std::byte> buffer,
+                          std::endian                byte_order);
 
-struct comm_event_view : private parser::event_view_base
+sample_id parse_sample_id_back(const sample_format_flags& sample_format,
+                               std::span<const std::byte> buffer,
+                               std::endian                byte_order);
+
+struct kernel_event_view : protected parser::event_view_base
+{
+    using event_view_base::event_view_base;
+
+    inline auto sample_id() const
+    {
+        return parse_sample_id_back(attributes().sample_format, buffer(), byte_order());
+    }
+};
+
+struct comm_event_view : private kernel_event_view
 {
     static inline constexpr parser::event_type event_type = parser::event_type::comm;
 
-    using event_view_base::event_view_base;
+    using kernel_event_view::kernel_event_view;
 
     inline auto pid() const { return extract<std::uint32_t>(0); }
     inline auto tid() const { return extract<std::uint32_t>(4); }
 
     inline auto comm() const { return extract_string(8, comm_length); }
 
-    inline auto sample_id() const
-    {
-        return parse_sample_id(attributes().sample_format, buffer().subspan(8 + comm().size()), byte_order());
-    }
+    using kernel_event_view::sample_id;
 
 private:
     mutable std::optional<std::size_t> comm_length;
 };
 
-struct exit_event_view : private parser::event_view_base
+struct exit_event_view : private kernel_event_view
 {
     static inline constexpr parser::event_type event_type = parser::event_type::exit;
 
-    using event_view_base::event_view_base;
+    using kernel_event_view::kernel_event_view;
 
     inline auto pid() const { return extract<std::uint32_t>(0); }
     inline auto ppid() const { return extract<std::uint32_t>(4); }
@@ -64,19 +75,16 @@ struct exit_event_view : private parser::event_view_base
 
     inline auto time() const { return extract<std::uint64_t>(16); }
 
-    static inline constexpr std::size_t static_size = 24; // without sample_id
+    using kernel_event_view::sample_id;
 
-    inline auto sample_id() const
-    {
-        return parse_sample_id(attributes().sample_format, buffer().subspan(24), byte_order());
-    }
+    static inline constexpr std::size_t static_size = 24; // without sample_id
 };
 
-struct fork_event_view : private parser::event_view_base
+struct fork_event_view : private kernel_event_view
 {
     static inline constexpr parser::event_type event_type = parser::event_type::fork;
 
-    using event_view_base::event_view_base;
+    using kernel_event_view::kernel_event_view;
 
     inline auto pid() const { return extract<std::uint32_t>(0); }
     inline auto ppid() const { return extract<std::uint32_t>(4); }
@@ -86,19 +94,16 @@ struct fork_event_view : private parser::event_view_base
 
     inline auto time() const { return extract<std::uint64_t>(16); }
 
-    static inline constexpr std::size_t static_size = 24; // without sample_id
+    using kernel_event_view::sample_id;
 
-    inline auto sample_id() const
-    {
-        return parse_sample_id(attributes().sample_format, buffer().subspan(24), byte_order());
-    }
+    static inline constexpr std::size_t static_size = 24; // without sample_id
 };
 
-struct mmap2_event_view : private parser::event_view_base
+struct mmap2_event_view : private kernel_event_view
 {
     static inline constexpr parser::event_type event_type = parser::event_type::mmap2;
 
-    using event_view_base::event_view_base;
+    using kernel_event_view::kernel_event_view;
 
     inline auto pid() const { return extract<std::uint32_t>(0); }
     inline auto tid() const { return extract<std::uint32_t>(4); }
@@ -126,11 +131,9 @@ struct mmap2_event_view : private parser::event_view_base
     inline auto flags() const { return extract<std::uint32_t>(60); }
 
     inline auto filename() const { return extract_string(64, filename_length); }
+    
+    using kernel_event_view::sample_id;
 
-    // inline auto sample_id() const
-    // {
-    //     return parse_sample_id(attributes().sample_format, buffer().subspan(64+filename().size()), byte_order());
-    // }
 private:
     mutable std::optional<std::size_t> filename_length;
 };

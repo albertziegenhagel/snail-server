@@ -25,6 +25,25 @@ sample_id snail::perf_data::parser::parse_sample_id(const sample_format_flags& s
     return result;
 }
 
+sample_id snail::perf_data::parser::parse_sample_id_back(const sample_format_flags& sample_format,
+                                                         std::span<const std::byte> buffer,
+                                                         std::endian                byte_order)
+{
+    sample_id result;
+
+    std::size_t offset = buffer.size();
+    result.id          = extract_move_back_if<std::uint64_t>(sample_format.test(parser::sample_format::identifier), buffer, offset, byte_order);
+    result.res         = extract_move_back_if<std::uint32_t>(sample_format.test(parser::sample_format::cpu), buffer, offset, byte_order);
+    result.cpu         = extract_move_back_if<std::uint32_t>(sample_format.test(parser::sample_format::cpu), buffer, offset, byte_order);
+    result.stream_id   = extract_move_back_if<std::uint64_t>(sample_format.test(parser::sample_format::stream_id), buffer, offset, byte_order);
+    result.id          = extract_move_back_if<std::uint64_t>(sample_format.test(parser::sample_format::id), buffer, offset, byte_order);
+    result.time        = extract_move_back_if<std::uint64_t>(sample_format.test(parser::sample_format::time), buffer, offset, byte_order);
+    result.tid         = extract_move_back_if<std::uint32_t>(sample_format.test(parser::sample_format::tid), buffer, offset, byte_order);
+    result.pid         = extract_move_back_if<std::uint32_t>(sample_format.test(parser::sample_format::tid), buffer, offset, byte_order);
+
+    return result;
+}
+
 template<>
 sample_event snail::perf_data::parser::parse_event(const event_attributes&    attributes,
                                                    std::span<const std::byte> buffer,
