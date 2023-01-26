@@ -49,7 +49,7 @@ etl::dispatching_event_observer& etl_file_process_context::observer()
     return observer_;
 }
 
-void etl_file_process_context::resolve_nt_paths()
+void etl_file_process_context::finish()
 {
     static constexpr std::string_view nt_drive_name_prefix = "\\Device\\HarddiskVolume";
 
@@ -148,9 +148,10 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
     auto& modules = modules_per_process[event.process_id()];
 
     modules.insert(module_info{
-                       .base      = event.image_base(),
-                       .size      = event.image_size(),
-                       .file_name = common::utf16_to_utf8<char>(event.file_name())},
+                       .base        = event.image_base(),
+                       .size        = event.image_size(),
+                       .file_name   = common::utf16_to_utf8<char>(event.file_name()),
+                       .page_offset = 0},
                    header.timestamp);
 }
 

@@ -131,11 +131,24 @@ struct mmap2_event_view : private kernel_event_view
     inline auto flags() const { return extract<std::uint32_t>(60); }
 
     inline auto filename() const { return extract_string(64, filename_length); }
-    
+
     using kernel_event_view::sample_id;
 
 private:
     mutable std::optional<std::size_t> filename_length;
+};
+
+enum class sample_stack_context_marker : std::uint64_t
+{
+    hv     = static_cast<std::uint64_t>(-32),
+    kernel = static_cast<std::uint64_t>(-128),
+    user   = static_cast<std::uint64_t>(-512),
+
+    guest        = static_cast<std::uint64_t>(-2048),
+    guest_kernel = static_cast<std::uint64_t>(-2176),
+    guest_user   = static_cast<std::uint64_t>(-2560),
+
+    max = static_cast<std::uint64_t>(-4095),
 };
 
 struct sample_event

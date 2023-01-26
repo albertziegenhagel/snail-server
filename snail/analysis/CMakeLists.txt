@@ -2,17 +2,18 @@
 add_library(analysis)
 
 target_sources(analysis PRIVATE
-  etl_stack_provider.cpp
-
-  call_tree.cpp
-
   detail/module_map.cpp
-  detail/etl_file_process_context.cpp
-  detail/pdb_resolver.cpp
 
+  detail/etl_file_process_context.cpp
+  detail/perf_data_file_process_context.cpp
+
+  detail/pdb_resolver.cpp
+  detail/dwarf_resolver.cpp
+
+  etl_stack_provider.cpp
+  perf_data_stack_provider.cpp
   
-  # etl_builder.cpp
-  # reader.cpp
+  call_tree.cpp
 )
 
 target_link_libraries(analysis
@@ -23,6 +24,7 @@ target_link_libraries(analysis
   perf_data
 
   LLVMDebugInfoPDB
+  LLVMDebugInfoDWARF
 )
 
 target_include_directories(analysis SYSTEM PRIVATE

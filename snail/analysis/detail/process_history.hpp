@@ -23,7 +23,12 @@ public:
     void insert(Id id, Timestamp timestamp, Data payload);
 
     template<typename Self>
-    auto* find_at(this Self&& self, Id id, Timestamp timestamp);
+    [[nodiscard]] auto* find_at(this Self&& self, Id id, Timestamp timestamp, bool strict = false);
+
+    [[nodiscard]] const std::unordered_map<Id, std::vector<entry>>& all_entries() const
+    {
+        return entries_by_id;
+    }
 
 private:
     std::unordered_map<Id, std::vector<entry>> entries_by_id;
@@ -53,7 +58,7 @@ void history<Id, Timestamp, Data>::insert(Id id, Timestamp timestamp, Data paylo
 template<std::integral Id, std::integral Timestamp, typename Data>
     requires std::equality_comparable<Data>
 template<typename Self>
-auto* history<Id, Timestamp, Data>::find_at(this Self&& self, Id id, Timestamp timestamp)
+auto* history<Id, Timestamp, Data>::find_at(this Self&& self, Id id, Timestamp timestamp, bool strict)
 {
     using return_type = std::conditional_t<std::is_const_v<std::remove_reference_t<Self>>, const entry*, entry*>;
 
@@ -65,6 +70,8 @@ auto* history<Id, Timestamp, Data>::find_at(this Self&& self, Id id, Timestamp t
     {
         if(entry.timestamp <= timestamp) return &entry;
     }
+
+    if(strict) return (return_type) nullptr;
 
     return &iter->second.back();
 }

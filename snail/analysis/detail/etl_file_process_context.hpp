@@ -77,7 +77,7 @@ public:
 
     etl::dispatching_event_observer& observer();
 
-    void resolve_nt_paths();
+    void finish();
 
     const std::unordered_map<process_id_t, profiler_process_info>& profiler_processes() const;
 

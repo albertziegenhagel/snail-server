@@ -1,5 +1,6 @@
 #include <snail/analysis/detail/pdb_resolver.hpp>
 
+#include <cassert>
 #include <format>
 #include <iostream>
 
@@ -11,13 +12,13 @@
 #include <llvm/DebugInfo/PDB/PDBSymbolTypeFunctionSig.h>
 #include <llvm/DebugInfo/PDB/PDBTypes.h>
 
-#include <snail/common/hash_combine.hpp>
 #include <snail/common/cast.hpp>
+#include <snail/common/hash_combine.hpp>
 
 using namespace snail;
 using namespace snail::analysis::detail;
 
-pdb_resolver::pdb_resolver() = default;
+pdb_resolver::pdb_resolver()  = default;
 pdb_resolver::~pdb_resolver() = default;
 
 const pdb_resolver::symbol_info& pdb_resolver::make_generic_symbol(instruction_pointer_t address)
@@ -124,7 +125,7 @@ llvm::pdb::IPDBSession* pdb_resolver::get_pdb_session(const module_info& module)
 bool pdb_resolver::module_key::operator==(const module_key& other) const
 {
     return process_id == other.process_id &&
-        load_timestamp == other.load_timestamp;
+           load_timestamp == other.load_timestamp;
 }
 
 std::size_t pdb_resolver::module_key_hasher::operator()(const module_key& key) const
@@ -135,7 +136,7 @@ std::size_t pdb_resolver::module_key_hasher::operator()(const module_key& key) c
 bool pdb_resolver::symbol_key::operator==(const symbol_key& other) const
 {
     return module_key == other.module_key &&
-        address == other.address;
+           address == other.address;
 }
 
 std::size_t pdb_resolver::symbol_key_hasher::operator()(const symbol_key& key) const

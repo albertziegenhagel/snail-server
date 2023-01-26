@@ -13,7 +13,8 @@ struct module_info
     std::uint64_t base;
     std::uint64_t size;
 
-    std::string file_name;
+    std::string   file_name;
+    std::uint64_t page_offset;
 };
 
 class module_map

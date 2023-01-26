@@ -15,6 +15,13 @@ struct finished_round_event_view : private parser::event_view_base
     using event_view_base::event_view_base;
 };
 
+struct finished_init_event_view : private parser::event_view_base
+{
+    static inline constexpr parser::event_type event_type = parser::event_type::finished_init;
+
+    using event_view_base::event_view_base;
+};
+
 struct id_index_entry_view : private common::parser::extract_view_base
 {
     using extract_view_base::extract_view_base;

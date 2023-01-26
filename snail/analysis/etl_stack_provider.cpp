@@ -127,14 +127,12 @@ void etl_stack_provider::process()
     etl::etl_file file(file_path_);
     file.process(process_context_->observer());
 
-    process_context_->resolve_nt_paths();
+    process_context_->finish();
 }
 
 common::generator<const process_info&> etl_stack_provider::processes() const
 {
     if(process_context_ == nullptr) co_return;
-
-    assert(symbol_resolver_ != nullptr);
 
     const auto& process_context = *process_context_;
 

@@ -154,7 +154,8 @@ void module_map::insert(module_info module, data::timestamp_t load_timestamp)
        first_overlapping_range->begin_address == modules.back().base &&
        first_overlapping_range->end_address == (modules.back().base + modules.back().size) &&
        first_overlapping_range->active_modules.back().load_timestamp < load_timestamp &&
-       modules[first_overlapping_range->active_modules.back().module_index].file_name == modules.back().file_name)
+       modules[first_overlapping_range->active_modules.back().module_index].file_name == modules.back().file_name &&
+       modules[first_overlapping_range->active_modules.back().module_index].page_offset == modules.back().page_offset)
     {
         assert(!inserted_before && !inserted_after);
         const auto& last_active_module = modules[first_overlapping_range->active_modules.back().module_index];
