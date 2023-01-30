@@ -9,11 +9,13 @@ set(CMAKE_CXX_STANDARD 23)
 
 include(cmake/compile_options.cmake)
 
-find_package(LLVM REQUIRED CONFIG
+find_package(LLVM CONFIG REQUIRED
   COMPONENTS
     LLVMDebugInfoPDB
     LLVMDebugInfoDWARF
 )
+
+find_package(nlohmann_json CONFIG REQUIRED)
 
 # =======
 # LIBRARIES
