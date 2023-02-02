@@ -7,13 +7,17 @@
 #include <optional>
 #include <string>
 
-#include <Windows.h>
+#if defined(_WIN32)
+#    include <Windows.h>
+#endif
 
 #include <snail/jsonrpc/server.hpp>
 
 #include <snail/jsonrpc/jsonrpc_v2_protocol.hpp>
 
-#include <snail/jsonrpc/stream/windows/pipe_iostream.hpp>
+#if defined(_WIN32)
+#    include <snail/jsonrpc/stream/windows/pipe_iostream.hpp>
+#endif
 
 #include <snail/jsonrpc/transport/message_connection.hpp>
 
@@ -23,6 +27,16 @@
 using namespace snail;
 
 namespace {
+
+#if defined(_WIN32)
+using socket_stream_type = jsonrpc::pipe_iostream;
+
+inline constexpr std::string_view socket_kind_name = "named pipe";
+#elif defined(__unix__)
+#    error "Not yet implemented: stream type for unix domain sockets"
+
+inline constexpr std::string_view socket_kind_name = "unix domain socket";
+#endif
 
 std::string extract_application_name(std::string_view application_path)
 {
@@ -34,9 +48,13 @@ void print_usage(std::string_view application_path)
 {
     std::cout << std::format("Usage: {} <Options>", extract_application_name(application_path)) << "\n"
               << "\n"
-              << "Options:\n"
-              << "  --pipe <path>    Path to the pipe to connect to. Cannot be used together with --stdio.\n"
-              << "  --stdio          Listen on stdio. Cannot be used together with --pipe.\n";
+              << "Options:\n";
+    std::cout << "  --socket <path>  Path to the socket/pipe to connect to.\n"
+              << "                   Uses unix domain sockets on Unix and named pipes on Windows.\n"
+              << "                   Cannot be used together with --stdio.\n"
+              << "  --pipe   <path>  Alias for --socket.\n";
+    std::cout << "  --stdio          Connect on stdio. Cannot be used together with --socket (or --pipe).\n";
+
 #if !defined(NDEBUG) && defined(_MSC_VER)
     std::cout << "  --debug          Wait for debugger to attach right after start.\n";
 #endif
@@ -57,7 +75,7 @@ void print_usage(std::string_view application_path)
 
 struct options
 {
-    std::optional<std::filesystem::path> pipe_name;
+    std::optional<std::filesystem::path> socket_name;
     bool                                 stdio = false;
     bool                                 debug = false;
 };
@@ -70,10 +88,10 @@ options parse_command_line(int argc, char* argv[])
     for(int arg_i = 1; arg_i < argc; ++arg_i)
     {
         const auto current_arg = std::string_view(argv[arg_i]);
-        if(current_arg == "--pipe")
+        if(current_arg == "--socket" || current_arg == "--pipe")
         {
-            if(argc <= arg_i + 1) print_error_and_exit(application_path, "Missing pipe name.");
-            result.pipe_name = argv[arg_i + 1];
+            if(argc <= arg_i + 1) print_error_and_exit(application_path, "Missing unix domain socket or named pipe name.");
+            result.socket_name = argv[arg_i + 1];
         }
         if(current_arg == "--stdio")
         {
@@ -85,41 +103,41 @@ options parse_command_line(int argc, char* argv[])
         }
     }
 
-    if(result.pipe_name && result.stdio)
+    if(result.socket_name && result.stdio)
     {
-        print_error_and_exit(application_path, "Cannot use both, --pipe and --stdio.");
+        print_error_and_exit(application_path, "Cannot use both, --socket or --pipe with --stdio.");
     }
-    if(!result.pipe_name && !result.stdio)
+    if(!result.socket_name && !result.stdio)
     {
-        print_error_and_exit(application_path, "Need to specify either --pipe or --stdio.");
+        print_error_and_exit(application_path, "Need to specify either --socket, --pipe or --stdio.");
     }
 
     return result;
 }
 
-std::unique_ptr<jsonrpc::pipe_iostream> pipe; // FIXME: remove global variable
+std::unique_ptr<socket_stream_type> socket; // FIXME: remove global variable
 
 std::unique_ptr<jsonrpc::message_connection> make_connection(const ::options& options)
 {
-    if(options.pipe_name)
+    if(options.socket_name)
     {
-        std::cout << "  Start listening on pipe " << *options.pipe_name << "\n";
+        std::cout << std::format("  Start listening on {} '{}'", socket_kind_name, *options.socket_name) << "\n";
         std::cout.flush();
 
-        pipe = std::make_unique<jsonrpc::pipe_iostream>(*options.pipe_name);
-        if(!pipe->is_open())
+        socket = std::make_unique<socket_stream_type>(*options.socket_name);
+        if(!socket->is_open())
         {
-            std::cout << "Could not open pipe!" << std::endl;
+            std::cout << std::format("  Failed to open {} '{}'!", socket_kind_name, *options.socket_name) << std::endl;
             std::exit(EXIT_FAILURE);
         }
         return std::make_unique<jsonrpc::message_connection>(
-            std::make_unique<jsonrpc::stream_message_reader>(*pipe),
-            std::make_unique<jsonrpc::stream_message_writer>(*pipe));
+            std::make_unique<jsonrpc::stream_message_reader>(*socket),
+            std::make_unique<jsonrpc::stream_message_writer>(*socket));
     }
 
     if(options.stdio)
     {
-        std::cout << "  Start listening stdin\n";
+        std::cout << "  Start listening on stdin\n";
         std::cout.flush();
 
         return std::make_unique<jsonrpc::message_connection>(
