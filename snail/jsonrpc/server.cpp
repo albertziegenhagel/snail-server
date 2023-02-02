@@ -42,46 +42,28 @@ void server::serve()
 
 std::optional<std::string> server::handle(std::string_view data)
 {
-    jsonrpc::request request;
+    const nlohmann::json* error_id = nullptr;
     try
     {
-        request = protocol_->load_request(data);
-    }
-    catch(rpc_error& e)
-    {
-        return protocol_->dump_error(e, nullptr);
-    }
-    catch(std::exception& e)
-    {
-        return protocol_->dump_error(internal_error(e.what()), nullptr);
-    }
+        auto request = protocol_->load_request(data);
 
-    std::optional<jsonrpc::response> response;
-    try
-    {
-        response = impl_->handle_request(request);
-    }
-    catch(rpc_error& e)
-    {
-        return protocol_->dump_error(e, request.id ? &request.id.value() : nullptr);
-    }
-    catch(std::exception& e)
-    {
-        return protocol_->dump_error(internal_error(e.what()), request.id ? &request.id.value() : nullptr);
-    }
+        if(request.id != std::nullopt)
+        {
+            error_id = &request.id.value();
+        }
 
-    if(!response) return std::nullopt;
+        auto response = impl_->handle_request(request);
 
-    try
-    {
+        if(!response) return std::nullopt;
+
         return protocol_->dump_response(*response);
     }
     catch(rpc_error& e)
     {
-        return protocol_->dump_error(e, response->id ? &response->id.value() : nullptr);
+        return protocol_->dump_error(e, error_id);
     }
     catch(std::exception& e)
     {
-        return protocol_->dump_error(internal_error(e.what()), response->id ? &response->id.value() : nullptr);
+        return protocol_->dump_error(internal_error(e.what()), error_id);
     }
 }
