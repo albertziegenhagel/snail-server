@@ -11,5 +11,5 @@ void stream_message_writer::write(std::string_view content)
 {
     (*stream_) << "Content-Length: " << content.size() << "\r\n"
                << "\r\n"
-               << content << "\n";
+               << content << std::flush;
 }
