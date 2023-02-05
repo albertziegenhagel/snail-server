@@ -13,7 +13,7 @@
         static constexpr std::tuple<> parameters = {};                                             \
                                                                                                    \
         template<typename RequestType>                                                             \
-            requires is_request_v<RequestType>                                                     \
+            requires snail::jsonrpc::detail::is_request_v<RequestType>                             \
         friend RequestType snail::jsonrpc::detail::unpack_request(const nlohmann::json& raw_data); \
                                                                                                    \
     private:                                                                                       \
@@ -40,7 +40,7 @@
         }                                                                                          \
                                                                                                    \
         template<typename RequestType>                                                             \
-            requires is_request_v<RequestType>                                                     \
+            requires snail::jsonrpc::detail::is_request_v<RequestType>                             \
         friend RequestType snail::jsonrpc::detail::unpack_request(const nlohmann::json& raw_data); \
                                                                                                    \
     private:                                                                                       \
@@ -74,7 +74,7 @@
         }                                                                                          \
                                                                                                    \
         template<typename RequestType>                                                             \
-            requires is_request_v<RequestType>                                                     \
+            requires snail::jsonrpc::detail::is_request_v<RequestType>                             \
         friend RequestType snail::jsonrpc::detail::unpack_request(const nlohmann::json& raw_data); \
                                                                                                    \
     private:                                                                                       \
@@ -115,7 +115,7 @@
         }                                                                                          \
                                                                                                    \
         template<typename RequestType>                                                             \
-            requires is_request_v<RequestType>                                                     \
+            requires snail::jsonrpc::detail::is_request_v<RequestType>                             \
         friend RequestType snail::jsonrpc::detail::unpack_request(const nlohmann::json& raw_data); \
                                                                                                    \
     private:                                                                                       \
