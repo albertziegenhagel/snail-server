@@ -24,6 +24,9 @@
 #include <snail/jsonrpc/transport/stream_message_reader.hpp>
 #include <snail/jsonrpc/transport/stream_message_writer.hpp>
 
+#include <snail/server/requests/requests.hpp>
+#include <snail/server/storage/storage.hpp>
+
 using namespace snail;
 
 namespace {
@@ -121,13 +124,13 @@ std::unique_ptr<jsonrpc::message_connection> make_connection(const ::options& op
 {
     if(options.socket_name)
     {
-        std::cout << std::format("  Start listening on {} '{}'", socket_kind_name, *options.socket_name) << "\n";
+        std::cout << std::format("  Start listening on {} '{}'", socket_kind_name, options.socket_name->string()) << "\n";
         std::cout.flush();
 
         socket = std::make_unique<socket_stream_type>(*options.socket_name);
         if(!socket->is_open())
         {
-            std::cout << std::format("  Failed to open {} '{}'!", socket_kind_name, *options.socket_name) << std::endl;
+            std::cout << std::format("  Failed to open {} '{}'!", socket_kind_name, options.socket_name->string()) << std::endl;
             std::exit(EXIT_FAILURE);
         }
         return std::make_unique<jsonrpc::message_connection>(
@@ -170,6 +173,10 @@ int main(int argc, char* argv[])
     jsonrpc::server server(
         make_connection(options),
         std::make_unique<jsonrpc::v2_protocol>());
+
+    server::storage storage;
+
+    server::register_all(server, storage);
 
     server.serve();
 
