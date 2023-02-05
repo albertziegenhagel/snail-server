@@ -1,8 +1,20 @@
 
 add_executable(snailserver)
 
-target_sources(snailserver PRIVATE
-  main.cpp
+target_sources(snailserver
+  PRIVATE
+    main.cpp
+
+    storage/storage.cpp
+    storage/document.cpp
+
+    requests/requests.cpp
 )
 
-target_link_libraries(snailserver compile_options jsonrpc analysis)
+target_link_libraries(snailserver
+  PRIVATE
+    compile_options
+  PUBLIC
+    jsonrpc
+    analysis
+)
