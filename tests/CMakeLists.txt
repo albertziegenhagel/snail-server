@@ -25,3 +25,11 @@ target_link_libraries(test_analysis compile_options analysis)
 target_link_libraries(test_analysis third_party::gtest third_party::gtest_main)
 add_test(NAME test_analysis COMMAND test_analysis)
 gtest_discover_tests(test_analysis)
+
+add_executable(test_jsonrpc
+    jsonrpc/request.cpp
+)
+target_link_libraries(test_jsonrpc compile_options jsonrpc)
+target_link_libraries(test_jsonrpc third_party::gtest third_party::gtest_main)
+add_test(NAME test_jsonrpc COMMAND test_jsonrpc)
+gtest_discover_tests(test_jsonrpc)
