@@ -6,7 +6,6 @@ target_sources(snailserver
     main.cpp
 
     storage/storage.cpp
-    storage/document.cpp
 
     requests/requests.cpp
 )
