@@ -217,7 +217,7 @@ const etl_file_process_context::process_info* etl_file_process_context::try_get_
     return processes.find_at(process_id, timestamp);
 }
 
-std::pair<const module_info*, data::timestamp_t> etl_file_process_context::try_get_module_at(process_id_t process_id, instruction_pointer_t address, timestamp_t timestamp) const
+std::pair<const module_info*, common::timestamp_t> etl_file_process_context::try_get_module_at(process_id_t process_id, instruction_pointer_t address, timestamp_t timestamp) const
 {
     const auto iter = modules_per_process.find(process_id);
     if(iter == modules_per_process.end()) return {nullptr, 0};

@@ -16,14 +16,14 @@ struct module_map::address_range
 
     struct module_entry
     {
-        data::timestamp_t load_timestamp;
+        common::timestamp_t load_timestamp;
         std::size_t       module_index;
     };
 
     // Sorted by load_timestamp (from oldest to newest)
     std::vector<module_entry> active_modules;
 
-    [[nodiscard]] bool contains(data::instruction_pointer_t address) const noexcept
+    [[nodiscard]] bool contains(common::instruction_pointer_t address) const noexcept
     {
         return address >= begin_address &&
                address < end_address;
@@ -57,7 +57,7 @@ const std::vector<module_info>& module_map::all_modules() const
     return modules;
 }
 
-void module_map::insert(module_info module, data::timestamp_t load_timestamp)
+void module_map::insert(module_info module, common::timestamp_t load_timestamp)
 {
     const auto new_module_index = modules.size();
     modules.push_back(std::move(module));
@@ -208,7 +208,7 @@ void module_map::insert(module_info module, data::timestamp_t load_timestamp)
     }
 }
 
-std::pair<const module_info*, data::timestamp_t> module_map::find(data::instruction_pointer_t address, data::timestamp_t timestamp, bool strict) const
+std::pair<const module_info*, common::timestamp_t> module_map::find(common::instruction_pointer_t address, common::timestamp_t timestamp, bool strict) const
 {
     auto reversed_ranges = std::views::reverse(address_ranges);
 

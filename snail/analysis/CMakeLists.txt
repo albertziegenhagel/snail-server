@@ -14,7 +14,7 @@ target_sources(analysis
     etl_stack_provider.cpp
     perf_data_stack_provider.cpp
     
-    call_tree.cpp
+    analysis.cpp
 )
 
 target_link_libraries(analysis
@@ -28,7 +28,6 @@ target_link_libraries(analysis
     LLVMDebugInfoDWARF
   PUBLIC
     common
-    data
 )
 
 target_include_directories(analysis SYSTEM PRIVATE

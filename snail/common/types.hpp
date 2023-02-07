@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace snail::data {
+namespace snail::common {
 
 using process_id_t = std::uint32_t;
 
@@ -12,4 +12,4 @@ using instruction_pointer_t = std::uint64_t;
 
 using timestamp_t = std::uint64_t;
 
-} // namespace snail::data
+} // namespace snail::common

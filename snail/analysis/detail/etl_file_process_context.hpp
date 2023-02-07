@@ -9,7 +9,7 @@
 
 #include <snail/etl/dispatching_event_observer.hpp>
 
-#include <snail/data/types.hpp>
+#include <snail/common/types.hpp>
 
 #include <snail/analysis/detail/module_map.hpp>
 #include <snail/analysis/detail/process_history.hpp>
@@ -83,7 +83,7 @@ public:
 
     const process_info* try_get_process_at(process_id_t process_id, timestamp_t timestamp) const;
 
-    std::pair<const module_info*, data::timestamp_t> try_get_module_at(process_id_t process_id, instruction_pointer_t address, timestamp_t timestamp) const;
+    std::pair<const module_info*, common::timestamp_t> try_get_module_at(process_id_t process_id, instruction_pointer_t address, timestamp_t timestamp) const;
 
     const std::vector<sample_info>& process_samples(process_id_t process_id) const;
 

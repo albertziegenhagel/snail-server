@@ -24,9 +24,9 @@ public:
 
     void process();
 
-    virtual common::generator<const process_info&> processes() const override;
+    virtual common::generator<common::process_id_t> processes() const override;
 
-    virtual common::generator<const sample_data&> samples(const process_info& process) const override;
+    virtual common::generator<const sample_data&> samples(common::process_id_t process_id) const override;
 
 private:
     std::filesystem::path file_path_;

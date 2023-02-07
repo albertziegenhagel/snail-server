@@ -3,19 +3,14 @@
 #include <filesystem>
 #include <memory>
 
-#include <snail/data/types.hpp>
+#include <snail/common/types.hpp>
 
-namespace snail::data {
+namespace snail::analysis {
 
-class call_tree;
+struct stacks_analysis;
+struct process_info;
 
-struct process_info
-{
-    process_id_t process_id;
-    std::string  name;
-};
-
-} // namespace snail::data
+} // namespace snail::analysis
 
 namespace snail::server {
 
@@ -33,9 +28,9 @@ public:
     document_id read_document(const std::filesystem::path& path);
     void        close_document(const document_id& id);
 
-    const std::vector<data::process_info>& retrieve_processes(const document_id& id);
+    const std::vector<analysis::process_info>& retrieve_processes(const document_id& id);
 
-    const data::call_tree& retrieve_call_tree(const document_id& id, data::process_id_t process_id);
+    const analysis::stacks_analysis& get_analysis_result(const document_id& id, common::process_id_t process_id);
 
 private:
     struct impl;

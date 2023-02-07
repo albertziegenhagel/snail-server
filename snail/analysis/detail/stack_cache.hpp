@@ -8,14 +8,14 @@
 
 #include <snail/common/hash_combine.hpp>
 
-#include <snail/data/types.hpp>
+#include <snail/common/types.hpp>
 
 namespace snail::analysis::detail {
 
 class stack_cache
 {
 public:
-    using stack_t = std::vector<data::instruction_pointer_t>;
+    using stack_t = std::vector<common::instruction_pointer_t>;
 
     template<std::ranges::sized_range R>
     std::size_t insert(R&& stack_range);
@@ -32,7 +32,7 @@ private:
         std::size_t operator()(R&& stack_range) const;
 
     private:
-        std::hash<data::instruction_pointer_t> ip_hash;
+        std::hash<common::instruction_pointer_t> ip_hash;
     };
 };
 

@@ -1,6 +1,5 @@
 
 add_subdirectory(common)
-add_subdirectory(data)
 add_subdirectory(etl)
 add_subdirectory(perf_data)
 add_subdirectory(analysis)

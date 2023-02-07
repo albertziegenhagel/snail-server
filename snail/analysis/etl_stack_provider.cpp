@@ -21,19 +21,15 @@ bool is_kernel_address(std::uint64_t address, std::uint32_t pointer_size)
                address >= 0x0000800000000000; // 64bit
 }
 
-// struct etl_symbol_info : public symbol_info
-// {
-//     virtual std::string_view name() const override;
-//     virtual bool             is_generic() const override;
-// };
-
 struct etl_stack_entry : public stack_entry
 {
-    virtual data::instruction_pointer_t instruction_pointer() const override { return ip; }
-    virtual std::string_view            symbol_name() const override { return symbol_name_; }
+    virtual common::instruction_pointer_t instruction_pointer() const override { return ip; }
+    virtual std::string_view              symbol_name() const override { return symbol_name_; }
+    virtual std::string_view              module_name() const override { return module_name_; }
 
-    data::instruction_pointer_t ip;
-    std::string_view            symbol_name_;
+    common::instruction_pointer_t ip;
+    std::string_view              symbol_name_;
+    std::string_view              module_name_;
 };
 
 struct etl_sample_data : public sample_data
@@ -45,6 +41,8 @@ struct etl_sample_data : public sample_data
 
     virtual common::generator<const stack_entry&> reversed_stack() const override
     {
+        static const std::string unkown_module_name = "[unknown]";
+
         etl_stack_entry current_stack_entry;
         if(user_stack != nullptr)
         {
@@ -63,6 +61,7 @@ struct etl_sample_data : public sample_data
 
                 current_stack_entry.ip           = instruction_pointer;
                 current_stack_entry.symbol_name_ = symbol.name;
+                current_stack_entry.module_name_ = module == nullptr ? unkown_module_name : module->file_name;
                 co_yield current_stack_entry;
             }
         }
@@ -99,18 +98,6 @@ struct etl_sample_data : public sample_data
     detail::etl_file_process_context*              context;
 };
 
-struct etl_process_info : process_info
-{
-    virtual data::process_id_t process_id() const override { return process_id_; }
-    virtual data::timestamp_t  start_time() const override { return start_time_; }
-
-    virtual std::string_view image_name() const override { return image_name_; }
-
-    data::process_id_t process_id_;
-    data::timestamp_t  start_time_;
-    std::string_view   image_name_;
-};
-
 } // namespace
 
 etl_stack_provider::etl_stack_provider(const std::filesystem::path& file_path) :
@@ -130,28 +117,19 @@ void etl_stack_provider::process()
     process_context_->finish();
 }
 
-common::generator<const process_info&> etl_stack_provider::processes() const
+common::generator<common::process_id_t> etl_stack_provider::processes() const
 {
     if(process_context_ == nullptr) co_return;
 
     const auto& process_context = *process_context_;
 
-    etl_process_info current_info;
-
     for(const auto& [process_id, profiler_process_info] : process_context.profiler_processes())
     {
-        const auto* const process = process_context.try_get_process_at(process_id, profiler_process_info.start_timestamp);
-        assert(process != nullptr);
-
-        current_info.process_id_ = process_id;
-        current_info.start_time_ = profiler_process_info.start_timestamp;
-        current_info.image_name_ = process->payload.image_filename;
-
-        co_yield current_info;
+        co_yield common::process_id_t(process_id);
     }
 }
 
-common::generator<const sample_data&> etl_stack_provider::samples(const process_info& process) const
+common::generator<const sample_data&> etl_stack_provider::samples(common::process_id_t process_id) const
 {
     if(process_context_ == nullptr) co_return;
 
@@ -166,14 +144,14 @@ common::generator<const sample_data&> etl_stack_provider::samples(const process_
 
     etl_sample_data current_sample_data;
 
-    current_sample_data.process_id = process.process_id();
+    current_sample_data.process_id = process_id;
     current_sample_data.context    = process_context_.get();
     current_sample_data.resolver   = symbol_resolver_.get();
 
     // FIXME: retrieve this!
     const uint32_t pointer_size = 8;
 
-    for(const auto& sample : process_context.process_samples(process.process_id()))
+    for(const auto& sample : process_context.process_samples(process_id))
     {
         if(sample.user_mode_stack)
         {

@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include <snail/data/types.hpp>
+#include <snail/common/types.hpp>
 
 namespace snail::analysis::detail {
 
@@ -26,10 +26,10 @@ public:
     std::vector<module_info>&       all_modules();
     const std::vector<module_info>& all_modules() const;
 
-    void insert(module_info module, data::timestamp_t load_timestamp);
+    void insert(module_info module, common::timestamp_t load_timestamp);
 
     // FIXME: improve/remove returning load timestamp
-    std::pair<const module_info*, data::timestamp_t> find(data::instruction_pointer_t address, data::timestamp_t timestamp, bool strict = true) const;
+    std::pair<const module_info*, common::timestamp_t> find(common::instruction_pointer_t address, common::timestamp_t timestamp, bool strict = true) const;
 
 private:
     struct address_range;

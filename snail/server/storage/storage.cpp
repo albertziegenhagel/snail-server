@@ -3,7 +3,7 @@
 
 #include <unordered_map>
 
-#include <snail/analysis/call_tree.hpp>
+#include <snail/analysis/analysis.hpp>
 #include <snail/analysis/etl_stack_provider.hpp>
 #include <snail/analysis/perf_data_stack_provider.hpp>
 
@@ -17,22 +17,20 @@ struct document_storage
     std::filesystem::path                     path;
     std::unique_ptr<analysis::stack_provider> stack_provider;
 
-    bool                                                    has_data = false;
-    std::vector<data::process_info>                         processes;
-    std::unordered_map<data::process_id_t, data::call_tree> call_trees;
+    bool                                                                has_data = false;
+    std::vector<analysis::process_info>                                 processes;
+    std::unordered_map<common::process_id_t, analysis::stacks_analysis> data;
 };
 
 void do_analysis(document_storage& data)
 {
     data.processes.clear();
-    data.call_trees.clear();
-    for(const auto& process : data.stack_provider->processes())
+    data.data.clear();
+    for(const auto process_id : data.stack_provider->processes())
     {
-        data.processes.push_back(data::process_info{
-            .process_id = process.process_id(),
-            .name       = std::string(process.image_name())});
+        data.data[process_id] = snail::analysis::analyze_stacks(*data.stack_provider, process_id);
 
-        data.call_trees[process.process_id()] = snail::analysis::build_call_tree(*data.stack_provider, process);
+        data.processes.push_back(data.data[process_id].process);
     }
     data.has_data = true;
 }
@@ -109,19 +107,19 @@ void storage::close_document(const document_id& id)
     impl_->open_documents.erase(iter);
 }
 
-const std::vector<data::process_info>& storage::retrieve_processes(const document_id& id)
+const std::vector<analysis::process_info>& storage::retrieve_processes(const document_id& id)
 {
     auto& document = impl_->get_document_storage(id);
     return document.processes;
 }
 
-const data::call_tree& storage::retrieve_call_tree(const document_id& id,
-                                                   data::process_id_t process_id)
+const analysis::stacks_analysis& storage::get_analysis_result(const document_id&   id,
+                                                              common::process_id_t process_id)
 {
     auto& document = impl_->get_document_storage(id);
 
-    auto iter = document.call_trees.find(process_id);
-    if(iter == document.call_trees.end()) throw std::runtime_error("invalid process id");
+    auto iter = document.data.find(process_id);
+    if(iter == document.data.end()) throw std::runtime_error("invalid process id");
 
     return iter->second;
 }
