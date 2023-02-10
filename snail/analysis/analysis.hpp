@@ -9,11 +9,38 @@
 
 namespace snail::analysis {
 
-class stack_provider;
+class data_provider;
+
+struct stacks_analysis;
+
+stacks_analysis analyze_stacks(const data_provider& provider,
+                               common::process_id_t process_id);
 
 struct stacks_analysis
 {
     process_info process;
+
+    const module_info& get_module(module_info::id_t id) const;
+
+    const function_info& get_function_root() const;
+    const function_info& get_function(function_info::id_t id) const;
+
+    const call_tree_node& get_call_tree_root() const;
+    const call_tree_node& get_call_tree_node(call_tree_node::id_t id) const;
+
+    const std::vector<function_info>& all_functions() const;
+
+private:
+    friend stacks_analysis analyze_stacks(const data_provider& provider,
+                                          common::process_id_t process_id);
+
+    // FIXME: This is a workaround: we would like to use the max of std::size_t, but since we will
+    //        serialize those values to JSON and eventually handle them in JavaScript which cannot
+    //        deal with integers larger than 53bits in its `number` type, we restrict ourselves
+    //        to 32bits here.
+    static_assert(sizeof(std::size_t) >= sizeof(std::uint32_t)); // just for sanity. Otherwise this would not be a "restriction".
+    constexpr static inline auto root_function_id       = std::numeric_limits<std::uint32_t>::max();
+    constexpr static inline auto root_call_tree_node_id = std::numeric_limits<std::uint32_t>::max();
 
     std::vector<module_info>    modules;
     std::vector<function_info>  functions;
@@ -22,8 +49,5 @@ struct stacks_analysis
     call_tree_node call_tree_root;
     function_info  function_root;
 };
-
-stacks_analysis analyze_stacks(const analysis::stack_provider& stack_provider,
-                               common::process_id_t            process_id);
 
 } // namespace snail::analysis

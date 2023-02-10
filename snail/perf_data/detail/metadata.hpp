@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -46,8 +47,8 @@ struct perf_data_metadata
     // cache;
     struct sample_time_data
     {
-        std::uint64_t start;
-        std::uint64_t end;
+        std::chrono::nanoseconds start;
+        std::chrono::nanoseconds end;
     };
     std::optional<sample_time_data> sample_time;
     // mem_topology;

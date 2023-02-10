@@ -1,6 +1,7 @@
 
 #include <array>
 #include <bit>
+#include <chrono>
 #include <iostream>
 #include <queue>
 
@@ -69,10 +70,10 @@ buffer_info read_buffer(std::ifstream&                          file_stream,
     if(read_bytes < parser::wmi_buffer_header_view::static_size)
     {
         std::cout << std::format(
-                            "ERROR: Invalid ETL file: insufficient size for buffer header. Expected {} but read only {}.",
-                            parser::wmi_buffer_header_view::static_size,
-                            read_bytes)
-                    << std::endl;
+                         "ERROR: Invalid ETL file: insufficient size for buffer header. Expected {} but read only {}.",
+                         parser::wmi_buffer_header_view::static_size,
+                         read_bytes)
+                  << std::endl;
         std::exit(EXIT_FAILURE); // TODO: handle error
     }
     const auto total_buffer = std::span(buffer_data);
@@ -84,19 +85,19 @@ buffer_info read_buffer(std::ifstream&                          file_stream,
     if(header.wnode().buffer_size() > total_buffer.size())
     {
         std::cout << std::format(
-                            "ERROR: Unsupported ETL file: buffer size ({}) exceeds maximum buffer size ({})",
-                            header.wnode().buffer_size(),
-                            total_buffer.size())
-                    << std::endl;
+                         "ERROR: Unsupported ETL file: buffer size ({}) exceeds maximum buffer size ({})",
+                         header.wnode().buffer_size(),
+                         total_buffer.size())
+                  << std::endl;
         std::exit(EXIT_FAILURE); // TODO: handle error
     }
     if(read_bytes < header.wnode().saved_offset())
     {
         std::cout << std::format(
-                            "ERROR: Invalid ETL file: insufficient size for buffer. Expected {} but read only {}.",
-                            header.wnode().saved_offset(),
-                            read_bytes)
-                    << std::endl;
+                         "ERROR: Invalid ETL file: insufficient size for buffer. Expected {} but read only {}.",
+                         header.wnode().saved_offset(),
+                         read_bytes)
+                  << std::endl;
         std::exit(EXIT_FAILURE); // TODO: handle error
     }
 
@@ -109,7 +110,7 @@ buffer_info read_buffer(std::ifstream&                          file_stream,
 std::uint64_t peak_next_event_time(const buffer_info& buffer)
 {
     const auto event_buffer = buffer.payload_buffer.subspan(buffer.current_payload_offset);
-    const auto marker = parser::generic_trace_marker_view(event_buffer);
+    const auto marker       = parser::generic_trace_marker_view(event_buffer);
     assert(marker.is_trace_header() && marker.is_trace_header_event_trace() && !marker.is_trace_message());
 
     switch(marker.header_type())
@@ -310,10 +311,13 @@ void etl_file::open(const std::filesystem::path& file_path)
         parser::system_trace_header_view::static_size));
 
     header_ = etl_file::header_data{
-        .pointer_size = header_event.pointer_size(),
-        .start_time   = header_event.start_time(),
+        .start_time           = common::from_nt_timestamp(common::nt_duration(header_event.start_time())),
+        .end_time             = common::from_nt_timestamp(common::nt_duration(header_event.end_time())),
+        .start_time_qpc_ticks = system_trace_header.system_time(),
+        .qpc_frequency        = header_event.perf_freq(),
+        .pointer_size         = header_event.pointer_size(),
         .number_of_processors = header_event.number_of_processors(),
-        .number_of_buffers = header_event.buffers_written()
+        .number_of_buffers    = header_event.buffers_written()
         // TODO: extract more (all?) relevant data
     };
 
@@ -344,24 +348,24 @@ void etl_file::process(event_observer& callbacks)
             if(read_bytes < parser::wmi_buffer_header_view::static_size)
             {
                 std::cout << std::format(
-                                    "ERROR: Invalid ETL file: insufficient size for buffer header (index {}). Expected {} but read only {}.",
-                                    buffer_index,
-                                    parser::wmi_buffer_header_view::static_size,
-                                    read_bytes)
-                            << std::endl;
+                                 "ERROR: Invalid ETL file: insufficient size for buffer header (index {}). Expected {} but read only {}.",
+                                 buffer_index,
+                                 parser::wmi_buffer_header_view::static_size,
+                                 read_bytes)
+                          << std::endl;
                 std::exit(EXIT_FAILURE); // TODO: handle error
             }
             const auto buffer_header = parser::wmi_buffer_header_view(std::span(header_buffer_data));
 
             const auto sequence_number = buffer_header.wnode().sequence_number();
-            
+
             if(sequence_number > header_.number_of_buffers)
             {
                 std::cout << std::format(
-                                    "ERROR: Invalid ETL file: invalid header sequence value. Expected at max {} buffers but sequence number is {}.",
-                                    header_.number_of_buffers,
-                                    sequence_number)
-                            << std::endl;
+                                 "ERROR: Invalid ETL file: invalid header sequence value. Expected at max {} buffers but sequence number is {}.",
+                                 header_.number_of_buffers,
+                                 sequence_number)
+                          << std::endl;
                 std::exit(EXIT_FAILURE); // TODO: handle error
             }
 
@@ -370,10 +374,10 @@ void etl_file::process(event_observer& callbacks)
             if(processor_index > header_.number_of_processors)
             {
                 std::cout << std::format(
-                                    "ERROR: Invalid ETL file: invalid processor index. Expected at max {} processors but process index is {}.",
-                                    header_.number_of_processors,
-                                    processor_index)
-                            << std::endl;
+                                 "ERROR: Invalid ETL file: invalid processor index. Expected at max {} processors but process index is {}.",
+                                 header_.number_of_processors,
+                                 processor_index)
+                          << std::endl;
                 std::exit(EXIT_FAILURE); // TODO: handle error
             }
 
@@ -399,9 +403,8 @@ void etl_file::process(event_observer& callbacks)
 
         if(remaining_buffers.empty()) continue;
 
-        std::ranges::sort(remaining_buffers, [](const processor_data::file_buffer_info& lhs, const processor_data::file_buffer_info& rhs){
-            return lhs.sequence_number > rhs.sequence_number;
-        });
+        std::ranges::sort(remaining_buffers, [](const processor_data::file_buffer_info& lhs, const processor_data::file_buffer_info& rhs)
+                          { return lhs.sequence_number > rhs.sequence_number; });
 
         processor_data.current_buffer_info = read_buffer(file_stream_,
                                                          remaining_buffers.back().start_pos,
@@ -410,8 +413,7 @@ void etl_file::process(event_observer& callbacks)
 
         event_queue.push(next_event_priority_info{
             .next_event_time = peak_next_event_time(processor_data.current_buffer_info),
-            .processor_index = processor_index
-        });
+            .processor_index = processor_index});
     }
 
     // Extract all events in the correct time order:
@@ -432,14 +434,14 @@ void etl_file::process(event_observer& callbacks)
         while(true)
         {
             auto& buffer_info = processor_data.current_buffer_info;
-            
+
             // Extract and process the next event
             const auto trace_read_bytes = process_next_trace(buffer_info.payload_buffer.subspan(buffer_info.current_payload_offset), header_, callbacks);
             buffer_info.current_payload_offset += trace_read_bytes;
 
             // Check whether this was the last event in the current processors buffer
             const auto buffer_exhausted = buffer_info.current_payload_offset >= buffer_info.payload_buffer.size();
-            if(buffer_exhausted)  
+            if(buffer_exhausted)
             {
                 callbacks.handle(header_, parser::wmi_buffer_header_view(buffer_info.header_buffer));
 
@@ -455,7 +457,7 @@ void etl_file::process(event_observer& callbacks)
                                           processor_data.current_buffer_data);
                 remaining_buffers.pop_back();
             }
-            
+
             const auto next_event_time = peak_next_event_time(buffer_info);
 
             if(!event_queue.empty() && event_queue.top().next_event_time < next_event_time)
@@ -466,10 +468,14 @@ void etl_file::process(event_observer& callbacks)
                 // processor.
                 event_queue.push(next_event_priority_info{
                     .next_event_time = next_event_time,
-                    .processor_index = processor_index
-                });
+                    .processor_index = processor_index});
                 break;
             }
         }
     }
+}
+
+const etl_file::header_data& etl_file::header() const
+{
+    return header_;
 }

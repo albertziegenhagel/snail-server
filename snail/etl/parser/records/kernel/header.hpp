@@ -32,6 +32,8 @@ struct event_trace_v2_header_event_view : private extract_view_dynamic_base
     using extract_view_dynamic_base::buffer;
     using extract_view_dynamic_base::extract_view_dynamic_base;
 
+    // start_time, end_time and boot_time are 100 nanosecond intervals since midnight, January 1, 1601.
+
     inline auto buffer_size() const { return extract<std::uint32_t>(dynamic_offset(0, 0)); }
     inline auto version() const { return extract<std::uint32_t>(dynamic_offset(4, 0)); }
     inline auto provider_version() const { return extract<std::uint32_t>(dynamic_offset(8, 0)); }

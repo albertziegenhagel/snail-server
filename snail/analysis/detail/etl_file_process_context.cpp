@@ -84,6 +84,26 @@ const std::unordered_map<etl_file_process_context::process_id_t, etl_file_proces
     return profiler_processes_;
 }
 
+const etl_file_process_context::process_history& etl_file_process_context::get_processes() const
+{
+    return processes;
+}
+
+const etl_file_process_context::thread_history& etl_file_process_context::get_threads() const
+{
+    return threads;
+}
+
+const std::set<std::pair<etl_file_process_context::thread_id_t, etl_file_process_context::timestamp_t>>& etl_file_process_context::get_process_threads(process_id_t process_id) const
+{
+    return threads_per_process_.at(process_id);
+}
+
+const module_map& etl_file_process_context::get_modules(process_id_t process_id) const
+{
+    return modules_per_process.at(process_id);
+}
+
 template<typename T>
 void etl_file_process_context::register_event()
 {
@@ -125,18 +145,40 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
                                             const etl::common_trace_header&                       header,
                                             const etl::parser::process_v4_type_group1_event_view& event)
 {
-    if(header.type != 1 && header.type != 3) return; // We do only handle start events
-
-    processes.insert(event.process_id(), header.timestamp, process_data{.image_filename = std::string(event.image_filename()), .command_line = std::u16string(event.command_line())});
+    if(header.type == 1 || header.type == 3) // load || dc_start
+    {
+        processes.insert(event.process_id(), header.timestamp,
+                         process_data{.image_filename = std::string(event.image_filename()),
+                                      .command_line   = std::u16string(event.command_line())});
+    }
+    else if(header.type == 2 || header.type == 4) // unload || dc_end
+    {
+        auto* const process = processes.find_at(event.process_id(), header.timestamp);
+        if(process != nullptr)
+        {
+            process->payload.end_time = header.timestamp;
+        }
+    }
 }
 
 void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
                                             const etl::common_trace_header&                      header,
                                             const etl::parser::thread_v3_type_group1_event_view& event)
 {
-    if(header.type != 1 && header.type != 3) return; // We do only handle start events
-
-    threads.insert(event.thread_id(), header.timestamp, thread_data{.process_id = event.process_id()});
+    if(header.type == 1 || header.type == 3) // start || dc_start
+    {
+        threads.insert(event.thread_id(), header.timestamp,
+                       thread_data{.process_id = event.process_id()});
+        threads_per_process_[event.process_id()].emplace(event.thread_id(), header.timestamp);
+    }
+    else if(header.type == 2 || header.type == 4) // end || dc_end
+    {
+        auto* const thread = threads.find_at(event.thread_id(), header.timestamp);
+        if(thread != nullptr)
+        {
+            thread->payload.end_time = header.timestamp;
+        }
+    }
 }
 
 void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
@@ -210,21 +252,6 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
     profiler_processes_[process_id] = profiler_process_info{
         .process_id      = process_id,
         .start_timestamp = header.timestamp};
-}
-
-const etl_file_process_context::process_info* etl_file_process_context::try_get_process_at(process_id_t process_id, timestamp_t timestamp) const
-{
-    return processes.find_at(process_id, timestamp);
-}
-
-std::pair<const module_info*, common::timestamp_t> etl_file_process_context::try_get_module_at(process_id_t process_id, instruction_pointer_t address, timestamp_t timestamp) const
-{
-    const auto iter = modules_per_process.find(process_id);
-    if(iter == modules_per_process.end()) return {nullptr, 0};
-
-    const auto& modules = iter->second;
-
-    return modules.find(address, timestamp);
 }
 
 const std::vector<etl_file_process_context::sample_info>& etl_file_process_context::process_samples(process_id_t process_id) const

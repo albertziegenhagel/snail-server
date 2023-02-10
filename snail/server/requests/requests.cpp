@@ -8,6 +8,7 @@
 #include <snail/server/storage/storage.hpp>
 
 #include <snail/analysis/analysis.hpp>
+#include <snail/analysis/data_provider.hpp>
 
 using namespace snail;
 using namespace snail::server;
@@ -20,16 +21,28 @@ SNAIL_JSONRPC_REQUEST_1(read_document,
 SNAIL_JSONRPC_REQUEST_1(close_document,
                         std::size_t, document_id);
 
+SNAIL_JSONRPC_REQUEST_1(retrieve_session_info,
+                        std::size_t, document_id);
+
+SNAIL_JSONRPC_REQUEST_1(retrieve_system_info,
+                        std::size_t, document_id);
+
 SNAIL_JSONRPC_REQUEST_1(retrieve_processes,
                         std::size_t, document_id);
+
+SNAIL_JSONRPC_REQUEST_2(retrieve_hottest_functions,
+                        std::size_t, document_id,
+                        std::size_t, count);
 
 SNAIL_JSONRPC_REQUEST_2(retrieve_call_tree_hot_path,
                         std::size_t, document_id,
                         common::process_id_t, process_id);
 
-SNAIL_JSONRPC_REQUEST_2(retrieve_hottest_function,
+SNAIL_JSONRPC_REQUEST_4(retrieve_functions_page,
                         std::size_t, document_id,
-                        common::process_id_t, process_id);
+                        common::process_id_t, process_id,
+                        std::size_t, page_size,
+                        std::size_t, page_index);
 
 SNAIL_JSONRPC_REQUEST_3(expand_call_tree_node,
                         std::size_t, document_id,
@@ -44,13 +57,13 @@ SNAIL_JSONRPC_REQUEST_4(retrieve_callers_callees,
 
 namespace {
 
-const analysis::call_tree_node* get_top_child(const analysis::stacks_analysis& analysis_result,
+const analysis::call_tree_node* get_top_child(const analysis::stacks_analysis& stacks_analysis,
                                               const analysis::call_tree_node&  current_node)
 {
     const analysis::call_tree_node* top_child = nullptr;
     for(const auto child_id : current_node.children)
     {
-        const auto& child = analysis_result.call_tree_nodes[child_id];
+        const auto& child = stacks_analysis.get_call_tree_node(child_id);
         if(top_child == nullptr || child.hits.total > top_child->hits.total)
         {
             top_child = &child;
@@ -59,7 +72,7 @@ const analysis::call_tree_node* get_top_child(const analysis::stacks_analysis& a
     return top_child;
 }
 
-auto append_call_tree_node_children(const analysis::stacks_analysis& analysis_result,
+auto append_call_tree_node_children(const analysis::stacks_analysis& stacks_analysis,
                                     const analysis::call_tree_node&  current_node,
                                     std::size_t                      total_hits,
                                     nlohmann::json&                  children,
@@ -67,7 +80,7 @@ auto append_call_tree_node_children(const analysis::stacks_analysis& analysis_re
 {
     children = nlohmann::json::array();
 
-    const auto* const top_child = get_top_child(analysis_result, current_node);
+    const auto* const top_child = get_top_child(stacks_analysis, current_node);
 
     const auto expand_top_child = expand_hot_path &&
                                   top_child != nullptr &&
@@ -77,9 +90,9 @@ auto append_call_tree_node_children(const analysis::stacks_analysis& analysis_re
     for(std::size_t child_index = 0; child_index < current_node.children.size(); ++child_index) // TODO: views::enumerate
     {
         const auto  child_id       = current_node.children[child_index];
-        const auto& child          = analysis_result.call_tree_nodes[child_id];
-        const auto& child_function = analysis_result.functions[child.function_id];
-        const auto& child_module   = analysis_result.modules[child_function.module_id];
+        const auto& child          = stacks_analysis.get_call_tree_node(child_id);
+        const auto& child_function = stacks_analysis.get_function(child.function_id);
+        const auto& child_module   = stacks_analysis.get_module(child_function.module_id);
 
         assert(top_child != nullptr);
         const auto is_top_child = child.id == top_child->id;
@@ -87,6 +100,7 @@ auto append_call_tree_node_children(const analysis::stacks_analysis& analysis_re
         children.push_back({
             {"name",          child_function.name                        },
             {"id",            child.id                                   },
+            {"function_id",   child.function_id                          },
             {"module",        child_module.name                          },
             {"type",          "function"                                 },
             {"total_samples", child.hits.total                           },
@@ -111,20 +125,28 @@ auto append_call_tree_node_children(const analysis::stacks_analysis& analysis_re
     return std::make_tuple(top_child, top_child_index, expand_top_child);
 }
 
-auto make_function_json(const analysis::stacks_analysis& analysis_result,
+auto make_function_json(const analysis::stacks_analysis& stacks_analysis,
                         const analysis::function_info&   function,
                         std::size_t                      total_hits,
                         const analysis::hit_counts*      hits = nullptr)
 {
-    const auto& module = analysis_result.modules.at(function.module_id);
-
     if(hits == nullptr) hits = &function.hits;
 
+    const auto is_root = function.id == stacks_analysis.get_function_root().id;
+
+    auto function_name = is_root ? std::format("{} (PID: {})", stacks_analysis.process.name, stacks_analysis.process.id) :
+                                   function.name;
+
+    auto module_name = is_root ? "[multiple]" :
+                                 stacks_analysis.get_module(function.module_id).name;
+
+    const auto* const type = is_root ? "process" : "function";
+
     return nlohmann::json{
-        {"name",          function.name                         },
+        {"name",          std::move(function_name)              },
         {"id",            function.id                           },
-        {"module",        module.name                           },
-        {"type",          "function"                            },
+        {"module",        std::move(module_name)                },
+        {"type",          type                                  },
         {"total_samples", hits->total                           },
         {"self_samples",  hits->self                            },
         {"total_percent", (double)hits->total * 100 / total_hits},
@@ -156,60 +178,170 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
     server.register_notification<close_document_request>(
         [&](const close_document_request& request)
         {
-            storage.close_document(document_id{request.document_id()});
+            storage.close_document({request.document_id()});
         });
 
+    server.register_request<retrieve_session_info_request>(
+        [&](const retrieve_session_info_request& request) -> nlohmann::json
+        {
+            const auto& session_info = storage.get_data({request.document_id()}).session_info();
+
+            return {
+                {"session_info",
+                 {{"command_line", session_info.command_line},
+                  {"date", std::format("{0:%F}T{0:%R%z}", session_info.date)},
+                  {"runtime", session_info.runtime.count()},
+                  {"number_of_processes", session_info.number_of_processes},
+                  {"number_of_threads", session_info.number_of_threads},
+                  {"number_of_samples", session_info.number_of_samples},
+                  {"average_sampling_rate", session_info.average_sampling_rate}}}
+            };
+        });
+    server.register_request<retrieve_system_info_request>(
+        [&](const retrieve_system_info_request& request) -> nlohmann::json
+        {
+            const auto& system_info = storage.get_data({request.document_id()}).system_info();
+
+            return {
+                {"system_info",
+                 {{"hostname", system_info.hostname},
+                  {"platform", system_info.platform},
+                  {"architecture", system_info.architecture},
+                  {"cpu_name", system_info.cpu_name},
+                  {"number_of_processors", system_info.number_of_processors}}}
+            };
+        });
     server.register_request<retrieve_processes_request>(
         [&](const retrieve_processes_request& request) -> nlohmann::json
         {
-            const auto& processes = storage.retrieve_processes(document_id{request.document_id()});
+            const auto& data_provider = storage.get_data({request.document_id()});
 
             auto json_processes = nlohmann::json::array();
-            for(const auto& process : processes)
+            for(const auto process_id : data_provider.sampling_processes())
             {
+                auto json_threads = nlohmann::json::array();
+                for(const auto thread_info : data_provider.threads_info(process_id))
+                {
+                    json_threads.push_back({
+                        {"id",         thread_info.id                                                                },
+                        {"name",       thread_info.name ? nlohmann::json(*thread_info.name) : nlohmann::json(nullptr)},
+                        {"start_time", thread_info.start_time                                                        },
+                        {"end_time",   thread_info.end_time                                                          }
+                    });
+                }
+
+                const auto& process_info = data_provider.process_info(process_id);
                 json_processes.push_back({
-                    {"id",   process.process_id},
-                    {"name", process.name      }
+                    {"id",         process_id             },
+                    {"name",       process_info.name      },
+                    {"start_time", process_info.start_time},
+                    {"end_time",   process_info.end_time  },
+                    {"threads",    std::move(json_threads)}
                 });
             }
             return {
                 {"processes", std::move(json_processes)}
             };
         });
-
-    server.register_request<retrieve_hottest_function_request>(
-        [&](const retrieve_hottest_function_request& request) -> nlohmann::json
+    server.register_request<retrieve_hottest_functions_request>(
+        [&](const retrieve_hottest_functions_request& request) -> nlohmann::json
         {
-            const auto& analysis_result = storage.get_analysis_result(document_id{request.document_id()}, request.process_id());
-
-            const analysis::function_info* hottest_function = nullptr;
-
-            for(const auto& function : analysis_result.functions)
+            struct intermediate_function_info
             {
-                if(hottest_function == nullptr || function.hits.self > hottest_function->hits.self)
+                common::process_id_t           process_id;
+                const analysis::function_info* function;
+            };
+
+            std::vector<intermediate_function_info> intermediate_functions;
+
+            const auto& data_provider = storage.get_data({request.document_id()});
+
+            for(const auto process_id : data_provider.sampling_processes())
+            {
+                const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, process_id);
+                const auto& function_ids    = storage.get_functions_page({request.document_id()}, process_id,
+                                                                         function_data_type::self_samples, true,
+                                                                         request.count(), 0);
+
+                for(const auto function_id : function_ids)
                 {
-                    hottest_function = &function;
+                    intermediate_functions.push_back(intermediate_function_info{
+                        .process_id = process_id,
+                        .function   = &stacks_analysis.get_function(function_id)});
+                }
+            }
+
+            std::ranges::sort(intermediate_functions,
+                              [](const intermediate_function_info& lhs, const intermediate_function_info& rhs)
+                              {
+                                  return lhs.function->hits.self > rhs.function->hits.self;
+                              });
+
+            const auto total_hits = storage.get_data({request.document_id()}).session_info().number_of_samples; // TODO: use filtered
+
+            auto json_functions = nlohmann::json::array();
+            for(const auto& entry : intermediate_functions | std::views::take(request.count()))
+            {
+                const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, entry.process_id);
+                json_functions.push_back({
+                    {"process_id", entry.process_id},
+                    {"function", make_function_json(stacks_analysis, *entry.function, total_hits)}
+                });
+            }
+
+            return {
+                {"functions", std::move(json_functions)}
+            };
+        });
+
+    server.register_request<retrieve_functions_page_request>(
+        [&](const retrieve_functions_page_request& request) -> nlohmann::json
+        {
+            const auto sort_by    = function_data_type::self_samples;
+            const auto sort_order = direction::descending;
+
+            const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, request.process_id());
+            const auto& function_ids    = storage.get_functions_page({request.document_id()}, request.process_id(),
+                                                                     sort_by, sort_order == direction::descending,
+                                                                     request.page_size(), request.page_index());
+
+            const auto total_hits = storage.get_data({request.document_id()}).session_info().number_of_samples; // TODO: use filtered
+
+            auto json_functions = nlohmann::json::array();
+            if(sort_order == direction::descending)
+            {
+                for(const auto function_id : std::views::reverse(function_ids))
+                {
+                    json_functions.push_back(make_function_json(stacks_analysis, stacks_analysis.get_function(function_id), total_hits));
+                }
+            }
+            else
+            {
+                for(const auto function_id : function_ids)
+                {
+                    json_functions.push_back(make_function_json(stacks_analysis, stacks_analysis.get_function(function_id), total_hits));
                 }
             }
 
             return {
-                {"function_id", hottest_function == nullptr ? nlohmann::json(nullptr) : nlohmann::json(hottest_function->id)}
+                {"functions", json_functions}
             };
         });
     server.register_request<retrieve_call_tree_hot_path_request>(
         [&](const retrieve_call_tree_hot_path_request& request) -> nlohmann::json
         {
-            const auto& analysis_result = storage.get_analysis_result(document_id{request.document_id()}, request.process_id());
+            const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, request.process_id());
 
-            const auto total_hits = analysis_result.call_tree_root.hits.total; // TODO: this should probably be the total over all processes!
+            const auto total_hits = storage.get_data({request.document_id()}).session_info().number_of_samples; // TODO: use filtered
 
-            const auto root_name = std::format("{} (PID: {})", analysis_result.process.name, analysis_result.process.process_id);
+            const auto root_name = std::format("{} (PID: {})", stacks_analysis.process.name, stacks_analysis.process.id);
 
-            const auto* current_node = &analysis_result.call_tree_root;
+            const auto* current_node = &stacks_analysis.get_call_tree_root();
 
             auto result = nlohmann::json{
                 {"name",          root_name                                          },
                 {"id",            current_node->id                                   },
+                {"function_id",   current_node->function_id                          },
                 {"module",        "[multiple]"                                       },
                 {"type",          "process"                                          },
                 {"total_samples", current_node->hits.total                           },
@@ -225,7 +357,7 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
             {
                 auto& children = (*current_json_node)["children"];
 
-                const auto [top_child, top_child_index, expand_top_child] = append_call_tree_node_children(analysis_result, *current_node, total_hits, children, true);
+                const auto [top_child, top_child_index, expand_top_child] = append_call_tree_node_children(stacks_analysis, *current_node, total_hits, children, true);
 
                 if(top_child == nullptr) break;
 
@@ -242,14 +374,14 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
     server.register_request<expand_call_tree_node_request>(
         [&](const expand_call_tree_node_request& request) -> nlohmann::json
         {
-            const auto& analysis_result = storage.get_analysis_result(document_id{request.document_id()}, request.process_id());
+            const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, request.process_id());
 
-            const auto total_hits = analysis_result.call_tree_root.hits.total; // TODO: this should probably be the total over all processes!
+            const auto total_hits = storage.get_data({request.document_id()}).session_info().number_of_samples; // TODO: use filtered
 
-            const auto& current_node = analysis_result.call_tree_nodes.at(request.node_id());
+            const auto& current_node = stacks_analysis.get_call_tree_node(request.node_id());
 
             nlohmann::json children;
-            append_call_tree_node_children(analysis_result, current_node, total_hits, children, false);
+            append_call_tree_node_children(stacks_analysis, current_node, total_hits, children, false);
 
             return {
                 {"children", std::move(children)}
@@ -258,15 +390,15 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
     server.register_request<retrieve_callers_callees_request>(
         [&](const retrieve_callers_callees_request& request) -> nlohmann::json
         {
-            const auto& analysis_result = storage.get_analysis_result(document_id{request.document_id()}, request.process_id());
+            const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, request.process_id());
 
             const auto max_entries = request.max_entries() > 0 ? request.max_entries() : 1;
 
-            const auto total_hits = analysis_result.call_tree_root.hits.total; // TODO: this should probably be the total over all processes!
+            const auto total_hits = storage.get_data({request.document_id()}).session_info().number_of_samples; // TODO: use filtered
 
-            const auto& function = analysis_result.functions.at(request.function_id());
+            const auto& function = stacks_analysis.get_function(request.function_id());
 
-            auto function_json = make_function_json(analysis_result, function, total_hits);
+            auto function_json = make_function_json(stacks_analysis, function, total_hits);
 
             std::vector<nlohmann::json> callers;
             std::vector<nlohmann::json> callees;
@@ -274,27 +406,8 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
             callers.reserve(function.callers.size());
             for(const auto& [caller_id, caller_hits] : function.callers)
             {
-                if(caller_id == analysis_result.function_root.id)
-                {
-                    const auto root_name = std::format("{} (PID: {})", analysis_result.process.name, analysis_result.process.process_id);
-
-                    callers.push_back(
-                        nlohmann::json{
-                            {"name",          root_name                                   },
-                            {"id",            function.id                                 },
-                            {"module",        "[multiple]"                                },
-                            {"type",          "process"                                   },
-                            {"total_samples", caller_hits.total                           },
-                            {"self_samples",  caller_hits.self                            },
-                            {"total_percent", (double)caller_hits.total * 100 / total_hits},
-                            {"self_percent",  (double)caller_hits.self * 100 / total_hits },
-                    });
-                }
-                else
-                {
-                    const auto& caller = analysis_result.functions.at(caller_id);
-                    callers.push_back(make_function_json(analysis_result, caller, total_hits, &caller_hits));
-                }
+                const auto& caller = stacks_analysis.get_function(caller_id);
+                callers.push_back(make_function_json(stacks_analysis, caller, total_hits, &caller_hits));
             }
 
             std::sort(
@@ -304,6 +417,7 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
                     return lhs.at("total_samples").get<std::size_t>() > rhs.at("total_samples").get<std::size_t>();
                 });
 
+            // TODO: make into function and remove code duplication with code below
             if(callers.size() > max_entries)
             {
                 analysis::hit_counts accumulated_hits;
@@ -330,8 +444,8 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
             callees.reserve(function.callees.size());
             for(const auto& [callee_id, callee_hits] : function.callees)
             {
-                const auto& callee = analysis_result.functions.at(callee_id);
-                callees.push_back(make_function_json(analysis_result, callee, total_hits, &callee_hits));
+                const auto& callee = stacks_analysis.get_function(callee_id);
+                callees.push_back(make_function_json(stacks_analysis, callee, total_hits, &callee_hits));
             }
 
             std::sort(

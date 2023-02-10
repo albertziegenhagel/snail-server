@@ -11,8 +11,9 @@ target_sources(analysis
     detail/pdb_resolver.cpp
     detail/dwarf_resolver.cpp
 
-    etl_stack_provider.cpp
-    perf_data_stack_provider.cpp
+    data_provider.cpp
+    etl_data_provider.cpp
+    perf_data_data_provider.cpp
     
     analysis.cpp
 )

@@ -1,16 +1,17 @@
 #pragma once
 
+#include <optional>
 #include <string>
 
 #include <snail/common/types.hpp>
 
 namespace snail::analysis {
 
-struct process_info
+struct thread_info
 {
     common::process_id_t id;
 
-    std::string name;
+    std::optional<std::string> name;
 
     common::timestamp_t start_time;
     common::timestamp_t end_time;

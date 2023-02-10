@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <set>
 
 #include <snail/perf_data/dispatching_event_observer.hpp>
 
@@ -34,6 +35,8 @@ public:
     {
         std::optional<std::string> name;
 
+        std::optional<timestamp_t> end_time;
+
         [[nodiscard]] friend bool operator==(const process_data& lhs, const process_data& rhs)
         {
             return lhs.name == rhs.name;
@@ -43,6 +46,8 @@ public:
     {
         process_id_t               process_id;
         std::optional<std::string> name;
+
+        std::optional<timestamp_t> end_time;
 
         [[nodiscard]] friend bool operator==(const thread_data& lhs, const thread_data& rhs)
         {
@@ -76,7 +81,15 @@ public:
 
     const process_history& get_processes() const;
 
-    // private:
+    const thread_history& get_threads() const;
+
+    const std::set<std::pair<thread_id_t, timestamp_t>>& get_process_threads(process_id_t process_id) const;
+
+    const module_map& get_modules(process_id_t process_id) const;
+
+    const std::vector<instruction_pointer_t>& stack(std::size_t stack_index) const;
+
+private:
     template<typename T>
     void register_event();
 
@@ -92,6 +105,8 @@ public:
 
     process_history processes;
     thread_history  threads;
+
+    std::unordered_map<process_id_t, std::set<std::pair<thread_id_t, timestamp_t>>> threads_per_process_;
 
     std::unordered_map<process_id_t, module_map> modules_per_process;
 

@@ -6,6 +6,8 @@
 #include <fstream>
 #include <span>
 
+#include <snail/common/date_time.hpp>
+
 #include <snail/etl/parser/trace_headers/fwd.hpp>
 
 namespace snail::etl {
@@ -23,9 +25,16 @@ class etl_file
 public:
     struct header_data
     {
+        common::nt_sys_time start_time;
+        common::nt_sys_time end_time;
+
+        std::uint64_t start_time_qpc_ticks;
+        std::uint64_t qpc_frequency;
+
         std::uint32_t pointer_size;
-        std::uint64_t start_time;
+
         std::uint32_t number_of_processors;
+
         std::uint32_t number_of_buffers;
     };
 
@@ -37,6 +46,8 @@ public:
     void close();
 
     void process(event_observer& callbacks);
+
+    const header_data& header() const;
 
 private:
     std::ifstream file_stream_;

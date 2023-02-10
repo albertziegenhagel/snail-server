@@ -51,6 +51,7 @@ void perf_data_file_process_context::finish()
             else
             {
                 threads.insert(id, entry.timestamp, thread_data{.process_id = entry.payload.process_id, .name = entry.payload.name});
+                threads_per_process_[entry.payload.process_id].emplace(id, entry.timestamp);
             }
         }
     }
@@ -101,6 +102,7 @@ void perf_data_file_process_context::handle_event(const perf_data::parser::event
     }
 
     threads.insert(tid, time, thread_data{.process_id = pid});
+    threads_per_process_[pid].emplace(tid, time);
 }
 
 void perf_data_file_process_context::handle_event(const perf_data::parser::event_header_view& header,
@@ -147,4 +149,24 @@ const std::unordered_map<perf_data_file_process_context::process_id_t, perf_data
 const perf_data_file_process_context::process_history& perf_data_file_process_context::get_processes() const
 {
     return processes;
+}
+
+const perf_data_file_process_context::thread_history& perf_data_file_process_context::get_threads() const
+{
+    return threads;
+}
+
+const std::set<std::pair<perf_data_file_process_context::thread_id_t, perf_data_file_process_context::timestamp_t>>& perf_data_file_process_context::get_process_threads(process_id_t process_id) const
+{
+    return threads_per_process_.at(process_id);
+}
+
+const module_map& perf_data_file_process_context::get_modules(process_id_t process_id) const
+{
+    return modules_per_process.at(process_id);
+}
+
+const std::vector<perf_data_file_process_context::instruction_pointer_t>& perf_data_file_process_context::stack(std::size_t stack_index) const
+{
+    return stacks.get(stack_index);
 }

@@ -1,6 +1,8 @@
 
-#include <snail/analysis/etl_stack_provider.hpp>
+#include <snail/analysis/etl_data_provider.hpp>
 
+#include <chrono>
+#include <numeric>
 #include <ranges>
 
 #include <snail/etl/etl_file.hpp>
@@ -21,16 +23,21 @@ bool is_kernel_address(std::uint64_t address, std::uint32_t pointer_size)
                address >= 0x0000800000000000; // 64bit
 }
 
-struct etl_stack_entry : public stack_entry
+template<typename Rep, typename Ratio>
+std::int64_t to_qpc_ticks(std::chrono::duration<Rep, Ratio> time, std::uint64_t qpc_frequency)
 {
-    virtual common::instruction_pointer_t instruction_pointer() const override { return ip; }
-    virtual std::string_view              symbol_name() const override { return symbol_name_; }
-    virtual std::string_view              module_name() const override { return module_name_; }
+    // NOTE: Use gcd to reduce chance of overflow
+    const auto gcd = std::gcd(Ratio::num * qpc_frequency, Ratio::den);
+    return time.count() * ((Ratio::num * qpc_frequency) / gcd) / (Ratio::den / gcd);
+}
 
-    common::instruction_pointer_t ip;
-    std::string_view              symbol_name_;
-    std::string_view              module_name_;
-};
+template<typename Duration>
+Duration from_qpc_ticks(std::int64_t ticks, std::uint64_t qpc_frequency)
+{
+    // NOTE: Use gcd to reduce chance of overflow
+    const auto gcd = std::gcd(Duration::period::den, Duration::period::num * qpc_frequency);
+    return Duration(ticks * (Duration::period::den / gcd) / ((Duration::period::num * qpc_frequency) / gcd));
+}
 
 struct etl_sample_data : public sample_data
 {
@@ -39,16 +46,15 @@ struct etl_sample_data : public sample_data
         return user_stack != nullptr || kernel_stack != nullptr;
     }
 
-    virtual common::generator<const stack_entry&> reversed_stack() const override
+    virtual common::generator<stack_frame> reversed_stack() const override
     {
         static const std::string unkown_module_name = "[unknown]";
 
-        etl_stack_entry current_stack_entry;
         if(user_stack != nullptr)
         {
             for(const auto instruction_pointer : std::views::reverse(*user_stack))
             {
-                const auto [module, load_timestamp] = context->try_get_module_at(process_id, instruction_pointer, user_timestamp);
+                const auto [module, load_timestamp] = context->get_modules(process_id).find(instruction_pointer, user_timestamp);
 
                 const auto& symbol = (module == nullptr) ?
                                          resolver->make_generic_symbol(instruction_pointer) :
@@ -59,17 +65,17 @@ struct etl_sample_data : public sample_data
                                                                       .load_timestamp = load_timestamp},
                                                                   instruction_pointer);
 
-                current_stack_entry.ip           = instruction_pointer;
-                current_stack_entry.symbol_name_ = symbol.name;
-                current_stack_entry.module_name_ = module == nullptr ? unkown_module_name : module->file_name;
-                co_yield current_stack_entry;
+                co_yield stack_frame{
+                    .instruction_pointer = instruction_pointer,
+                    .symbol_name         = symbol.name,
+                    .module_name         = module == nullptr ? unkown_module_name : module->file_name};
             }
         }
         if(kernel_stack != nullptr)
         {
             for(const auto instruction_pointer : std::views::reverse(*kernel_stack))
             {
-                const auto [module, load_timestamp] = context->try_get_module_at(process_id, instruction_pointer, kernel_timestamp);
+                const auto [module, load_timestamp] = context->get_modules(process_id).find(instruction_pointer, kernel_timestamp);
 
                 const auto& symbol = (module == nullptr) ?
                                          resolver->make_generic_symbol(instruction_pointer) :
@@ -81,9 +87,10 @@ struct etl_sample_data : public sample_data
                                                                   },
                                                                   instruction_pointer);
 
-                current_stack_entry.ip           = instruction_pointer;
-                current_stack_entry.symbol_name_ = symbol.name;
-                co_yield current_stack_entry;
+                co_yield stack_frame{
+                    .instruction_pointer = instruction_pointer,
+                    .symbol_name         = symbol.name,
+                    .module_name         = module == nullptr ? unkown_module_name : module->file_name};
             }
         }
     }
@@ -100,24 +107,68 @@ struct etl_sample_data : public sample_data
 
 } // namespace
 
-etl_stack_provider::etl_stack_provider(const std::filesystem::path& file_path) :
-    file_path_(file_path)
-{}
+etl_data_provider::~etl_data_provider() = default;
 
-etl_stack_provider::~etl_stack_provider() = default;
-
-void etl_stack_provider::process()
+void etl_data_provider::process(const std::filesystem::path& file_path)
 {
     process_context_ = std::make_unique<detail::etl_file_process_context>();
     symbol_resolver_ = std::make_unique<detail::pdb_resolver>();
 
-    etl::etl_file file(file_path_);
+    etl::etl_file file(file_path);
     file.process(process_context_->observer());
 
     process_context_->finish();
+
+    using namespace std::chrono;
+
+    std::size_t total_sample_count = 0;
+    std::size_t total_thread_count = 0;
+    for(const auto& [process_id, profiler_process_info] : process_context_->profiler_processes())
+    {
+        const auto& samples = process_context_->process_samples(process_id);
+        total_sample_count += samples.size();
+        total_thread_count += std::ranges::size(process_context_->get_process_threads(process_id));
+    }
+
+    const auto runtime = file.header().end_time - file.header().start_time;
+
+    session_start_qpc_ticks_ = file.header().start_time_qpc_ticks;
+    session_end_qpc_ticks_   = session_start_qpc_ticks_ + to_qpc_ticks(runtime, file.header().qpc_frequency);
+    qpc_frequency_           = file.header().qpc_frequency;
+
+    const auto average_sampling_rate = runtime.count() == 0 ? 0.0 : (total_sample_count / duration_cast<duration<double>>(runtime).count());
+
+    session_info_ = analysis::session_info{
+        .command_line          = "[unknown]", // Process-DCStart -> vcdiagnostics commandline
+        .date                  = time_point_cast<seconds>(utc_clock::from_sys(file.header().start_time)),
+        .runtime               = std::chrono::duration_cast<std::chrono::nanoseconds>(runtime),
+        .number_of_processes   = process_context_->profiler_processes().size(),
+        .number_of_threads     = total_thread_count,
+        .number_of_samples     = total_sample_count,
+        .average_sampling_rate = average_sampling_rate};
+
+    system_info_ = analysis::system_info{
+        .hostname             = "[unknown]", // Windows Kernel/System Config/CPU -> ComputerName
+        .platform             = "Windows",
+        .architecture         = "[unknown]", // MSNT_SystemTrace/EventTrace/BuildInfo -> BuildString
+        .cpu_name             = "[unknown]", // Windows Kernel/System Config/PnP; where ServiceName="intelppm" -> FriendlyName
+        .number_of_processors = file.header().number_of_processors,
+    };
 }
 
-common::generator<common::process_id_t> etl_stack_provider::processes() const
+const analysis::session_info& etl_data_provider::session_info() const
+{
+    assert(session_info_ != std::nullopt); // forget to call process()?
+    return *session_info_;
+}
+
+const analysis::system_info& etl_data_provider::system_info() const
+{
+    assert(system_info_ != std::nullopt); // forget to call process()?
+    return *system_info_;
+}
+
+common::generator<common::process_id_t> etl_data_provider::sampling_processes() const
 {
     if(process_context_ == nullptr) co_return;
 
@@ -129,7 +180,48 @@ common::generator<common::process_id_t> etl_stack_provider::processes() const
     }
 }
 
-common::generator<const sample_data&> etl_stack_provider::samples(common::process_id_t process_id) const
+analysis::process_info etl_data_provider::process_info(common::process_id_t process_id) const
+{
+    assert(process_context_ != nullptr);
+
+    const auto& profiler_process_info = process_context_->profiler_processes().at(process_id);
+
+    const auto* const process = process_context_->get_processes().find_at(process_id, profiler_process_info.start_timestamp);
+    if(process == nullptr) throw std::runtime_error(std::format("Invalid process {}", process_id));
+
+    return analysis::process_info{
+        .id         = process_id,
+        .name       = process->payload.image_filename,
+        .start_time = process->timestamp >= session_start_qpc_ticks_ ? static_cast<std::uint64_t>(from_qpc_ticks<std::chrono::nanoseconds>(process->timestamp - session_start_qpc_ticks_, qpc_frequency_).count()) : 0,
+        .end_time   = process->payload.end_time ?
+                          (*process->payload.end_time >= session_start_qpc_ticks_ ? static_cast<std::uint64_t>(from_qpc_ticks<std::chrono::nanoseconds>(*process->payload.end_time - session_start_qpc_ticks_, qpc_frequency_).count()) : 0) :
+                          static_cast<std::uint64_t>(from_qpc_ticks<std::chrono::nanoseconds>(session_end_qpc_ticks_, qpc_frequency_).count())};
+}
+
+common::generator<analysis::thread_info> etl_data_provider::threads_info(common::process_id_t process_id) const
+{
+    if(process_context_ == nullptr) co_return;
+
+    const auto& process = process_info(process_id);
+
+    for(const auto& [thread_id, time] : process_context_->get_process_threads(process_id))
+    {
+        const auto* const thread = process_context_->get_threads().find_at(thread_id, time);
+
+        assert(thread != nullptr);
+        if(thread == nullptr) continue; // fault tolerance in release mode
+
+        co_yield analysis::thread_info{
+            .id         = thread->id,
+            .name       = std::nullopt,
+            .start_time = thread->timestamp >= session_start_qpc_ticks_ ? static_cast<std::uint64_t>(from_qpc_ticks<std::chrono::nanoseconds>(thread->timestamp - session_start_qpc_ticks_, qpc_frequency_).count()) : 0,
+            .end_time   = thread->payload.end_time ?
+                              (*thread->payload.end_time >= session_start_qpc_ticks_ ? static_cast<std::uint64_t>(from_qpc_ticks<std::chrono::nanoseconds>(*thread->payload.end_time - session_start_qpc_ticks_, qpc_frequency_).count()) : 0) :
+                              process.end_time};
+    }
+}
+
+common::generator<const sample_data&> etl_data_provider::samples(common::process_id_t process_id) const
 {
     if(process_context_ == nullptr) co_return;
 

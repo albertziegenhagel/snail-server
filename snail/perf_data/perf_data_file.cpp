@@ -63,12 +63,13 @@ std::string read_string(std::ifstream& file_stream, std::endian data_byte_order)
 {
     const auto length = read_int<std::uint32_t>(file_stream, data_byte_order);
 
-    std::string result;
-    result.resize(length);
+    std::vector<char> buffer;
+    buffer.resize(length + 1);
+    buffer.back() = '\0'; // just to make sure we definitely do have a valid string termination
 
-    file_stream.read(result.data(), length);
+    file_stream.read(buffer.data(), length);
 
-    return result;
+    return std::string(buffer.data());
 }
 
 std::vector<std::string> read_string_list(std::ifstream& file_stream, std::endian data_byte_order)
@@ -271,8 +272,8 @@ void read_metadata(std::ifstream&                            file_stream,
             // case parser::header_feature::cache:
             case parser::header_feature::sample_time:
                 metadata.sample_time = {
-                    .start = read_int<std::uint64_t>(file_stream, header.byte_order),
-                    .end   = read_int<std::uint64_t>(file_stream, header.byte_order)};
+                    .start = std::chrono::nanoseconds(read_int<std::uint64_t>(file_stream, header.byte_order)),
+                    .end   = std::chrono::nanoseconds(read_int<std::uint64_t>(file_stream, header.byte_order))};
                 break;
             // case parser::header_feature::mem_topology:
             case parser::header_feature::clockid:
@@ -454,15 +455,21 @@ void perf_data_file::process(event_observer& callbacks)
         read_attributes_section(file_stream_, *header_, attributes_database);
     }
 
-    detail::perf_data_metadata metadata;
-    read_metadata(file_stream_, *header_, metadata);
+    metadata_ = std::make_unique<detail::perf_data_metadata>();
+    read_metadata(file_stream_, *header_, *metadata_);
 
     if(header_->additional_features.test(parser::header_feature::event_desc))
     {
-        metadata.extract_event_attributes_database(attributes_database);
+        metadata_->extract_event_attributes_database(attributes_database);
     }
 
     read_data_section(file_stream_, *header_, attributes_database, callbacks);
 
     read_event_types_section(file_stream_, *header_);
+}
+
+const detail::perf_data_metadata& perf_data_file::metadata() const
+{
+    assert(metadata_ != nullptr);
+    return *metadata_;
 }

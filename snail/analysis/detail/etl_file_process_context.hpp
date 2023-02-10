@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <map>
 #include <optional>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -49,6 +50,8 @@ public:
         std::string    image_filename;
         std::u16string command_line;
 
+        std::optional<timestamp_t> end_time;
+
         [[nodiscard]] friend bool operator==(const process_data& lhs, const process_data& rhs)
         {
             return lhs.image_filename == rhs.image_filename &&
@@ -58,6 +61,8 @@ public:
     struct thread_data
     {
         process_id_t process_id;
+
+        std::optional<timestamp_t> end_time;
 
         [[nodiscard]] friend bool operator==(const thread_data& lhs, const thread_data& rhs)
         {
@@ -81,9 +86,13 @@ public:
 
     const std::unordered_map<process_id_t, profiler_process_info>& profiler_processes() const;
 
-    const process_info* try_get_process_at(process_id_t process_id, timestamp_t timestamp) const;
+    const process_history& get_processes() const;
 
-    std::pair<const module_info*, common::timestamp_t> try_get_module_at(process_id_t process_id, instruction_pointer_t address, timestamp_t timestamp) const;
+    const thread_history& get_threads() const;
+
+    const std::set<std::pair<thread_id_t, timestamp_t>>& get_process_threads(process_id_t process_id) const;
+
+    const module_map& get_modules(process_id_t process_id) const;
 
     const std::vector<sample_info>& process_samples(process_id_t process_id) const;
 
@@ -109,6 +118,8 @@ private:
 
     process_history processes;
     thread_history  threads;
+
+    std::unordered_map<process_id_t, std::set<std::pair<thread_id_t, timestamp_t>>> threads_per_process_;
 
     std::unordered_map<process_id_t, profiler_process_info> profiler_processes_;
 

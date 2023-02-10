@@ -4,7 +4,7 @@
 #include <format>
 #include <optional>
 
-#include <snail/analysis/stack_provider.hpp>
+#include <snail/analysis/data_provider.hpp>
 
 #include <snail/common/hash_combine.hpp>
 
@@ -27,6 +27,8 @@ private:
 };
 
 } // namespace std
+
+namespace {
 
 module_info& get_or_create_module(std::vector<module_info>&                           modules,
                                   std::unordered_map<std::string, module_info::id_t>& modules_by_name,
@@ -94,28 +96,62 @@ call_tree_node& get_or_append_call_tree_child(std::vector<call_tree_node>& call_
     return call_tree_nodes.back();
 }
 
-stacks_analysis snail::analysis::analyze_stacks(const analysis::stack_provider& stack_provider,
-                                                common::process_id_t            process_id)
+} // namespace
+
+const module_info& stacks_analysis::get_module(module_info::id_t id) const
+{
+    return modules.at(id);
+}
+
+const function_info& stacks_analysis::get_function_root() const
+{
+    return function_root;
+}
+
+const function_info& stacks_analysis::get_function(function_info::id_t id) const
+{
+    return id == function_root.id ? function_root : functions.at(id);
+}
+
+const std::vector<function_info>& stacks_analysis::all_functions() const
+{
+    return functions;
+}
+
+const call_tree_node& stacks_analysis::get_call_tree_root() const
+{
+    return call_tree_root;
+}
+
+const call_tree_node& stacks_analysis::get_call_tree_node(call_tree_node::id_t id) const
+{
+    return id == call_tree_root.id ? call_tree_root : call_tree_nodes.at(id);
+}
+
+stacks_analysis snail::analysis::analyze_stacks(const analysis::data_provider& provider,
+                                                common::process_id_t           process_id)
 {
     std::unordered_map<std::string, module_info::id_t>                               modules_by_name;
     std::unordered_map<std::pair<module_info::id_t, std::string>, module_info::id_t> functions_by_name;
 
+    const auto& process = provider.process_info(process_id);
+
     stacks_analysis result;
     result.process = process_info{
-        .process_id = process_id,
-        .name       = "???"};
+        .id   = process_id,
+        .name = process.name};
 
     result.function_root = function_info{
-        .id        = std::size_t(-1),
+        .id        = stacks_analysis::root_function_id,
         .module_id = std::size_t(-1),
         .name      = "root"};
 
     result.call_tree_root = call_tree_node{
-        .id          = std::size_t(-1),
+        .id          = stacks_analysis::root_call_tree_node_id,
         .function_id = result.function_root.id,
     };
 
-    for(const auto& sample : stack_provider.samples(process_id))
+    for(const auto& sample : provider.samples(process_id))
     {
         ++result.call_tree_root.hits.total;
         ++result.function_root.hits.total;
@@ -124,10 +160,10 @@ stacks_analysis snail::analysis::analyze_stacks(const analysis::stack_provider& 
         std::optional<module_info::id_t>   previous_module_id;
         std::optional<function_info::id_t> previous_function_id;
 
-        for(const auto& stack_entry : sample.reversed_stack())
+        for(const auto stack_frame : sample.reversed_stack())
         {
-            auto& module   = get_or_create_module(result.modules, modules_by_name, stack_entry.module_name());
-            auto& function = get_or_create_function(result.functions, functions_by_name, module, stack_entry.symbol_name());
+            auto& module   = get_or_create_module(result.modules, modules_by_name, stack_frame.module_name);
+            auto& function = get_or_create_function(result.functions, functions_by_name, module, stack_frame.symbol_name);
             auto& node     = get_or_append_call_tree_child(result.call_tree_nodes, previous_node_id ? result.call_tree_nodes[*previous_node_id] : result.call_tree_root, function);
 
             ++module.hits.total;
