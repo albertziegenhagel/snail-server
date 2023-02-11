@@ -55,6 +55,11 @@ SNAIL_JSONRPC_REQUEST_4(retrieve_callers_callees,
                         analysis::function_info::id_t, function_id,
                         std::size_t, max_entries);
 
+SNAIL_JSONRPC_REQUEST_3(retrieve_line_info,
+                        std::size_t, document_id,
+                        common::process_id_t, process_id,
+                        analysis::function_info::id_t, function_id);
+
 namespace {
 
 const analysis::call_tree_node* get_top_child(const analysis::stacks_analysis& stacks_analysis,
@@ -482,6 +487,53 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
                 {"function", std::move(function_json)          },
                 {"callers",  nlohmann::json(std::move(callers))},
                 {"callees",  nlohmann::json(std::move(callees))}
+            };
+        });
+    server.register_request<retrieve_line_info_request>(
+        [&](const retrieve_line_info_request& request) -> nlohmann::json
+        {
+            const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, request.process_id());
+            const auto& function        = stacks_analysis.get_function(request.function_id());
+
+            if(function.file_id == std::nullopt || function.line_number == std::nullopt)
+            {
+                return {
+                    {"file_path",     nlohmann::json(nullptr)},
+                    {"self_samples",  nlohmann::json(nullptr)},
+                    {"total_samples", nlohmann::json(nullptr)},
+                    {"self_percent",  nlohmann::json(nullptr)},
+                    {"total_percent", nlohmann::json(nullptr)},
+                    {"line_number",   nlohmann::json(nullptr)},
+                    {"line_hits",     nlohmann::json::array()}
+                };
+            }
+
+            const auto total_hits = storage.get_data({request.document_id()}).session_info().number_of_samples; // TODO: use filtered
+
+            const auto& file = stacks_analysis.get_file(*function.file_id);
+
+            std::vector<nlohmann::json> line_hits;
+
+            for(const auto& [line_number, hits] : function.hits_by_line)
+            {
+                line_hits.push_back(
+                    nlohmann::json{
+                        {"line_number",   line_number                          },
+                        {"total_samples", hits.total                           },
+                        {"self_samples",  hits.self                            },
+                        {"total_percent", (double)hits.total * 100 / total_hits},
+                        {"self_percent",  (double)hits.self * 100 / total_hits },
+                });
+            }
+
+            return {
+                {"file_path",     file.path                                     },
+                {"total_samples", function.hits.total                           },
+                {"self_samples",  function.hits.self                            },
+                {"total_percent", (double)function.hits.total * 100 / total_hits},
+                {"self_percent",  (double)function.hits.self * 100 / total_hits },
+                {"line_number",   *function.line_number                         },
+                {"line_hits",     nlohmann::json(std::move(line_hits))          }
             };
         });
 }
