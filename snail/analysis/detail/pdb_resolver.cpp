@@ -4,9 +4,9 @@
 #include <format>
 #include <iostream>
 
-// #include <llvm/DebugInfo/PDB/IPDBLineNumber.h>
+#include <llvm/DebugInfo/PDB/IPDBLineNumber.h>
 #include <llvm/DebugInfo/PDB/IPDBSession.h>
-// #include <llvm/DebugInfo/PDB/IPDBSourceFile.h>
+#include <llvm/DebugInfo/PDB/IPDBSourceFile.h>
 #include <llvm/DebugInfo/PDB/PDB.h>
 #include <llvm/DebugInfo/PDB/PDBSymbolFunc.h>
 #include <llvm/DebugInfo/PDB/PDBSymbolTypeFunctionSig.h>
@@ -84,13 +84,42 @@ const pdb_resolver::symbol_info& pdb_resolver::resolve_symbol(const module_info&
 
     if(pdb_symbol == nullptr) return make_generic_symbol(module, address);
 
-    const auto* const pdb_function_symbol = static_cast<llvm::pdb::PDBSymbolFunc*>(pdb_symbol.get());
+    const auto* const pdb_function_symbol = llvm::dyn_cast_or_null<llvm::pdb::PDBSymbolFunc>(pdb_symbol.get());
 
-    const auto new_symbol = symbol_info{
+    if(pdb_function_symbol == nullptr) return make_generic_symbol(module, address);
+
+    auto new_symbol = symbol_info{
         .name       = pdb_function_symbol->getUndecoratedName(),
         .is_generic = false};
 
-    const auto [new_iter, inserted] = symbol_cache.emplace(key, new_symbol);
+    const auto function_line_numbers = pdb_function_symbol->getLineNumbers();
+    if(function_line_numbers != nullptr && function_line_numbers->getChildCount() > 0)
+    {
+        auto line_info = function_line_numbers->getNext();
+        assert(line_info != nullptr);
+
+        auto source_file = pdb_session->getSourceFileById(line_info->getSourceFileId());
+
+        new_symbol.file_path            = source_file->getFileName();
+        new_symbol.function_line_number = line_info->getLineNumber() - 1; // we want line numbers to be zero based
+    }
+
+    const auto length       = pdb_function_symbol->getLength();
+    const auto line_numbers = pdb_session->findLineNumbersByRVA(common::narrow_cast<std::uint32_t>(relative_address), length);
+
+    if(line_numbers != nullptr && line_numbers->getChildCount() > 0)
+    {
+        auto line_info = line_numbers->getNext();
+        assert(line_info != nullptr);
+
+        auto source_file = pdb_session->getSourceFileById(line_info->getSourceFileId());
+
+        assert(new_symbol.file_path.empty() || new_symbol.file_path == source_file->getFileName());
+        new_symbol.file_path               = source_file->getFileName();
+        new_symbol.instruction_line_number = line_info->getLineNumber() - 1; // we want line numbers to be zero based
+    }
+
+    const auto [new_iter, inserted] = symbol_cache.emplace(key, std::move(new_symbol));
     assert(inserted);
     return new_iter->second;
 }

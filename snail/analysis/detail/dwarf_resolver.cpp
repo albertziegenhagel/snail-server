@@ -70,8 +70,7 @@ struct dwarf_resolver::context_storage
     std::unique_ptr<llvm::DWARFContext>   context;
 };
 
-const dwarf_resolver::symbol_info&
-dwarf_resolver::resolve_symbol(const module_info& module, instruction_pointer_t address)
+const dwarf_resolver::symbol_info& dwarf_resolver::resolve_symbol(const module_info& module, instruction_pointer_t address)
 {
     const auto key = symbol_key{
         .module_key = module_key{
@@ -114,8 +113,6 @@ dwarf_resolver::resolve_symbol(const module_info& module, instruction_pointer_t 
         return make_generic_symbol(module, address);
     }
 
-    // auto line_info = dwarf_context->context->getLineInfoForAddress(sectioned_address, line_info_specifier);
-
     auto line_info = inlining_info.getFrame(number_of_inlined_frames - 1);
 
     if(line_info.FunctionName == llvm::DILineInfo::BadString)
@@ -124,14 +121,18 @@ dwarf_resolver::resolve_symbol(const module_info& module, instruction_pointer_t 
     }
 
     auto new_symbol = symbol_info{
-        .is_generic = false};
+        .is_generic              = false,
+        .file_path               = line_info.FileName,
+        .function_line_number    = line_info.StartLine,
+        .instruction_line_number = line_info.Line - 1 // we want line numbers to be zero based
+    };
 
     if(!llvm::nonMicrosoftDemangle(line_info.FunctionName.c_str(), new_symbol.name))
     {
         new_symbol.name = line_info.FunctionName;
     }
 
-    const auto [new_iter, inserted] = symbol_cache.emplace(key, new_symbol);
+    const auto [new_iter, inserted] = symbol_cache.emplace(key, std::move(new_symbol));
     assert(inserted);
     return new_iter->second;
 }

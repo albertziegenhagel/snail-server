@@ -75,6 +75,11 @@ struct dwarf_resolver::symbol_info
 {
     std::string name;
     bool        is_generic;
+
+    std::string file_path;
+
+    std::size_t function_line_number;
+    std::size_t instruction_line_number;
 };
 
 struct dwarf_resolver::module_info

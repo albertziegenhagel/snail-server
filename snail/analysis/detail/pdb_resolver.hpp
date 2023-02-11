@@ -44,12 +44,12 @@ private:
 
     struct symbol_key
     {
-        pdb_resolver::module_key            module_key;
-        instruction_pointer_t address;
+        pdb_resolver::module_key module_key;
+        instruction_pointer_t    address;
 
         bool operator==(const symbol_key& other) const;
     };
-    
+
     struct module_key_hasher
     {
         std::size_t operator()(const module_key& key) const;
@@ -79,11 +79,16 @@ struct pdb_resolver::symbol_info
 {
     std::string name;
     bool        is_generic;
+
+    std::string file_path;
+
+    std::size_t function_line_number;
+    std::size_t instruction_line_number;
 };
 
 struct pdb_resolver::module_info
 {
-    std::string_view image_filename;
+    std::string_view      image_filename;
     instruction_pointer_t image_base;
 
     process_id_t process_id;

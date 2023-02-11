@@ -3,6 +3,7 @@
 #include <snail/common/types.hpp>
 
 #include <snail/analysis/data/call_tree.hpp>
+#include <snail/analysis/data/file.hpp>
 #include <snail/analysis/data/functions.hpp>
 #include <snail/analysis/data/modules.hpp>
 #include <snail/analysis/data/process.hpp>
@@ -30,6 +31,8 @@ struct stacks_analysis
 
     const std::vector<function_info>& all_functions() const;
 
+    const file_info& get_file(file_info::id_t id) const;
+
 private:
     friend stacks_analysis analyze_stacks(const data_provider& provider,
                                           common::process_id_t process_id);
@@ -45,6 +48,7 @@ private:
     std::vector<module_info>    modules;
     std::vector<function_info>  functions;
     std::vector<call_tree_node> call_tree_nodes;
+    std::vector<file_info>      files;
 
     call_tree_node call_tree_root;
     function_info  function_root;

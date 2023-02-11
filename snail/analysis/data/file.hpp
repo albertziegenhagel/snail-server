@@ -12,16 +12,7 @@ struct file_info
 
     id_t id;
 
-    std::string name;
-
-    hit_counts hits;
-};
-
-struct location
-{
-    file_info::id_t file_id;
-
-    std::size_t line_number;
+    std::string path;
 
     hit_counts hits;
 };

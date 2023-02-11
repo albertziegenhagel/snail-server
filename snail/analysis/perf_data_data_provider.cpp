@@ -48,9 +48,11 @@ struct perf_data_sample_data : public sample_data
                                                               instruction_pointer);
 
             co_yield stack_frame{
-                .instruction_pointer = instruction_pointer,
-                .symbol_name         = symbol.name,
-                .module_name         = module == nullptr ? unkown_module_name : module->file_name};
+                .symbol_name             = symbol.name,
+                .module_name             = module == nullptr ? unkown_module_name : module->file_name,
+                .file_path               = symbol.file_path,
+                .function_line_number    = symbol.function_line_number,
+                .instruction_line_number = symbol.instruction_line_number};
         }
     }
 
