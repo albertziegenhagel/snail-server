@@ -43,7 +43,7 @@ inline constexpr std::string_view socket_kind_name = "unix domain socket";
 
 std::string extract_application_name(std::string_view application_path)
 {
-    if(application_path.empty()) return "snailserver";
+    if(application_path.empty()) return "snail-server";
     return std::filesystem::path(application_path).filename().string();
 }
 

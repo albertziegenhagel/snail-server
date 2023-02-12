@@ -17,3 +17,5 @@ target_link_libraries(snailserver
     jsonrpc
     analysis
 )
+
+set_target_properties(snailserver PROPERTIES OUTPUT_NAME "snail-server")
