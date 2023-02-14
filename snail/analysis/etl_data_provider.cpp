@@ -2,6 +2,7 @@
 #include <snail/analysis/etl_data_provider.hpp>
 
 #include <chrono>
+#include <format>
 #include <numeric>
 #include <ranges>
 
@@ -144,7 +145,7 @@ void etl_data_provider::process(const std::filesystem::path& file_path)
 
     session_info_ = analysis::session_info{
         .command_line          = "[unknown]", // Process-DCStart -> vcdiagnostics commandline
-        .date                  = time_point_cast<seconds>(utc_clock::from_sys(file.header().start_time)),
+        .date                  = time_point_cast<seconds>(file.header().start_time),
         .runtime               = std::chrono::duration_cast<std::chrono::nanoseconds>(runtime),
         .number_of_processes   = process_context_->profiler_processes().size(),
         .number_of_threads     = total_thread_count,

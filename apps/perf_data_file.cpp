@@ -1,4 +1,6 @@
 
+#include <format>
+
 #include <snail/perf_data/dispatching_event_observer.hpp>
 #include <snail/perf_data/perf_data_file.hpp>
 
@@ -7,7 +9,7 @@
 
 using namespace snail;
 
-int main(int /*argc*/, char* /*argv[]*/)
+int main(int /*argc*/, char* /*argv*/[])
 {
     perf_data::perf_data_file file(R"(C:\Users\aziegenhagel\source\snail-support\tests\data\hidden_debug_perf.data)");
 

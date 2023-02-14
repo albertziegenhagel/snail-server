@@ -1,5 +1,6 @@
 #include <snail/analysis/perf_data_data_provider.hpp>
 
+#include <format>
 #include <numeric>
 #include <ranges>
 
@@ -77,10 +78,21 @@ void perf_data_data_provider::process(const std::filesystem::path& file_path)
 
     process_context_->finish();
 
-    const auto join = [](const std::vector<std::string>& strings)
+    const auto join = [](const std::vector<std::string>& strings) -> std::string
     {
+#ifdef _MSC_VER // Missing compiler support for `std::views::join_with` in (at least) clang
         auto joined = strings | std::views::join_with(' ');
         return std::string(std::ranges::begin(joined), std::ranges::end(joined));
+#else
+        if(strings.empty()) return {};
+        std::string result = strings.front();
+        for(const auto& entry : strings | std::views::drop(1))
+        {
+            result.push_back(' ');
+            result.append(entry);
+        }
+        return result;
+#endif
     };
 
     using namespace std::chrono;
@@ -105,9 +117,17 @@ void perf_data_data_provider::process(const std::filesystem::path& file_path)
 
     const auto average_sampling_rate = runtime.count() == 0 ? 0.0 : (total_sample_count / duration_cast<duration<double>>(runtime).count());
 
+    const auto file_modified_time = std::filesystem::last_write_time(file_path);
+
+#ifdef _MSC_VER // FIXME: what is the correct test here?
+    const auto date = time_point_cast<seconds>(clock_cast<system_clock>(file_modified_time));
+#else
+    const auto date = time_point_cast<seconds>(file_clock::to_sys(file_modified_time));
+#endif
+
     session_info_ = analysis::session_info{
         .command_line          = file.metadata().cmdline ? join(*file.metadata().cmdline) : "[unknown]",
-        .date                  = time_point_cast<seconds>(file_clock::to_utc(std::filesystem::last_write_time(file_path))),
+        .date                  = date,
         .runtime               = runtime,
         .number_of_processes   = process_context_->get_samples_per_process().size(),
         .number_of_threads     = total_thread_count,

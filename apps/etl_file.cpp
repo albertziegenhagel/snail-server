@@ -54,7 +54,7 @@ const char* group_to_string(etl::parser::event_trace_group group)
     return "UNKNOWN";
 }
 
-int main(int /*argc*/, char* /*argv[]*/)
+int main(int /*argc*/, char* /*argv*/[])
 {
     etl::etl_file file(R"(C:\Users\aziegenhagel\source\snail-support\tests\data\hidden_sc.user_aux.etl)");
 

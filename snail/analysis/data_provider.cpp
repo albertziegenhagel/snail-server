@@ -1,6 +1,8 @@
 
 #include <snail/analysis/data_provider.hpp>
 
+#include <format>
+
 #include <snail/analysis/etl_data_provider.hpp>
 #include <snail/analysis/perf_data_data_provider.hpp>
 

@@ -1,6 +1,7 @@
 
 #include <snail/server/storage/storage.hpp>
 
+#include <algorithm>
 #include <ranges>
 #include <unordered_map>
 
@@ -38,13 +39,15 @@ struct document_storage
                                        std::views::transform([](const snail::analysis::function_info& function)
                                                              { return function.id; });
 
+        auto function_ids = std::vector<snail::analysis::function_info::id_t>(function_ids_view.begin(), function_ids_view.end());
+
         auto& data = analysis_per_process[process_id];
         switch(sort_by)
         {
         case function_data_type::name:
             if(data.functions_by_name == std::nullopt)
             {
-                data.functions_by_name = function_ids_view | std::ranges::to<std::vector>();
+                data.functions_by_name = std::move(function_ids);
                 std::ranges::sort(*data.functions_by_name, [&stacks_analysis](const snail::analysis::function_info::id_t& lhs, const snail::analysis::function_info::id_t& rhs)
                                   { return stacks_analysis.get_function(lhs).name < stacks_analysis.get_function(rhs).name; });
             }
@@ -52,7 +55,7 @@ struct document_storage
         case function_data_type::self_samples:
             if(data.functions_by_self_samples == std::nullopt)
             {
-                data.functions_by_self_samples = function_ids_view | std::ranges::to<std::vector>();
+                data.functions_by_self_samples = std::move(function_ids);
                 std::ranges::sort(*data.functions_by_self_samples, [&stacks_analysis](const snail::analysis::function_info::id_t& lhs, const snail::analysis::function_info::id_t& rhs)
                                   { return stacks_analysis.get_function(lhs).hits.self < stacks_analysis.get_function(rhs).hits.self; });
             }
@@ -60,7 +63,7 @@ struct document_storage
         case function_data_type::total_samples:
             if(data.functions_by_total_samples == std::nullopt)
             {
-                data.functions_by_total_samples = function_ids_view | std::ranges::to<std::vector>();
+                data.functions_by_total_samples = std::move(function_ids);
                 std::ranges::sort(*data.functions_by_total_samples, [&stacks_analysis](const snail::analysis::function_info::id_t& lhs, const snail::analysis::function_info::id_t& rhs)
                                   { return stacks_analysis.get_function(lhs).hits.total < stacks_analysis.get_function(rhs).hits.total; });
             }

@@ -11,7 +11,7 @@ struct session_info
 {
     std::string command_line;
 
-    std::chrono::utc_seconds date;
+    std::chrono::sys_seconds date;
     std::chrono::nanoseconds runtime;
 
     std::size_t number_of_processes;

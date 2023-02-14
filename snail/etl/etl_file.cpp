@@ -1,11 +1,13 @@
 
+#include <snail/etl/etl_file.hpp>
+
+#include <algorithm>
 #include <array>
 #include <bit>
 #include <chrono>
+#include <format>
 #include <iostream>
 #include <queue>
-
-#include <snail/etl/etl_file.hpp>
 
 #include <snail/etl/parser/buffer.hpp>
 #include <snail/etl/parser/records/kernel/header.hpp>

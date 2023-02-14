@@ -1,5 +1,7 @@
 #pragma once
 
+#include <limits>
+
 #include <snail/common/types.hpp>
 
 #include <snail/analysis/data/call_tree.hpp>

@@ -105,7 +105,7 @@ const pdb_resolver::symbol_info& pdb_resolver::resolve_symbol(const module_info&
     }
 
     const auto length       = pdb_function_symbol->getLength();
-    const auto line_numbers = pdb_session->findLineNumbersByRVA(common::narrow_cast<std::uint32_t>(relative_address), length);
+    const auto line_numbers = pdb_session->findLineNumbersByRVA(common::narrow_cast<std::uint32_t>(relative_address), common::narrow_cast<std::uint32_t>(length));
 
     if(line_numbers != nullptr && line_numbers->getChildCount() > 0)
     {
