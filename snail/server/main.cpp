@@ -18,6 +18,9 @@
 #if defined(_WIN32)
 #    include <snail/jsonrpc/stream/windows/pipe_iostream.hpp>
 #endif
+#if defined(__unix__)
+#    include <snail/jsonrpc/stream/unix/unix_domain_socket_iostream.hpp>
+#endif
 
 #include <snail/jsonrpc/transport/message_connection.hpp>
 
@@ -36,7 +39,7 @@ using socket_stream_type = jsonrpc::pipe_iostream;
 
 inline constexpr std::string_view socket_kind_name = "named pipe";
 #elif defined(__unix__)
-#    error "Not yet implemented: stream type for unix domain sockets"
+using socket_stream_type = jsonrpc::unix_domain_socket_iostream;
 
 inline constexpr std::string_view socket_kind_name = "unix domain socket";
 #endif

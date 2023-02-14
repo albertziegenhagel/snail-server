@@ -15,6 +15,14 @@ target_sources(jsonrpc
     stream/generic/streambuf_base.cpp
 )
 
+if(UNIX)
+  target_sources(jsonrpc
+    PRIVATE
+      stream/unix/unix_domain_socket_streambuf.cpp
+      stream/unix/unix_domain_socket_iostream.cpp
+  )
+endif()
+
 if(WIN32)
   target_sources(jsonrpc
     PRIVATE
