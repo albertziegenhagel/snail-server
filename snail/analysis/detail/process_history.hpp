@@ -22,8 +22,8 @@ public:
 
     void insert(Id id, Timestamp timestamp, Data payload);
 
-    template<typename Self>
-    [[nodiscard]] auto* find_at(this Self&& self, Id id, Timestamp timestamp, bool strict = false);
+    [[nodiscard]] const entry* find_at(Id id, Timestamp timestamp, bool strict = false) const;
+    [[nodiscard]] entry*       find_at(Id id, Timestamp timestamp, bool strict = false);
 
     [[nodiscard]] const std::unordered_map<Id, std::vector<entry>>& all_entries() const
     {
@@ -57,13 +57,10 @@ void history<Id, Timestamp, Data>::insert(Id id, Timestamp timestamp, Data paylo
 
 template<std::integral Id, std::integral Timestamp, typename Data>
     requires std::equality_comparable<Data>
-template<typename Self>
-auto* history<Id, Timestamp, Data>::find_at(this Self&& self, Id id, Timestamp timestamp, bool strict)
+const typename history<Id, Timestamp, Data>::entry* history<Id, Timestamp, Data>::find_at(Id id, Timestamp timestamp, bool strict) const
 {
-    using return_type = std::conditional_t<std::is_const_v<std::remove_reference_t<Self>>, const entry*, entry*>;
-
-    auto iter = self.entries_by_id.find(id);
-    if(iter == self.entries_by_id.end()) return (return_type) nullptr;
+    auto iter = entries_by_id.find(id);
+    if(iter == entries_by_id.end()) return nullptr;
 
     // entries are sorted: latest entry comes last.
     for(auto& entry : std::views::reverse(iter->second))
@@ -71,9 +68,17 @@ auto* history<Id, Timestamp, Data>::find_at(this Self&& self, Id id, Timestamp t
         if(entry.timestamp <= timestamp) return &entry;
     }
 
-    if(strict) return (return_type) nullptr;
+    if(strict) return nullptr;
 
     return &iter->second.back();
+}
+
+template<std::integral Id, std::integral Timestamp, typename Data>
+    requires std::equality_comparable<Data>
+typename history<Id, Timestamp, Data>::entry* history<Id, Timestamp, Data>::find_at(Id id, Timestamp timestamp, bool strict)
+{
+    const auto& const_self = *this;
+    return const_cast<entry*>(const_self.find_at(id, timestamp, strict));
 }
 
 } // namespace snail::analysis::detail
