@@ -106,9 +106,17 @@ void perf_data_data_provider::process(const std::filesystem::path& file_path)
 
     const auto average_sampling_rate = runtime.count() == 0 ? 0.0 : (total_sample_count / duration_cast<duration<double>>(runtime).count());
 
+    const auto file_modified_time = std::filesystem::last_write_time(file_path);
+
+#ifdef _MSC_VER // FIXME: what is the correct test here?
+    const auto date = time_point_cast<seconds>(clock_cast<system_clock>(file_modified_time));
+#else
+    const auto date = time_point_cast<seconds>(file_clock::to_sys(file_modified_time));
+#endif
+
     session_info_ = analysis::session_info{
         .command_line          = file.metadata().cmdline ? join(*file.metadata().cmdline) : "[unknown]",
-        .date                  = time_point_cast<seconds>(file_clock::to_utc(std::filesystem::last_write_time(file_path))),
+        .date                  = date,
         .runtime               = runtime,
         .number_of_processes   = process_context_->get_samples_per_process().size(),
         .number_of_threads     = total_thread_count,
