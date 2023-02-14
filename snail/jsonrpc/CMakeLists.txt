@@ -11,7 +11,17 @@ target_sources(jsonrpc
     transport/message_connection.cpp
     transport/stream_message_reader.cpp
     transport/stream_message_writer.cpp
+    
+    stream/generic/streambuf_base.cpp
 )
+
+if(UNIX)
+  target_sources(jsonrpc
+    PRIVATE
+      stream/unix/unix_domain_socket_streambuf.cpp
+      stream/unix/unix_domain_socket_iostream.cpp
+  )
+endif()
 
 if(WIN32)
   target_sources(jsonrpc

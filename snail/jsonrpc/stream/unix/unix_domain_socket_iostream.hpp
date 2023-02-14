@@ -4,8 +4,8 @@
 
 namespace snail::jsonrpc {
 
-class pipe_streambuf;
+class unix_domain_socket_streambuf;
 
-using pipe_iostream = generic_iostream<pipe_streambuf>;
+using unix_domain_socket_iostream = generic_iostream<unix_domain_socket_streambuf>;
 
 } // namespace snail::jsonrpc
