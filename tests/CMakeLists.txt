@@ -29,6 +29,9 @@ gtest_discover_tests(test_analysis)
 add_executable(test_jsonrpc
     jsonrpc/request.cpp
 )
+if(WIN32)
+    target_sources(test_jsonrpc PRIVATE jsonrpc/pipe.cpp)
+endif()
 target_link_libraries(test_jsonrpc compile_options jsonrpc)
 target_link_libraries(test_jsonrpc third_party::gtest third_party::gtest_main)
 add_test(NAME test_jsonrpc COMMAND test_jsonrpc)
