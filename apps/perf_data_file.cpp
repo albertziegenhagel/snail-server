@@ -7,7 +7,7 @@
 
 using namespace snail;
 
-int main(int /*argc*/, char* /*argv[]*/)
+int main(int /*argc*/, char* /*argv*/[])
 {
     perf_data::perf_data_file file(R"(C:\Users\aziegenhagel\source\snail-support\tests\data\hidden_debug_perf.data)");
 
