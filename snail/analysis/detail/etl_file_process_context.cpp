@@ -1,6 +1,7 @@
 
 #include <snail/analysis/detail/etl_file_process_context.hpp>
 
+#include <charconv>
 #include <ranges>
 
 #include <snail/etl/parser/records/kernel/config.hpp>

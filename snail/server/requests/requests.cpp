@@ -1,5 +1,7 @@
 #include <snail/server/requests/requests.hpp>
 
+#include <algorithm>
+#include <format>
 #include <tuple>
 
 #include <snail/jsonrpc/request.hpp>

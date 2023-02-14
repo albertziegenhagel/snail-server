@@ -2,6 +2,7 @@
 #include <snail/jsonrpc/transport/stream_message_reader.hpp>
 
 #include <charconv>
+#include <format>
 
 #include <nlohmann/json.hpp>
 

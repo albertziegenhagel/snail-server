@@ -1,5 +1,6 @@
 #include <snail/analysis/perf_data_data_provider.hpp>
 
+#include <format>
 #include <numeric>
 #include <ranges>
 

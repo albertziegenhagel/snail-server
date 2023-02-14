@@ -1,4 +1,6 @@
 
+#include <snail/perf_data/perf_data_file.hpp>
+
 #include <array>
 #include <bit>
 #include <format>
@@ -12,8 +14,6 @@
 #include <snail/common/bit_flags.hpp>
 #include <snail/common/chunked_reader.hpp>
 #include <snail/common/stream_position.hpp>
-
-#include <snail/perf_data/perf_data_file.hpp>
 
 #include <snail/perf_data/parser/event.hpp>
 #include <snail/perf_data/parser/event_attributes.hpp>

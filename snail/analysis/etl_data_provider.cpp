@@ -2,6 +2,7 @@
 #include <snail/analysis/etl_data_provider.hpp>
 
 #include <chrono>
+#include <format>
 #include <numeric>
 #include <ranges>
 

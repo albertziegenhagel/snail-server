@@ -2,10 +2,11 @@
 #include <snail/common/unicode.hpp>
 
 #if _WIN32
-#   include <stdexcept>
-#   include <Windows.h>
+#    include <Windows.h>
+#    include <stdexcept>
 #else
-#   include <codecvt>
+#    include <codecvt>
+#    include <locale>
 #endif
 
 #include <snail/common/cast.hpp>

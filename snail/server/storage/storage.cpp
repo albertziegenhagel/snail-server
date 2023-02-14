@@ -1,6 +1,7 @@
 
 #include <snail/server/storage/storage.hpp>
 
+#include <algorithm>
 #include <ranges>
 #include <unordered_map>
 

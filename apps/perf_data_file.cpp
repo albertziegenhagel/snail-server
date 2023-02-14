@@ -1,4 +1,6 @@
 
+#include <format>
+
 #include <snail/perf_data/dispatching_event_observer.hpp>
 #include <snail/perf_data/perf_data_file.hpp>
 
