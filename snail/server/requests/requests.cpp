@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <format>
+#include <sstream>
 #include <tuple>
 
 #include <snail/jsonrpc/request.hpp>
@@ -193,10 +194,23 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
         {
             const auto& session_info = storage.get_data({request.document_id()}).session_info();
 
+            const auto format_date = [](const std::chrono::sys_seconds& date) -> std::string
+            {
+#if _MSC_VER // Missing compiler support for formatting chrono dates in (at least) clang/libc++
+                return std::format("{0:%F}T{0:%R%z}", date);
+#else
+                std::stringstream buffer;
+                const auto        time_since_epoch = std::chrono::system_clock::to_time_t(date);
+                const auto        calender_time    = *std::gmtime(&time_since_epoch);
+                buffer << std::put_time(&calender_time, "%FT%R%z");
+                return buffer.str();
+#endif
+            };
+
             return {
                 {"session_info",
                  {{"command_line", session_info.command_line},
-                  {"date", std::format("{0:%F}T{0:%R%z}", session_info.date)},
+                  {"date", format_date(session_info.date)},
                   {"runtime", session_info.runtime.count()},
                   {"number_of_processes", session_info.number_of_processes},
                   {"number_of_threads", session_info.number_of_threads},
