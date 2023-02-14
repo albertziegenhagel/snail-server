@@ -4,13 +4,15 @@
 #include <format>
 #include <iostream>
 
-#include <llvm/DebugInfo/PDB/IPDBLineNumber.h>
-#include <llvm/DebugInfo/PDB/IPDBSession.h>
-#include <llvm/DebugInfo/PDB/IPDBSourceFile.h>
-#include <llvm/DebugInfo/PDB/PDB.h>
-#include <llvm/DebugInfo/PDB/PDBSymbolFunc.h>
-#include <llvm/DebugInfo/PDB/PDBSymbolTypeFunctionSig.h>
-#include <llvm/DebugInfo/PDB/PDBTypes.h>
+#ifdef SNAIL_HAS_LLVM
+#    include <llvm/DebugInfo/PDB/IPDBLineNumber.h>
+#    include <llvm/DebugInfo/PDB/IPDBSession.h>
+#    include <llvm/DebugInfo/PDB/IPDBSourceFile.h>
+#    include <llvm/DebugInfo/PDB/PDB.h>
+#    include <llvm/DebugInfo/PDB/PDBSymbolFunc.h>
+#    include <llvm/DebugInfo/PDB/PDBSymbolTypeFunctionSig.h>
+#    include <llvm/DebugInfo/PDB/PDBTypes.h>
+#endif
 
 #include <snail/common/cast.hpp>
 #include <snail/common/hash_combine.hpp>
@@ -76,6 +78,7 @@ const pdb_resolver::symbol_info& pdb_resolver::resolve_symbol(const module_info&
     auto iter = symbol_cache.find(key);
     if(iter != symbol_cache.end()) return iter->second;
 
+#ifdef SNAIL_HAS_LLVM
     auto* const pdb_session = get_pdb_session(module);
     if(pdb_session == nullptr) return make_generic_symbol(module, address);
 
@@ -122,8 +125,12 @@ const pdb_resolver::symbol_info& pdb_resolver::resolve_symbol(const module_info&
     const auto [new_iter, inserted] = symbol_cache.emplace(key, std::move(new_symbol));
     assert(inserted);
     return new_iter->second;
+#else  // SNAIL_HAS_LLVM
+    return make_generic_symbol(module, address);
+#endif // SNAIL_HAS_LLVM
 }
 
+#ifdef SNAIL_HAS_LLVM
 llvm::pdb::IPDBSession* pdb_resolver::get_pdb_session(const module_info& module)
 {
     const auto key = module_key{
@@ -150,6 +157,7 @@ llvm::pdb::IPDBSession* pdb_resolver::get_pdb_session(const module_info& module)
 
     return new_pdb_session.get();
 }
+#endif // SNAIL_HAS_LLVM
 
 bool pdb_resolver::module_key::operator==(const module_key& other) const
 {

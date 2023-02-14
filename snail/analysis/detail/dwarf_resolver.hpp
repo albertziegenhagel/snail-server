@@ -62,11 +62,13 @@ private:
         std::hash<instruction_pointer_t>  address_hasher;
     };
 
+#ifdef SNAIL_HAS_LLVM
     struct context_storage;
 
     context_storage* get_dwarf_context(const module_info& module);
 
     std::unordered_map<module_key, std::unique_ptr<context_storage>, module_key_hasher> dwarf_context_cache;
+#endif // SNAIL_HAS_LLVM
 
     std::unordered_map<symbol_key, symbol_info, symbol_key_hasher> symbol_cache;
 };

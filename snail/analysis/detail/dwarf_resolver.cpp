@@ -5,9 +5,11 @@
 #include <iostream>
 #include <optional>
 
-#include <llvm/DebugInfo/DWARF/DWARFContext.h>
-#include <llvm/Demangle/Demangle.h>
-#include <llvm/Object/ELFObjectFile.h>
+#ifdef SNAIL_HAS_LLVM
+#    include <llvm/DebugInfo/DWARF/DWARFContext.h>
+#    include <llvm/Demangle/Demangle.h>
+#    include <llvm/Object/ELFObjectFile.h>
+#endif // SNAIL_HAS_LLVM
 
 #include <snail/common/cast.hpp>
 #include <snail/common/hash_combine.hpp>
@@ -62,6 +64,7 @@ const dwarf_resolver::symbol_info& dwarf_resolver::make_generic_symbol(const mod
     return new_iter->second;
 }
 
+#ifdef SNAIL_HAS_LLVM
 struct dwarf_resolver::context_storage
 {
     std::unique_ptr<llvm::object::Binary> binary;
@@ -69,6 +72,7 @@ struct dwarf_resolver::context_storage
     llvm::object::ObjectFile*             object;
     std::unique_ptr<llvm::DWARFContext>   context;
 };
+#endif // SNAIL_HAS_LLVM
 
 const dwarf_resolver::symbol_info& dwarf_resolver::resolve_symbol(const module_info& module, instruction_pointer_t address)
 {
@@ -81,6 +85,7 @@ const dwarf_resolver::symbol_info& dwarf_resolver::resolve_symbol(const module_i
     auto iter = symbol_cache.find(key);
     if(iter != symbol_cache.end()) return iter->second;
 
+#ifdef SNAIL_HAS_LLVM
     const auto relative_address = address - module.image_base + module.page_offset;
 
     auto* const dwarf_context = get_dwarf_context(module);
@@ -135,8 +140,12 @@ const dwarf_resolver::symbol_info& dwarf_resolver::resolve_symbol(const module_i
     const auto [new_iter, inserted] = symbol_cache.emplace(key, std::move(new_symbol));
     assert(inserted);
     return new_iter->second;
+#else  // SNAIL_HAS_LLVM
+    return make_generic_symbol(module, address);
+#endif // SNAIL_HAS_LLVM
 }
 
+#ifdef SNAIL_HAS_LLVM
 dwarf_resolver::context_storage* dwarf_resolver::get_dwarf_context(const module_info& module)
 {
     const auto key = module_key{
@@ -193,6 +202,7 @@ dwarf_resolver::context_storage* dwarf_resolver::get_dwarf_context(const module_
 
     return storage.get();
 }
+#endif // SNAIL_HAS_LLVM
 
 bool dwarf_resolver::module_key::operator==(const module_key& other) const
 {
