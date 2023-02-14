@@ -11,7 +11,6 @@ if(MSVC)
   target_compile_options(compile_options INTERFACE
     "/W4"
     "/permissive-"
-    "$<$<CONFIG:Release>:/arch:AVX2>"
   )
   if(SNAIL_WARNINGS_AS_ERRORS)
     target_compile_options(compile_options INTERFACE
@@ -23,7 +22,6 @@ elseif(CMAKE_COMPILER_IS_GNUCC)
     "-Wall"
     "-Wextra"
     "-pedantic"
-    "$<$<CONFIG:Release>:-march=native"
   )
   if(SNAIL_WARNINGS_AS_ERRORS)
     target_compile_options(compile_options INTERFACE
