@@ -11,6 +11,8 @@ target_sources(jsonrpc
     transport/message_connection.cpp
     transport/stream_message_reader.cpp
     transport/stream_message_writer.cpp
+    
+    stream/generic/streambuf_base.cpp
 )
 
 if(WIN32)
