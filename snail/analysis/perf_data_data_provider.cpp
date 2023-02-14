@@ -78,10 +78,21 @@ void perf_data_data_provider::process(const std::filesystem::path& file_path)
 
     process_context_->finish();
 
-    const auto join = [](const std::vector<std::string>& strings)
+    const auto join = [](const std::vector<std::string>& strings) -> std::string
     {
+#ifdef _MSC_VER // Missing compiler support for `std::views::join_with` in (at least) clang
         auto joined = strings | std::views::join_with(' ');
         return std::string(std::ranges::begin(joined), std::ranges::end(joined));
+#else
+        if(strings.empty()) return {};
+        std::string result = strings.front();
+        for(const auto& entry : strings | std::views::drop(1))
+        {
+            result.push_back(' ');
+            result.append(entry);
+        }
+        return result;
+#endif
     };
 
     using namespace std::chrono;
