@@ -241,7 +241,7 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
             for(const auto process_id : data_provider.sampling_processes())
             {
                 auto json_threads = nlohmann::json::array();
-                for(const auto thread_info : data_provider.threads_info(process_id))
+                for(const auto& thread_info : data_provider.threads_info(process_id))
                 {
                     json_threads.push_back({
                         {"id",         thread_info.id                                                                },

@@ -75,8 +75,8 @@ void perf_data_file_process_context::register_event()
         });
 }
 
-void perf_data_file_process_context::handle_event(const perf_data::parser::event_header_view& header,
-                                                  const perf_data::parser::comm_event_view&   event)
+void perf_data_file_process_context::handle_event(const perf_data::parser::event_header_view& /*header*/,
+                                                  const perf_data::parser::comm_event_view& event)
 {
     const auto pid  = event.pid();
     const auto tid  = event.tid();
@@ -89,8 +89,8 @@ void perf_data_file_process_context::handle_event(const perf_data::parser::event
     thread_names.insert(pid, time, thread_data{.process_id = pid, .name = std::string(event.comm())});
 }
 
-void perf_data_file_process_context::handle_event(const perf_data::parser::event_header_view& header,
-                                                  const perf_data::parser::fork_event_view&   event)
+void perf_data_file_process_context::handle_event(const perf_data::parser::event_header_view& /*header*/,
+                                                  const perf_data::parser::fork_event_view& event)
 {
     const auto pid  = event.pid();
     const auto tid  = event.tid();
@@ -105,8 +105,8 @@ void perf_data_file_process_context::handle_event(const perf_data::parser::event
     threads_per_process_[pid].emplace(tid, time);
 }
 
-void perf_data_file_process_context::handle_event(const perf_data::parser::event_header_view& header,
-                                                  const perf_data::parser::mmap2_event_view&  event)
+void perf_data_file_process_context::handle_event(const perf_data::parser::event_header_view& /*header*/,
+                                                  const perf_data::parser::mmap2_event_view& event)
 {
     auto& process_modules = modules_per_process[event.pid()];
 
@@ -119,8 +119,8 @@ void perf_data_file_process_context::handle_event(const perf_data::parser::event
                            *event.sample_id().time);
 }
 
-void perf_data_file_process_context::handle_event(const perf_data::parser::event_header_view& header,
-                                                  const perf_data::parser::sample_event&      event)
+void perf_data_file_process_context::handle_event(const perf_data::parser::event_header_view& /*header*/,
+                                                  const perf_data::parser::sample_event& event)
 {
     assert(event.pid);
     assert(event.tid);
