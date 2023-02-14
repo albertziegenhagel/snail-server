@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(snail_support VERSION 0.1 LANGUAGES CXX)
+project(snail_support VERSION 0.1 LANGUAGES CXX C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 

@@ -1,0 +1,24 @@
+{
+    "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+    "name": "snail-server",
+    "default-features": [
+        "llvm"
+    ],
+    "dependencies": [
+        "nlohmann-json"
+    ],
+    "features": {
+        "llvm": {
+            "description": "Used to resolve symbols from PDB and DWARF files.",
+            "dependencies": [
+                {
+                    "name": "llvm",
+                    "default-features": false,
+                    "features": [
+                        "default-options"
+                    ]
+                }
+            ]
+        }
+    }
+}
