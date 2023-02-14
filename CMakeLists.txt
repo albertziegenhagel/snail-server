@@ -9,11 +9,15 @@ set(CMAKE_CXX_STANDARD 23)
 
 include(cmake/compile_options.cmake)
 
-find_package(LLVM CONFIG REQUIRED
-  COMPONENTS
-    LLVMDebugInfoPDB
-    LLVMDebugInfoDWARF
-)
+option(SNAIL_WITH_LLVM "Required to resolve symbols from PDB and DWARF files." ON)
+
+if(SNAIL_WITH_LLVM)
+  find_package(LLVM CONFIG REQUIRED
+    COMPONENTS
+      LLVMDebugInfoPDB
+      LLVMDebugInfoDWARF
+  )
+endif()
 
 find_package(nlohmann_json CONFIG REQUIRED)
 

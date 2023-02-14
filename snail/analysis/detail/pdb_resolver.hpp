@@ -6,11 +6,15 @@
 #include <string>
 #include <unordered_map>
 
+#ifdef SNAIL_HAS_LLVM
+
 namespace llvm::pdb {
 
 class IPDBSession;
 
 } // namespace llvm::pdb
+
+#endif // SNAIL_HAS_LLVM
 
 namespace snail::analysis::detail {
 
@@ -68,9 +72,11 @@ private:
         std::hash<instruction_pointer_t> address_hasher;
     };
 
+#ifdef SNAIL_HAS_LLVM
     llvm::pdb::IPDBSession* get_pdb_session(const module_info& module);
 
     std::unordered_map<module_key, std::unique_ptr<llvm::pdb::IPDBSession>, module_key_hasher> pdb_session_cache;
+#endif // SNAIL_HAS_LLVM
 
     std::unordered_map<symbol_key, symbol_info, symbol_key_hasher> symbol_cache;
 };

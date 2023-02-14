@@ -24,12 +24,21 @@ target_link_libraries(analysis
 
     etl 
     perf_data
-
-    LLVMDebugInfoPDB
-    LLVMDebugInfoDWARF
   PUBLIC
     common
 )
+
+if(SNAIL_WITH_LLVM)
+  target_link_libraries(analysis
+    PRIVATE
+      LLVMDebugInfoPDB
+      LLVMDebugInfoDWARF
+  )
+  target_compile_definitions(analysis
+    PUBLIC
+      SNAIL_HAS_LLVM
+  )
+endif()
 
 target_include_directories(analysis SYSTEM PRIVATE
   ${LLVM_INCLUDE_DIRS}
