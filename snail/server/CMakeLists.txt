@@ -19,3 +19,11 @@ target_link_libraries(snailserver
 )
 
 set_target_properties(snailserver PROPERTIES OUTPUT_NAME "snail-server")
+
+install(
+  TARGETS
+    snailserver
+  COMPONENT
+    server
+  RUNTIME DESTINATION bin
+)
