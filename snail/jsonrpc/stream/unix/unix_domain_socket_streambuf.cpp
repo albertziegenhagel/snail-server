@@ -68,6 +68,7 @@ void unix_domain_socket_streambuf::open(const std::filesystem::path& path, std::
     if(::connect(unix_domain_socket_file_, (sockaddr*)&socket_address, sizeof(sockaddr_un)) == -1)
     {
         // FIXME: ERROR
+        close();
         return;
     }
 }
