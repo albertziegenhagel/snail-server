@@ -54,7 +54,7 @@ jobs:
         uses: lukka/run-cmake@v10
         with:
           configurePreset: 'ninja-vcpkg'
-          configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Release', '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}', '-DVCPKG_MANIFEST_NO_DEFAULT_FEATURES=TRUE', '-DSNAIL_WITH_LLVM=FALSE']"
+          configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Release', '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}']"
 
           buildPreset: 'ninja-vcpkg'
 
