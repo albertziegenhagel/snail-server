@@ -18,7 +18,7 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         include:
           - os: windows-latest
-            triplet: x64-windows-release
+            triplet: x64-windows-static-release
             arch: x86_64
             platform: windows
           - os: ubuntu-latest
@@ -48,13 +48,13 @@ jobs:
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v10
         with:
-          vcpkgGitCommitId: 'f14984af3738e69f197bf0e647a8dca12de92996'
+          vcpkgGitCommitId: 'a325228200d7f229f3337e612e0077f2a5307090'
         
       - name: Build & Test project
         uses: lukka/run-cmake@v10
         with:
           configurePreset: 'ninja-vcpkg'
-          configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Release', '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}']"
+          configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Release', '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}', '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded']"
 
           buildPreset: 'ninja-vcpkg'
 
