@@ -28,6 +28,7 @@ jobs:
 
     env:
       VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
+      VCPKG_GIT_COMMIT_ID: 'a325228200d7f229f3337e612e0077f2a5307090'
 
     steps:
       - name: Install gcc-13
@@ -45,11 +46,19 @@ jobs:
           cmakeVersion: "~3.25.0"
           ninjaVersion: "^1.11.1"
           
-      - name: Setup vcpkg
+      - name: Setup vcpkg (windows)
+        if: runner.os == 'Windows'
         uses: lukka/run-vcpkg@v10
         with:
-          vcpkgGitCommitId: 'a325228200d7f229f3337e612e0077f2a5307090'
-        
+          vcpkgDirectory: 'C:\vcpkg'
+          vcpkgGitCommitId: '${{ env.VCPKG_GIT_COMMIT_ID }}'
+
+      - name: Setup vcpkg (non-windows)
+        if: runner.os != 'Windows'
+        uses: lukka/run-vcpkg@v10
+        with:
+          vcpkgGitCommitId: '${{ env.VCPKG_GIT_COMMIT_ID }}'
+
       - name: Build & Test project
         uses: lukka/run-cmake@v10
         with:
