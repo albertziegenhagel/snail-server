@@ -65,7 +65,7 @@ void server::register_request(HandlerType&& handler)
         [handler = std::forward<HandlerType>(handler)](const nlohmann::json& data) -> std::optional<nlohmann::json>
         {
             nlohmann::json response = std::invoke(handler, detail::unpack_request<RequestType>(data));
-            return std::move(response);
+            return response;
         });
 }
 
