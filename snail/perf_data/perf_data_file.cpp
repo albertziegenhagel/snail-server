@@ -351,7 +351,7 @@ void perf_data_file::open(const std::filesystem::path& file_path)
 
     const auto read_bytes = file_stream_.tellg() - std::streampos(0);
 
-    if(read_bytes < parser::header_view::static_size)
+    if(read_bytes < static_cast<std::streamoff>(parser::header_view::static_size))
     {
         std::cout << std::format(
                          "ERROR: Invalid perf.data file: insufficient size for header. Expected {} but read only {}.",

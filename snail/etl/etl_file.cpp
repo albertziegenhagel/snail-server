@@ -69,7 +69,7 @@ buffer_info read_buffer(std::ifstream&                          file_stream,
     file_stream.read(reinterpret_cast<char*>(buffer_data.data()), buffer_data.size());
 
     const auto read_bytes = file_stream.tellg() - buffer_start_pos;
-    if(read_bytes < parser::wmi_buffer_header_view::static_size)
+    if(read_bytes < static_cast<std::streamoff>(parser::wmi_buffer_header_view::static_size))
     {
         std::cout << std::format(
                          "ERROR: Invalid ETL file: insufficient size for buffer header. Expected {} but read only {}.",
@@ -277,7 +277,7 @@ void etl_file::open(const std::filesystem::path& file_path)
     file_stream_.read(reinterpret_cast<char*>(file_buffer_data.data()), file_buffer_data.size());
 
     const auto read_bytes = file_stream_.tellg() - std::streampos(0);
-    if(read_bytes < parser::wmi_buffer_header_view::static_size)
+    if(read_bytes < static_cast<std::streamoff>(parser::wmi_buffer_header_view::static_size))
     {
         std::cout << "ERROR: Invalid ETL file: insufficient size for buffer header" << std::endl;
         return; // TODO: handle error
@@ -347,7 +347,7 @@ void etl_file::process(event_observer& callbacks)
             assert(file_stream_.good());
 
             const auto read_bytes = file_stream_.tellg() - init_position;
-            if(read_bytes < parser::wmi_buffer_header_view::static_size)
+            if(read_bytes < static_cast<std::streamoff>(parser::wmi_buffer_header_view::static_size))
             {
                 std::cout << std::format(
                                  "ERROR: Invalid ETL file: insufficient size for buffer header (index {}). Expected {} but read only {}.",
