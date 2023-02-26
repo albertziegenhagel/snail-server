@@ -4,6 +4,7 @@ add_library(common)
 target_sources(common
   PRIVATE
     unicode.cpp
+    trim.cpp
 )
 
 target_link_libraries(common 

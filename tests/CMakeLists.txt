@@ -1,6 +1,13 @@
 
 include(GoogleTest)
 
+add_executable(test_common
+    common/utility.cpp
+)
+target_link_libraries(test_common compile_options common)
+target_link_libraries(test_common GTest::gtest GTest::gtest_main)
+gtest_discover_tests(test_common)
+
 add_executable(test_etl
     etl/parser.cpp
     etl/event_observer.cpp
