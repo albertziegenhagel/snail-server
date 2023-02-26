@@ -7,6 +7,7 @@
 #include <iostream>
 #include <optional>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -117,7 +118,7 @@ void read_attributes_section(std::ifstream&                            file_stre
         if(attribute_view.size() != parser::event_attributes_view::static_size)
         {
             std::cout << std::format(
-                             "ERROR: Invalid event in perf.data: Event attribute size is given as {} bytes but should be {}.",
+                             "Invalid event in perf.data: Event attribute size is given as {} bytes but should be {}.",
                              attribute_view.size(),
                              parser::event_attributes_view::static_size)
                       << std::endl;
@@ -318,7 +319,7 @@ void read_data_section(std::ifstream&                            file_stream,
         if(event_header.size() < parser::event_header_view::static_size)
         {
             std::cout << std::format(
-                             "ERROR: Invalid event in perf.data: Event size is given as {} bytes but header is at least {}.",
+                             "Invalid event in perf.data: Event size is given as {} bytes but header is at least {}.",
                              event_header.size(),
                              parser::event_header_view::static_size)
                       << std::endl;
@@ -349,8 +350,7 @@ void perf_data_file::open(const std::filesystem::path& file_path)
 
     if(!file_stream_.is_open())
     {
-        std::cout << "ERROR: could not open file" << file_path << std::endl;
-        std::exit(EXIT_FAILURE); // TODO: handle error
+        throw std::runtime_error(std::format("Could not open file {}", file_path.string()));
     }
 
     std::array<std::byte, parser::header_view::static_size> file_buffer_data;
@@ -360,13 +360,11 @@ void perf_data_file::open(const std::filesystem::path& file_path)
 
     if(read_bytes < static_cast<std::streamoff>(parser::header_view::static_size))
     {
-        std::cout << std::format(
-                         "ERROR: Invalid perf.data file: insufficient size for header. Expected {} but read only {}.",
-                         parser::header_view::static_size,
-                         read_bytes)
-                  << std::endl;
         close();
-        std::exit(EXIT_FAILURE); // TODO: handle error
+        throw std::runtime_error(std::format(
+            "Invalid perf.data file: insufficient size for header. Expected {} but read only {}.",
+            parser::header_view::static_size,
+            read_bytes));
     }
 
     const auto file_buffer = std::span(file_buffer_data);
@@ -382,14 +380,12 @@ void perf_data_file::open(const std::filesystem::path& file_path)
        magic != magic_v2_swapped)
     {
         const auto magic_str = std::string_view(reinterpret_cast<const char*>(file_buffer.data()), 8);
-        std::cout << std::format(
-                         "ERROR: Invalid perf.data file: Invalid magic header.\n  Expected '{}' (little endian) or '{}' (big endian) but got '{}'.",
-                         "PERFILE2",
-                         "2ELIFREP",
-                         magic_str)
-                  << std::endl;
         close();
-        std::exit(EXIT_FAILURE); // TODO: handle error
+        throw std::runtime_error(std::format(
+            "Invalid perf.data file: Invalid magic header.\n  Expected '{}' (little endian) or '{}' (big endian) but got '{}'.",
+            "PERFILE2",
+            "2ELIFREP",
+            magic_str));
     }
 
     constexpr auto non_native_byte_order = std::endian::native == std::endian::little ?
@@ -405,13 +401,11 @@ void perf_data_file::open(const std::filesystem::path& file_path)
 
     if(header.size() != parser::header_view::static_size)
     {
-        std::cout << std::format(
-                         "ERROR: Invalid perf.data file: Invalid header size.\n  Expected {} but got {}.",
-                         parser::header_view::static_size,
-                         header.size())
-                  << std::endl;
         close();
-        std::exit(EXIT_FAILURE); // TODO: handle error
+        throw std::runtime_error(std::format(
+            "Invalid perf.data file: Invalid header size.\n  Expected {} but got {}.",
+            parser::header_view::static_size,
+            header.size()));
     }
 
     header_ = std::make_unique<detail::perf_data_file_header_data>(detail::perf_data_file_header_data{
@@ -445,14 +439,12 @@ void perf_data_file::process(event_observer& callbacks)
 {
     if(!file_stream_.is_open())
     {
-        std::cout << "ERROR: Cannot process file: file is not open." << std::endl;
-        std::exit(EXIT_FAILURE); // TODO: handle error
+        throw std::runtime_error("Cannot process file: file is not open.");
     }
 
     if(header_ == nullptr)
     {
-        std::cout << "ERROR: Cannot process file: missing header data." << std::endl;
-        std::exit(EXIT_FAILURE); // TODO: handle error
+        throw std::runtime_error("Cannot process file: missing header data.");
     }
 
     detail::event_attributes_database attributes_database;

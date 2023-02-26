@@ -15,8 +15,7 @@ void event_attributes_database::validate()
 {
     if(all_attributes.empty())
     {
-        std::cout << "Empty event attributes" << std::endl;
-        std::exit(EXIT_FAILURE); // TODO: handle error
+        throw std::runtime_error("Invalid perf.data file: empty event attributes");
     }
 
     const auto& main_attributes = all_attributes.front();
@@ -24,8 +23,7 @@ void event_attributes_database::validate()
     if(main_attributes.sample_format.test(parser::sample_format::read) &&
        !main_attributes.read_format.test(parser::read_format::id))
     {
-        std::cout << "Non matching read format" << std::endl;
-        std::exit(EXIT_FAILURE); // TODO: handle error
+        throw std::runtime_error("Invalid perf.data file: non-matching read format");
     }
 
     id_offset      = calculate_id_offset(main_attributes.sample_format);
@@ -36,22 +34,19 @@ void event_attributes_database::validate()
         if(id_offset != calculate_id_offset(attributes.sample_format) ||
            id_back_offset != calculate_id_back_offset(attributes.sample_format))
         {
-            std::cout << "ERROR: Different id positions" << std::endl;
-            std::exit(EXIT_FAILURE); // TODO: handle error
+            throw std::runtime_error("Invalid perf.data file: non-matching id positions");
         }
 
         if(main_attributes.flags.test(parser::attribute_flag::sample_id_all) !=
            attributes.flags.test(parser::attribute_flag::sample_id_all))
         {
-            std::cout << "ERROR: Different sample_id_all" << std::endl;
-            std::exit(EXIT_FAILURE); // TODO: handle error
+            throw std::runtime_error("Invalid perf.data file: non-matching sample_id_all");
         }
 
         if(main_attributes.read_format.data() !=
            attributes.read_format.data())
         {
-            std::cout << "ERROR: Different read_format" << std::endl;
-            std::exit(EXIT_FAILURE); // TODO: handle error
+            throw std::runtime_error("Invalid perf.data file: non-matching read_format");
         }
     }
 }
@@ -116,8 +111,7 @@ const parser::event_attributes& event_attributes_database::get_event_attributes(
     const auto iter = id_to_attributes.find(id);
     if(iter == id_to_attributes.end())
     {
-        std::cout << "ERROR: Could not find event attributes for ID" << std::endl;
-        std::exit(EXIT_FAILURE); // TODO: handle error
+        throw std::runtime_error("Could not find event attributes for ID");
     }
     return *iter->second;
 }

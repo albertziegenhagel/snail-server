@@ -2,13 +2,11 @@
 
 #include <array>
 #include <bit>
+#include <format>
 #include <fstream>
 #include <span>
+#include <stdexcept>
 #include <type_traits>
-
-// TODO: error handling. Remove includes if not required anymore
-#include <format>
-#include <iostream>
 
 namespace snail::common {
 
@@ -23,8 +21,7 @@ public:
         file_stream_.seekg(offset);
         if(!file_stream_.good() || file_stream_.tellg() != std::streampos(offset))
         {
-            std::cout << std::format("ERROR: Could not move to events data section.") << std::endl;
-            std::exit(EXIT_FAILURE); // TODO: handle error
+            throw std::runtime_error("Failed to move to file offset");
         }
     }
 
@@ -51,8 +48,7 @@ public:
 
         if(!file_stream_.good())
         {
-            std::cout << "ERROR: Cannot read from perf.data: File is an invalid state." << std::endl;
-            std::exit(EXIT_FAILURE); // TODO: handle error
+            throw std::runtime_error("Failed to read chunk from file: file is an invalid state.");
         }
 
         const auto remaining_data_bytes_to_read = remaining_data_bytes - last_chunk_remaining_bytes;
@@ -69,12 +65,10 @@ public:
 
         if(chunk_read_bytes != static_cast<std::streamoff>(chunk_bytes_to_read))
         {
-            std::cout << std::format(
-                             "ERROR: Could not read from perf.data: Expected to read {} bytes but only got {}.",
-                             chunk_bytes_to_read,
-                             chunk_read_bytes)
-                      << std::endl;
-            std::exit(EXIT_FAILURE); // TODO: handle error
+            throw std::runtime_error(std::format(
+                "ERROR: Could not read from file: Expected to read {} bytes but only got {}.",
+                chunk_bytes_to_read,
+                chunk_read_bytes));
         }
 
         current_chunk_data_ = std::span(chunk_buffer_.data(), chunk_read_bytes + last_chunk_remaining_bytes);
