@@ -75,7 +75,7 @@ jobs:
           cmake --install ${{ github.workspace }}/build/ninja-vcpkg --component server --prefix ${{ github.workspace }}/install
 
       - name: Upload binaries
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with: 
           name: snail-server-${{ matrix.arch }}-${{ matrix.platform }}
           path: ${{ github.workspace }}/install/bin/snail-server*
