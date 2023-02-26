@@ -15,6 +15,7 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_FRONTEND_VARIA
     "-Wall"
     "-Wextra"
     "-pedantic"
+    "-Wno-missing-field-initializers" # Missing initializers are value initialized, which is exactly what we want
   )
 endif()
 
