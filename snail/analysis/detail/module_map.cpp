@@ -80,7 +80,7 @@ void module_map::insert(module_info module, common::timestamp_t load_timestamp)
 
     // Check whether we need to enlarge the total address range at the beginning
     // and prepend a new range part if necessary.
-    bool inserted_before = false;
+    [[maybe_unused]] bool inserted_before = false;
     if(address_ranges.front().begin_address > to_insert_begin)
     {
         const auto current_total_begin = address_ranges.front().begin_address;
@@ -100,7 +100,7 @@ void module_map::insert(module_info module, common::timestamp_t load_timestamp)
 
     // Check whether we need to enlarge the total address range at the end
     // and append a new range part if necessary.
-    bool inserted_after = false;
+    [[maybe_unused]] bool inserted_after = false;
     if(address_ranges.back().end_address < to_insert_end)
     {
         const auto current_total_end = address_ranges.back().end_address;
@@ -158,7 +158,7 @@ void module_map::insert(module_info module, common::timestamp_t load_timestamp)
        modules[first_overlapping_range->active_modules.back().module_index].page_offset == modules.back().page_offset)
     {
         assert(!inserted_before && !inserted_after);
-        const auto& last_active_module = modules[first_overlapping_range->active_modules.back().module_index];
+        [[maybe_unused]] const auto& last_active_module = modules[first_overlapping_range->active_modules.back().module_index];
         assert(last_active_module.base == modules.back().base);
         assert(last_active_module.size == modules.back().size);
         modules.pop_back();

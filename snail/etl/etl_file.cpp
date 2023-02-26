@@ -191,7 +191,7 @@ std::size_t process_event_header_trace(std::span<const std::byte>   payload_buff
 {
     const auto trace_header = parser::event_header_trace_header_view(payload_buffer);
 
-    const auto is_extended = (trace_header.flags() & static_cast<std::underlying_type_t<parser::event_header_flag>>(parser::event_header_flag::extended_info)) != 0;
+    [[maybe_unused]] const auto is_extended = (trace_header.flags() & static_cast<std::underlying_type_t<parser::event_header_flag>>(parser::event_header_flag::extended_info)) != 0;
 
     assert(!is_extended); // not yet supported
 
@@ -295,7 +295,7 @@ void etl_file::open(const std::filesystem::path& file_path)
         return; // TODO: handle error
     }
 
-    const auto marker = parser::generic_trace_marker_view(file_buffer.subspan(parser::wmi_buffer_header_view::static_size));
+    [[maybe_unused]] const auto marker = parser::generic_trace_marker_view(file_buffer.subspan(parser::wmi_buffer_header_view::static_size));
     assert(marker.is_trace_header() && marker.is_trace_header_event_trace() && !marker.is_trace_message());
     assert(marker.header_type() == parser::trace_header_type::system32 ||
            marker.header_type() == parser::trace_header_type::system64);

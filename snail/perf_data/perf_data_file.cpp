@@ -240,8 +240,8 @@ void read_metadata(std::ifstream&                            file_stream,
                 break;
             case parser::header_feature::event_desc:
             {
-                const auto nr_events = read_int<std::uint32_t>(file_stream, header.byte_order);
-                const auto attr_size = read_int<std::uint32_t>(file_stream, header.byte_order);
+                const auto                  nr_events = read_int<std::uint32_t>(file_stream, header.byte_order);
+                [[maybe_unused]] const auto attr_size = read_int<std::uint32_t>(file_stream, header.byte_order);
                 assert(attr_size == parser::event_attributes_view::static_size);
                 std::array<std::byte, parser::event_attributes_view::static_size> attribute_buffer;
                 for(std::uint32_t event_i = 0; event_i < nr_events; ++event_i)
