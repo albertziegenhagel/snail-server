@@ -65,7 +65,14 @@ std::string read_string(std::ifstream& file_stream, std::endian data_byte_order)
 
     std::vector<char> buffer;
     buffer.resize(length + 1);
-    buffer.back() = '\0'; // just to make sure we definitely do have a valid string termination
+#ifdef __GNUC__ // workaround for invalid GCC diagnostic
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
+    buffer.back() = '\0'; // just to make sure we definitely have a valid string termination
+#ifdef __GNUC__
+#    pragma GCC diagnostic pop
+#endif
 
     file_stream.read(buffer.data(), length);
 
