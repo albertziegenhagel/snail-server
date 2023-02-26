@@ -189,7 +189,7 @@ TEST(PerfDataParser, KernelSampleEvent)
     EXPECT_EQ(event.cpu, std::nullopt);
     EXPECT_EQ(event.res, std::nullopt);
     EXPECT_EQ(event.period, 1);
-    EXPECT_EQ(event.ips, (std::vector<std::uint64_t>{18446744073709551104, 140270571258003, 94208011558848}));
+    EXPECT_EQ(event.ips, (std::vector<std::uint64_t>{18446744073709551104ULL, 140270571258003ULL, 94208011558848ULL}));
     EXPECT_EQ(event.data, std::nullopt);
 }
 

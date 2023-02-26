@@ -42,8 +42,8 @@ TEST(PerfDataDispatchEventObserver, Dispatch)
         [&sample_event_called](const perf_data::parser::event_header_view& /*header*/,
                                const perf_data::parser::sample_event& event)
         {
-            EXPECT_EQ(event.ip, 140270571258003);
-            EXPECT_EQ(event.ips, (std::vector<std::uint64_t>{18446744073709551104, 140270571258003, 94208011558848}));
+            EXPECT_EQ(event.ip, 140270571258003UL);
+            EXPECT_EQ(event.ips, (std::vector<std::uint64_t>{18446744073709551104UL, 140270571258003UL, 94208011558848UL}));
 
             sample_event_called = true;
         });

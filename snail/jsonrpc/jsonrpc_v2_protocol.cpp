@@ -49,7 +49,7 @@ request v2_protocol::load_request(std::string_view content)
         id->swap(*id_data);
     }
 
-    const auto expected_count = id == data.end() ? 3 : 4; // jsonrpc, method, params and optionally id
+    const auto expected_count = id == data.end() ? std::size_t(3) : std::size_t(4); // jsonrpc, method, params and optionally id
     if(data.size() != expected_count) throw invalid_request_error("to many fields found.");
 
     return request{

@@ -65,7 +65,14 @@ std::string read_string(std::ifstream& file_stream, std::endian data_byte_order)
 
     std::vector<char> buffer;
     buffer.resize(length + 1);
-    buffer.back() = '\0'; // just to make sure we definitely do have a valid string termination
+#ifdef __GNUC__ // workaround for invalid GCC diagnostic
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
+    buffer.back() = '\0'; // just to make sure we definitely have a valid string termination
+#ifdef __GNUC__
+#    pragma GCC diagnostic pop
+#endif
 
     file_stream.read(buffer.data(), length);
 
@@ -240,8 +247,8 @@ void read_metadata(std::ifstream&                            file_stream,
                 break;
             case parser::header_feature::event_desc:
             {
-                const auto nr_events = read_int<std::uint32_t>(file_stream, header.byte_order);
-                const auto attr_size = read_int<std::uint32_t>(file_stream, header.byte_order);
+                const auto                  nr_events = read_int<std::uint32_t>(file_stream, header.byte_order);
+                [[maybe_unused]] const auto attr_size = read_int<std::uint32_t>(file_stream, header.byte_order);
                 assert(attr_size == parser::event_attributes_view::static_size);
                 std::array<std::byte, parser::event_attributes_view::static_size> attribute_buffer;
                 for(std::uint32_t event_i = 0; event_i < nr_events; ++event_i)
@@ -351,7 +358,7 @@ void perf_data_file::open(const std::filesystem::path& file_path)
 
     const auto read_bytes = file_stream_.tellg() - std::streampos(0);
 
-    if(read_bytes < parser::header_view::static_size)
+    if(read_bytes < static_cast<std::streamoff>(parser::header_view::static_size))
     {
         std::cout << std::format(
                          "ERROR: Invalid perf.data file: insufficient size for header. Expected {} but read only {}.",

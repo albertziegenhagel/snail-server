@@ -175,7 +175,7 @@ TEST(EtlParser, EventTraceV2HeaderEvent)
     EXPECT_EQ(event.version(), 83951626);
     EXPECT_EQ(event.provider_version(), 22621);
     EXPECT_EQ(event.number_of_processors(), 8);
-    EXPECT_EQ(event.end_time(), 133171255616974395);
+    EXPECT_EQ(event.end_time(), 133171255616974395ULL);
     EXPECT_EQ(event.timer_resolution(), 156250);
     EXPECT_EQ(event.max_file_size(), 0);
     EXPECT_EQ(event.log_file_mode(), 65537);
@@ -207,9 +207,9 @@ TEST(EtlParser, EventTraceV2HeaderEvent)
     EXPECT_EQ(event.time_zone_information().daylight_date().second(), 0);
     EXPECT_EQ(event.time_zone_information().daylight_date().milliseconds(), 0);
     EXPECT_EQ(event.time_zone_information().daylight_bias(), -60);
-    EXPECT_EQ(event.boot_time(), 133168183955000000);
+    EXPECT_EQ(event.boot_time(), 133168183955000000ULL);
     EXPECT_EQ(event.perf_freq(), 10000000);
-    EXPECT_EQ(event.start_time(), 133171255391510931);
+    EXPECT_EQ(event.start_time(), 133171255391510931ULL);
     EXPECT_EQ(event.reserved_flags(), 1);
     EXPECT_EQ(event.buffers_lost(), 0);
     EXPECT_EQ(event.session_name(), std::u16string(u"Relogger"));
@@ -223,7 +223,7 @@ TEST(EtlParser, PerfinfoV2SampledProfileEvent)
 
     const auto event = etl::parser::perfinfo_v2_sampled_profile_event_view(std::as_bytes(std::span(buffer)), 8);
 
-    EXPECT_EQ(event.instruction_pointer(), 18446735291273262474);
+    EXPECT_EQ(event.instruction_pointer(), 18446735291273262474ULL);
     EXPECT_EQ(event.thread_id(), 26400);
     EXPECT_EQ(event.count(), 4718593);
 }
@@ -246,19 +246,19 @@ TEST(EtlParser, StackwalkV2StackEvent)
     EXPECT_EQ(event.process_id(), 0);
     EXPECT_EQ(event.thread_id(), 0);
     EXPECT_EQ(event.stack_size(), 13);
-    EXPECT_EQ(event.stack_address(0), 18446735292148860480);
-    EXPECT_EQ(event.stack_address(1), 18446735292148861325);
-    EXPECT_EQ(event.stack_address(2), 18446735292148780791);
-    EXPECT_EQ(event.stack_address(3), 18446735292148805948);
-    EXPECT_EQ(event.stack_address(4), 18446735292148802302);
-    EXPECT_EQ(event.stack_address(5), 18446735291558407338);
-    EXPECT_EQ(event.stack_address(6), 18446735292047414145);
-    EXPECT_EQ(event.stack_address(7), 18446735292044206785);
-    EXPECT_EQ(event.stack_address(8), 18446735292044095481);
-    EXPECT_EQ(event.stack_address(9), 18446735291558412086);
-    EXPECT_EQ(event.stack_address(10), 18446735291273943482);
-    EXPECT_EQ(event.stack_address(11), 18446735291273941444);
-    EXPECT_EQ(event.stack_address(12), 18446735291275465982);
+    EXPECT_EQ(event.stack_address(0), 18446735292148860480ULL);
+    EXPECT_EQ(event.stack_address(1), 18446735292148861325ULL);
+    EXPECT_EQ(event.stack_address(2), 18446735292148780791ULL);
+    EXPECT_EQ(event.stack_address(3), 18446735292148805948ULL);
+    EXPECT_EQ(event.stack_address(4), 18446735292148802302ULL);
+    EXPECT_EQ(event.stack_address(5), 18446735291558407338ULL);
+    EXPECT_EQ(event.stack_address(6), 18446735292047414145ULL);
+    EXPECT_EQ(event.stack_address(7), 18446735292044206785ULL);
+    EXPECT_EQ(event.stack_address(8), 18446735292044095481ULL);
+    EXPECT_EQ(event.stack_address(9), 18446735291558412086ULL);
+    EXPECT_EQ(event.stack_address(10), 18446735291273943482ULL);
+    EXPECT_EQ(event.stack_address(11), 18446735291273941444ULL);
+    EXPECT_EQ(event.stack_address(12), 18446735291275465982ULL);
 }
 
 TEST(EtlParser, ImageV2LoadEventView)
@@ -275,7 +275,7 @@ TEST(EtlParser, ImageV2LoadEventView)
 
     const auto event = etl::parser::image_v2_load_event_view(std::as_bytes(std::span(buffer)), 8);
 
-    EXPECT_EQ(event.image_base(), 18446735291271086080);
+    EXPECT_EQ(event.image_base(), 18446735291271086080ULL);
     EXPECT_EQ(event.image_size(), 17068032);
     EXPECT_EQ(event.process_id(), 0);
     EXPECT_EQ(event.image_checksum(), 12051543);
@@ -304,7 +304,7 @@ TEST(EtlParser, ProcessV4TypeGroup1EventView)
 
     const auto event = etl::parser::process_v4_type_group1_event_view(std::as_bytes(std::span(buffer)), 8);
 
-    EXPECT_EQ(event.unique_process_key(), 18446672611278225600);
+    EXPECT_EQ(event.unique_process_key(), 18446672611278225600ULL);
     EXPECT_EQ(event.process_id(), 9584);
     EXPECT_EQ(event.parent_id(), 1152);
     EXPECT_EQ(event.session_id(), 0);
@@ -339,12 +339,12 @@ TEST(EtlParser, ThreadV3TypeGroup1EventView)
 
     EXPECT_EQ(event.process_id(), 0);
     EXPECT_EQ(event.thread_id(), 0);
-    EXPECT_EQ(event.stack_base(), 18446735291311304704);
-    EXPECT_EQ(event.stack_limit(), 18446735291311276032);
+    EXPECT_EQ(event.stack_base(), 18446735291311304704ULL);
+    EXPECT_EQ(event.stack_limit(), 18446735291311276032ULL);
     EXPECT_EQ(event.user_stack_base(), 0);
     EXPECT_EQ(event.user_stack_limit(), 0);
     EXPECT_EQ(event.affinity(), 1);
-    EXPECT_EQ(event.win32_start_addr(), 18446735291275465824);
+    EXPECT_EQ(event.win32_start_addr(), 18446735291275465824ULL);
     EXPECT_EQ(event.teb_base(), 0);
     EXPECT_EQ(event.sub_process_tag(), 0);
     EXPECT_EQ(event.base_priority(), 0);
@@ -363,9 +363,7 @@ TEST(EtlParser, ImageIdV2InfoEventView)
 
     const auto event = etl::parser::image_id_v2_info_event_view(std::as_bytes(std::span(buffer)), 8);
 
-    const auto fn = event.original_file_name();
-
-    EXPECT_EQ(event.image_base(), 18446735291271086080);
+    EXPECT_EQ(event.image_base(), 18446735291271086080ULL);
     EXPECT_EQ(event.image_size(), 17068032);
     EXPECT_EQ(event.process_id(), 0);
     EXPECT_EQ(event.time_date_stamp(), 0);

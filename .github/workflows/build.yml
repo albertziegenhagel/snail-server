@@ -63,7 +63,7 @@ jobs:
         uses: lukka/run-cmake@v10
         with:
           configurePreset: 'ninja-vcpkg'
-          configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Release', '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}', '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded']"
+          configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Release', '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}', '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded', '-DCMAKE_COMPILE_WARNING_AS_ERROR=ON']"
 
           buildPreset: 'ninja-vcpkg'
 
@@ -75,7 +75,7 @@ jobs:
           cmake --install ${{ github.workspace }}/build/ninja-vcpkg --component server --prefix ${{ github.workspace }}/install
 
       - name: Upload binaries
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with: 
           name: snail-server-${{ matrix.arch }}-${{ matrix.platform }}
           path: ${{ github.workspace }}/install/bin/snail-server*

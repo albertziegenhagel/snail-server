@@ -69,7 +69,7 @@ buffer_info read_buffer(std::ifstream&                          file_stream,
     file_stream.read(reinterpret_cast<char*>(buffer_data.data()), buffer_data.size());
 
     const auto read_bytes = file_stream.tellg() - buffer_start_pos;
-    if(read_bytes < parser::wmi_buffer_header_view::static_size)
+    if(read_bytes < static_cast<std::streamoff>(parser::wmi_buffer_header_view::static_size))
     {
         std::cout << std::format(
                          "ERROR: Invalid ETL file: insufficient size for buffer header. Expected {} but read only {}.",
@@ -191,7 +191,7 @@ std::size_t process_event_header_trace(std::span<const std::byte>   payload_buff
 {
     const auto trace_header = parser::event_header_trace_header_view(payload_buffer);
 
-    const auto is_extended = (trace_header.flags() & static_cast<std::underlying_type_t<parser::event_header_flag>>(parser::event_header_flag::extended_info)) != 0;
+    [[maybe_unused]] const auto is_extended = (trace_header.flags() & static_cast<std::underlying_type_t<parser::event_header_flag>>(parser::event_header_flag::extended_info)) != 0;
 
     assert(!is_extended); // not yet supported
 
@@ -277,7 +277,7 @@ void etl_file::open(const std::filesystem::path& file_path)
     file_stream_.read(reinterpret_cast<char*>(file_buffer_data.data()), file_buffer_data.size());
 
     const auto read_bytes = file_stream_.tellg() - std::streampos(0);
-    if(read_bytes < parser::wmi_buffer_header_view::static_size)
+    if(read_bytes < static_cast<std::streamoff>(parser::wmi_buffer_header_view::static_size))
     {
         std::cout << "ERROR: Invalid ETL file: insufficient size for buffer header" << std::endl;
         return; // TODO: handle error
@@ -295,7 +295,7 @@ void etl_file::open(const std::filesystem::path& file_path)
         return; // TODO: handle error
     }
 
-    const auto marker = parser::generic_trace_marker_view(file_buffer.subspan(parser::wmi_buffer_header_view::static_size));
+    [[maybe_unused]] const auto marker = parser::generic_trace_marker_view(file_buffer.subspan(parser::wmi_buffer_header_view::static_size));
     assert(marker.is_trace_header() && marker.is_trace_header_event_trace() && !marker.is_trace_message());
     assert(marker.header_type() == parser::trace_header_type::system32 ||
            marker.header_type() == parser::trace_header_type::system64);
@@ -347,7 +347,7 @@ void etl_file::process(event_observer& callbacks)
             assert(file_stream_.good());
 
             const auto read_bytes = file_stream_.tellg() - init_position;
-            if(read_bytes < parser::wmi_buffer_header_view::static_size)
+            if(read_bytes < static_cast<std::streamoff>(parser::wmi_buffer_header_view::static_size))
             {
                 std::cout << std::format(
                                  "ERROR: Invalid ETL file: insufficient size for buffer header (index {}). Expected {} but read only {}.",

@@ -252,9 +252,9 @@ common::generator<const sample_data&> etl_data_provider::samples(common::process
     {
         if(sample.user_mode_stack)
         {
-            const auto& user_stack       = process_context.stack(*sample.user_mode_stack);
-            const auto  starts_in_kernel = is_kernel_address(user_stack.back(), pointer_size);
-            const auto  ends_in_kernel   = is_kernel_address(user_stack.front(), pointer_size);
+            const auto&                 user_stack       = process_context.stack(*sample.user_mode_stack);
+            [[maybe_unused]] const auto starts_in_kernel = is_kernel_address(user_stack.back(), pointer_size);
+            const auto                  ends_in_kernel   = is_kernel_address(user_stack.front(), pointer_size);
             assert(!starts_in_kernel);
 
             if(ends_in_kernel)

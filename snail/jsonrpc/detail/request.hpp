@@ -34,7 +34,7 @@ template<std::size_t I>
 using size_c = std::integral_constant<std::size_t, I>;
 
 template<typename F, typename... Ts, std::size_t... Is>
-constexpr void for_each(const std::tuple<Ts...>& data, F func, std::index_sequence<Is...>)
+constexpr void for_each(const std::tuple<Ts...>& data, [[maybe_unused]] F func, std::index_sequence<Is...>)
 {
     (func(size_c<Is>(), std::get<Is>(data)), ...);
 }

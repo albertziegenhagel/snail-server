@@ -1,9 +1,7 @@
 
 add_library(compile_options INTERFACE)
 
-option(SNAIL_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
-
-if(MSVC)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
   if(CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
     string(REGEX REPLACE "/W[0-4]" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
   endif()
@@ -12,22 +10,13 @@ if(MSVC)
     "/W4"
     "/permissive-"
   )
-  if(SNAIL_WARNINGS_AS_ERRORS)
-    target_compile_options(compile_options INTERFACE
-        "/WX"
-    )
-  endif()
-elseif(CMAKE_COMPILER_IS_GNUCC)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "GNU")
   target_compile_options(compile_options INTERFACE
     "-Wall"
     "-Wextra"
     "-pedantic"
+    "-Wno-missing-field-initializers" # Missing initializers are value initialized, which is exactly what we want
   )
-  if(SNAIL_WARNINGS_AS_ERRORS)
-    target_compile_options(compile_options INTERFACE
-        "-Werror"
-    )
-  endif()
 endif()
 
 target_compile_features(compile_options INTERFACE cxx_std_23)

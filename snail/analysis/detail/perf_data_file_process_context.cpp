@@ -55,14 +55,6 @@ void perf_data_file_process_context::finish()
             }
         }
     }
-
-    for(const auto& [process_id, storage] : samples_per_process)
-    {
-        const auto* const process = processes.find_at(process_id, storage.first_sample_time);
-        assert(process != nullptr); // FIXME: handle this case
-
-        process->payload.name;
-    }
 }
 
 template<typename T>

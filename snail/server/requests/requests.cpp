@@ -318,6 +318,7 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
     server.register_request<retrieve_functions_page_request>(
         [&](const retrieve_functions_page_request& request) -> nlohmann::json
         {
+            // TODO: Add `sort_by` and `sort_order` to request
             const auto sort_by    = function_data_type::self_samples;
             const auto sort_order = direction::descending;
 
@@ -329,20 +330,21 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
             const auto total_hits = storage.get_data({request.document_id()}).session_info().number_of_samples; // TODO: use filtered
 
             auto json_functions = nlohmann::json::array();
-            if(sort_order == direction::descending)
+            // if(sort_order == direction::descending)
+            assert(sort_order == direction::descending);
             {
                 for(const auto function_id : std::views::reverse(function_ids))
                 {
                     json_functions.push_back(make_function_json(stacks_analysis, stacks_analysis.get_function(function_id), total_hits));
                 }
             }
-            else
-            {
-                for(const auto function_id : function_ids)
-                {
-                    json_functions.push_back(make_function_json(stacks_analysis, stacks_analysis.get_function(function_id), total_hits));
-                }
-            }
+            // else
+            // {
+            //     for(const auto function_id : function_ids)
+            //     {
+            //         json_functions.push_back(make_function_json(stacks_analysis, stacks_analysis.get_function(function_id), total_hits));
+            //     }
+            // }
 
             return {
                 {"functions", json_functions}
