@@ -63,7 +63,7 @@ jobs:
         uses: lukka/run-cmake@v10
         with:
           configurePreset: 'ninja-vcpkg'
-          configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Release', '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}', '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded']"
+          configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Release', '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}', '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded', '-DCMAKE_COMPILE_WARNING_AS_ERROR=ON']"
 
           buildPreset: 'ninja-vcpkg'
 
