@@ -13,6 +13,7 @@ target_sources(analysis
 
     data_provider.cpp
     etl_data_provider.cpp
+    diagsession_data_provider.cpp
     perf_data_data_provider.cpp
     
     analysis.cpp
@@ -24,6 +25,8 @@ target_link_libraries(analysis
 
     etl 
     perf_data
+    
+    libzippp::libzippp
   PUBLIC
     common
 )

@@ -21,6 +21,8 @@ endif()
 
 find_package(nlohmann_json CONFIG REQUIRED)
 
+find_package(libzippp CONFIG REQUIRED)
+
 # =======
 # LIBRARIES
 
