@@ -3,6 +3,7 @@
 
 #include <format>
 
+#include <snail/analysis/diagsession_data_provider.hpp>
 #include <snail/analysis/etl_data_provider.hpp>
 #include <snail/analysis/perf_data_data_provider.hpp>
 
@@ -21,6 +22,10 @@ std::unique_ptr<data_provider> snail::analysis::make_data_provider(const std::fi
     if(extension == ".etl")
     {
         return std::make_unique<snail::analysis::etl_data_provider>();
+    }
+    else if(extension == ".diagsession")
+    {
+        return std::make_unique<snail::analysis::diagsession_data_provider>();
     }
     else if(extension == ".data")
     {
