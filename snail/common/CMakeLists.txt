@@ -5,6 +5,7 @@ target_sources(common
   PRIVATE
     unicode.cpp
     trim.cpp
+    filename.cpp
 )
 
 target_link_libraries(common 
