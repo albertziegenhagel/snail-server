@@ -25,7 +25,13 @@ TEST(PerfDataDispatchEventObserver, Dispatch)
         0xc0, 0x5f, 0x10, 0x83, 0xae, 0x55, 0x00, 0x00};
 
     const auto event_attributes = perf_data::parser::event_attributes{
-        .sample_format = perf_data::parser::sample_format_flags(295)};
+        // in the following, only sample_format is used.
+        .type          = {},
+        .sample_format = perf_data::parser::sample_format_flags(295),
+        .read_format   = {},
+        .flags         = {},
+        .precise_ip    = {},
+        .name          = {}};
 
     bool fork_event_called = false;
     observer.register_event<perf_data::parser::fork_event_view>(

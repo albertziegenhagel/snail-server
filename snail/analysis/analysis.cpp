@@ -43,6 +43,7 @@ module_info& get_or_create_module(std::vector<module_info>&                     
         modules.push_back(module_info{
             .id   = modules.size(),
             .name = std::string(module_name),
+            .hits = {},
         });
         modules_by_name[key] = modules.back().id;
         return modules.back();
@@ -62,9 +63,15 @@ function_info& get_or_create_function(std::vector<function_info>&               
     if(iter == functions_by_name.end())
     {
         functions.push_back(function_info{
-            .id        = functions.size(),
-            .module_id = module.id,
-            .name      = std::string(function_name),
+            .id           = functions.size(),
+            .module_id    = module.id,
+            .name         = std::string(function_name),
+            .hits         = {},
+            .callers      = {},
+            .callees      = {},
+            .file_id      = {},
+            .line_number  = {},
+            .hits_by_line = {},
         });
         functions_by_name[key] = functions.back().id;
         return functions.back();
@@ -85,6 +92,7 @@ file_info& get_or_create_file(std::vector<file_info>&                           
         files.push_back(file_info{
             .id   = files.size(),
             .path = std::string(file_path),
+            .hits = {},
         });
         files_by_path[key] = files.back().id;
         return files.back();
@@ -113,6 +121,8 @@ call_tree_node& get_or_append_call_tree_child(std::vector<call_tree_node>& call_
     call_tree_nodes.push_back(call_tree_node{
         .id          = new_node_id,
         .function_id = function.id,
+        .hits        = {},
+        .children    = {},
     });
     return call_tree_nodes.back();
 }
@@ -165,17 +175,29 @@ stacks_analysis snail::analysis::analyze_stacks(const analysis::data_provider& p
 
     stacks_analysis result;
     result.process = process_info{
-        .id   = process_id,
-        .name = process.name};
+        .id         = process_id,
+        .name       = process.name,
+        .start_time = {},
+        .end_time   = {},
+    };
 
     result.function_root = function_info{
-        .id        = stacks_analysis::root_function_id,
-        .module_id = std::size_t(-1),
-        .name      = "root"};
+        .id           = stacks_analysis::root_function_id,
+        .module_id    = std::size_t(-1),
+        .name         = "root",
+        .hits         = {},
+        .callers      = {},
+        .callees      = {},
+        .file_id      = {},
+        .line_number  = {},
+        .hits_by_line = {},
+    };
 
     result.call_tree_root = call_tree_node{
         .id          = stacks_analysis::root_call_tree_node_id,
         .function_id = result.function_root.id,
+        .hits        = {},
+        .children    = {},
     };
 
     for(const auto& sample : provider.samples(process_id))

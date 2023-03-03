@@ -32,8 +32,12 @@ const dwarf_resolver::symbol_info& dwarf_resolver::make_generic_symbol(instructi
     if(iter != symbol_cache.end()) return iter->second;
 
     const auto new_symbol = symbol_info{
-        .name       = std::format("{:#018x}", address),
-        .is_generic = true};
+        .name                    = std::format("{:#018x}", address),
+        .is_generic              = true,
+        .file_path               = {},
+        .function_line_number    = {},
+        .instruction_line_number = {},
+    };
 
     const auto [new_iter, _] = symbol_cache.emplace(key, new_symbol);
     return new_iter->second;
@@ -56,8 +60,12 @@ const dwarf_resolver::symbol_info& dwarf_resolver::make_generic_symbol(const mod
     const auto filename = delimiter_pos == std::u16string::npos ? module.image_filename : module.image_filename.substr(delimiter_pos + 1);
 
     const auto new_symbol = symbol_info{
-        .name       = std::format("{}!{:#018x}", filename, address),
-        .is_generic = true};
+        .name                    = std::format("{}!{:#018x}", filename, address),
+        .is_generic              = true,
+        .file_path               = {},
+        .function_line_number    = {},
+        .instruction_line_number = {},
+    };
 
     const auto [new_iter, inserted] = symbol_cache.emplace(key, new_symbol);
     assert(inserted);
@@ -126,6 +134,7 @@ const dwarf_resolver::symbol_info& dwarf_resolver::resolve_symbol(const module_i
     }
 
     auto new_symbol = symbol_info{
+        .name                    = {},
         .is_generic              = false,
         .file_path               = line_info.FileName,
         .function_line_number    = line_info.StartLine,

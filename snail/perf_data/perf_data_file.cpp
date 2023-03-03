@@ -264,9 +264,9 @@ void read_metadata(std::ifstream&                            file_stream,
                         ids.push_back(read_int<std::uint64_t>(file_stream, header.byte_order));
                     }
                     metadata.event_desc.push_back(detail::perf_data_metadata::event_desc_data{
-                        .attribute = attribute_view.instantiate(),
-                        .ids       = std::move(ids)});
-                    metadata.event_desc.back().event_string = std::move(event_string);
+                        .attribute    = attribute_view.instantiate(),
+                        .event_string = std::move(event_string),
+                        .ids          = std::move(ids)});
                 }
                 break;
             }
@@ -409,6 +409,7 @@ void perf_data_file::open(const std::filesystem::path& file_path)
     }
 
     header_ = std::make_unique<detail::perf_data_file_header_data>(detail::perf_data_file_header_data{
+        .byte_order     = file_byte_order,
         .size           = header.size(),
         .attribute_size = header.attributes_size(),
         .attributes     = detail::perf_data_file_header_data::section_data{
