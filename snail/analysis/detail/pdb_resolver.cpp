@@ -35,8 +35,12 @@ const pdb_resolver::symbol_info& pdb_resolver::make_generic_symbol(instruction_p
     if(iter != symbol_cache.end()) return iter->second;
 
     const auto new_symbol = symbol_info{
-        .name       = std::format("{:#018x}", address),
-        .is_generic = true};
+        .name                    = std::format("{:#018x}", address),
+        .is_generic              = true,
+        .file_path               = {},
+        .function_line_number    = {},
+        .instruction_line_number = {},
+    };
 
     const auto [new_iter, _] = symbol_cache.emplace(key, new_symbol);
     return new_iter->second;
@@ -59,8 +63,12 @@ const pdb_resolver::symbol_info& pdb_resolver::make_generic_symbol(const module_
     const auto filename = delimiter_pos == std::u16string::npos ? module.image_filename : module.image_filename.substr(delimiter_pos + 1);
 
     const auto new_symbol = symbol_info{
-        .name       = std::format("{}!{:#018x}", filename, address),
-        .is_generic = true};
+        .name                    = std::format("{}!{:#018x}", filename, address),
+        .is_generic              = true,
+        .file_path               = {},
+        .function_line_number    = {},
+        .instruction_line_number = {},
+    };
 
     const auto [new_iter, inserted] = symbol_cache.emplace(key, new_symbol);
     assert(inserted);
@@ -92,8 +100,12 @@ const pdb_resolver::symbol_info& pdb_resolver::resolve_symbol(const module_info&
     if(pdb_function_symbol == nullptr) return make_generic_symbol(module, address);
 
     auto new_symbol = symbol_info{
-        .name       = pdb_function_symbol->getUndecoratedName(),
-        .is_generic = false};
+        .name                    = pdb_function_symbol->getUndecoratedName(),
+        .is_generic              = false,
+        .file_path               = {},
+        .function_line_number    = {},
+        .instruction_line_number = {},
+    };
 
     const auto function_line_numbers = pdb_function_symbol->getLineNumbers();
     if(function_line_numbers != nullptr && function_line_numbers->getChildCount() > 0)

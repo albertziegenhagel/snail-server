@@ -220,6 +220,7 @@ struct event_attributes_view : protected common::parser::extract_view_base
             .read_format   = read_format(),
             .flags         = flags(),
             .precise_ip    = precise_ip(),
+            .name          = {},
         };
     }
 };

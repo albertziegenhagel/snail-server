@@ -11,9 +11,9 @@ TEST(ModuleMap, InsertNonOverlapping)
     //  |--|                     module 1 @5
     //          |--|             module 2 @10
     //                  |------| module 3 @3
-    const module_info module_1{.base = 10, .size = 20, .file_name = "1"};
-    const module_info module_2{.base = 50, .size = 20, .file_name = "2"};
-    const module_info module_3{.base = 90, .size = 40, .file_name = "3"};
+    const module_info module_1{.base = 10, .size = 20, .file_name = "1", .page_offset = 0};
+    const module_info module_2{.base = 50, .size = 20, .file_name = "2", .page_offset = 0};
+    const module_info module_3{.base = 90, .size = 40, .file_name = "3", .page_offset = 0};
 
     {
         module_map map;
@@ -119,10 +119,10 @@ TEST(ModuleMap, InsertOverlapping)
     //     |------|           module 2 @10
     //               |----|   module 3 @3
     //         |--------|     module 4 @20
-    const module_info module_1{.base = 10, .size = 100, .file_name = "1"};
-    const module_info module_2{.base = 20, .size = 40, .file_name = "2"};
-    const module_info module_3{.base = 70, .size = 30, .file_name = "3"};
-    const module_info module_4{.base = 40, .size = 50, .file_name = "4"};
+    const module_info module_1{.base = 10, .size = 100, .file_name = "1", .page_offset = 0};
+    const module_info module_2{.base = 20, .size = 40, .file_name = "2", .page_offset = 0};
+    const module_info module_3{.base = 70, .size = 30, .file_name = "3", .page_offset = 0};
+    const module_info module_4{.base = 40, .size = 50, .file_name = "4", .page_offset = 0};
 
     {
         module_map map;
@@ -143,10 +143,10 @@ TEST(ModuleMap, InsertOverlappingExtend)
     //   |------|             module 2 @10
     //               |------| module 3 @3
     //         |--------|     module 4 @20
-    const module_info module_1{.base = 30, .size = 50, .file_name = "1"};
-    const module_info module_2{.base = 10, .size = 40, .file_name = "2"};
-    const module_info module_3{.base = 70, .size = 40, .file_name = "3"};
-    const module_info module_4{.base = 40, .size = 50, .file_name = "4"};
+    const module_info module_1{.base = 30, .size = 50, .file_name = "1", .page_offset = 0};
+    const module_info module_2{.base = 10, .size = 40, .file_name = "2", .page_offset = 0};
+    const module_info module_3{.base = 70, .size = 40, .file_name = "3", .page_offset = 0};
+    const module_info module_4{.base = 40, .size = 50, .file_name = "4", .page_offset = 0};
 
     {
         module_map map;

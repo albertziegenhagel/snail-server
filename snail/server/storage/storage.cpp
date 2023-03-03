@@ -25,7 +25,11 @@ struct document_storage
         if(data.stacks_analysis == std::nullopt)
         {
             data = analysis_data{
-                .stacks_analysis = snail::analysis::analyze_stacks(*data_provider, process_id)};
+                .stacks_analysis            = snail::analysis::analyze_stacks(*data_provider, process_id),
+                .functions_by_self_samples  = {},
+                .functions_by_total_samples = {},
+                .functions_by_name          = {},
+            };
         }
         return *data.stacks_analysis;
     }
@@ -122,8 +126,10 @@ document_id storage::read_document(const std::filesystem::path& path)
 
     const auto new_id                 = impl_->take_document_id();
     impl_->open_documents[new_id.id_] = document_storage{
-        .path          = path,
-        .data_provider = std::move(data_provider)};
+        .path                 = path,
+        .data_provider        = std::move(data_provider),
+        .analysis_per_process = {},
+    };
 
     return new_id;
 }

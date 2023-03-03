@@ -35,7 +35,10 @@ void perf_data_file_process_context::finish()
             }
             else
             {
-                processes.insert(id, entry.timestamp, process_data{.name = entry.payload.name});
+                processes.insert(id, entry.timestamp, process_data{
+                                                          .name     = entry.payload.name,
+                                                          .end_time = {},
+                                                      });
             }
         }
     }
@@ -50,7 +53,11 @@ void perf_data_file_process_context::finish()
             }
             else
             {
-                threads.insert(id, entry.timestamp, thread_data{.process_id = entry.payload.process_id, .name = entry.payload.name});
+                threads.insert(id, entry.timestamp, thread_data{
+                                                        .process_id = entry.payload.process_id,
+                                                        .name       = entry.payload.name,
+                                                        .end_time   = {},
+                                                    });
                 threads_per_process_[entry.payload.process_id].emplace(id, entry.timestamp);
             }
         }
@@ -75,10 +82,17 @@ void perf_data_file_process_context::handle_event(const perf_data::parser::event
     const auto time = *event.sample_id().time;
     if(pid == tid)
     {
-        process_names.insert(pid, time, process_data{.name = std::string(event.comm())});
+        process_names.insert(pid, time, process_data{
+                                            .name     = std::string(event.comm()),
+                                            .end_time = {},
+                                        });
     }
 
-    thread_names.insert(pid, time, thread_data{.process_id = pid, .name = std::string(event.comm())});
+    thread_names.insert(pid, time, thread_data{
+                                       .process_id = pid,
+                                       .name       = std::string(event.comm()),
+                                       .end_time   = {},
+                                   });
 }
 
 void perf_data_file_process_context::handle_event(const perf_data::parser::event_header_view& /*header*/,
@@ -93,7 +107,11 @@ void perf_data_file_process_context::handle_event(const perf_data::parser::event
         processes.insert(pid, time, process_data{});
     }
 
-    threads.insert(tid, time, thread_data{.process_id = pid});
+    threads.insert(tid, time, thread_data{
+                                  .process_id = pid,
+                                  .name       = {},
+                                  .end_time   = {},
+                              });
     threads_per_process_[pid].emplace(tid, time);
 }
 

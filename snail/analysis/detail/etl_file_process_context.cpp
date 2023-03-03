@@ -150,7 +150,8 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
     {
         processes.insert(event.process_id(), header.timestamp,
                          process_data{.image_filename = std::string(event.image_filename()),
-                                      .command_line   = std::u16string(event.command_line())});
+                                      .command_line   = std::u16string(event.command_line()),
+                                      .end_time       = {}});
     }
     else if(header.type == 2 || header.type == 4) // unload || dc_end
     {
@@ -169,7 +170,8 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
     if(header.type == 1 || header.type == 3) // start || dc_start
     {
         threads.insert(event.thread_id(), header.timestamp,
-                       thread_data{.process_id = event.process_id()});
+                       thread_data{.process_id = event.process_id(),
+                                   .end_time   = {}});
         threads_per_process_[event.process_id()].emplace(event.thread_id(), header.timestamp);
     }
     else if(header.type == 2 || header.type == 4) // end || dc_end
@@ -212,7 +214,10 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
     process_samples.push_back(sample_info{
         .thread_id           = thread->id,
         .timestamp           = header.timestamp,
-        .instruction_pointer = event.instruction_pointer()});
+        .instruction_pointer = event.instruction_pointer(),
+        .user_mode_stack     = {},
+        .kernel_mode_stack   = {},
+    });
 }
 
 void etl_file_process_context::handle_event(const etl::etl_file::header_data& file_header,

@@ -90,7 +90,13 @@ TEST(PerfDataParser, KernelCommEvent)
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
     const auto attributes = perf_data::parser::event_attributes{
-        .sample_format = perf_data::parser::sample_format_flags(295)};
+        // in the following, only sample_format is used.
+        .type          = {},
+        .sample_format = perf_data::parser::sample_format_flags(295),
+        .read_format   = {},
+        .flags         = {},
+        .precise_ip    = {},
+        .name          = {}};
 
     const auto event_view = perf_data::parser::comm_event_view(attributes, std::as_bytes(std::span(buffer)), std::endian::little);
 
@@ -107,7 +113,13 @@ TEST(PerfDataParser, KernelExitEvent)
         0x90, 0xe1, 0xa0, 0x13, 0xc4, 0x01, 0x00, 0x00};
 
     const auto attributes = perf_data::parser::event_attributes{
-        .sample_format = perf_data::parser::sample_format_flags(295)};
+        // in the following, only sample_format is used.
+        .type          = {},
+        .sample_format = perf_data::parser::sample_format_flags(295),
+        .read_format   = {},
+        .flags         = {},
+        .precise_ip    = {},
+        .name          = {}};
 
     const auto event_view = perf_data::parser::exit_event_view(attributes, std::as_bytes(std::span(buffer)), std::endian::little);
 
@@ -126,7 +138,13 @@ TEST(PerfDataParser, KernelForkEvent)
         0x88, 0xf7, 0xab, 0x37, 0xc3, 0x01, 0x00, 0x00};
 
     const auto attributes = perf_data::parser::event_attributes{
-        .sample_format = perf_data::parser::sample_format_flags(295)};
+        // in the following, only sample_format is used.
+        .type          = {},
+        .sample_format = perf_data::parser::sample_format_flags(295),
+        .read_format   = {},
+        .flags         = {},
+        .precise_ip    = {},
+        .name          = {}};
 
     const auto event_view = perf_data::parser::fork_event_view(attributes, std::as_bytes(std::span(buffer)), std::endian::little);
 
@@ -150,7 +168,13 @@ TEST(PerfDataParser, KernelMmap2Event)
         0x3e, 0x05, 0x00, 0x00, 0x3e, 0x05, 0x00, 0x00, 0xfc, 0xb3, 0x56, 0x4d, 0xc3, 0x01, 0x00, 0x00};
 
     const auto attributes = perf_data::parser::event_attributes{
-        .sample_format = perf_data::parser::sample_format_flags(295)};
+        // in the following, only sample_format is used.
+        .type          = {},
+        .sample_format = perf_data::parser::sample_format_flags(295),
+        .read_format   = {},
+        .flags         = {},
+        .precise_ip    = {},
+        .name          = {}};
 
     const auto event_view = perf_data::parser::mmap2_event_view(attributes, std::as_bytes(std::span(buffer)), std::endian::little);
 
@@ -175,7 +199,13 @@ TEST(PerfDataParser, KernelSampleEvent)
         0x93, 0x80, 0x92, 0x49, 0x93, 0x7f, 0x00, 0x00, 0xc0, 0x5f, 0x10, 0x83, 0xae, 0x55, 0x00, 0x00};
 
     const auto attributes = perf_data::parser::event_attributes{
-        .sample_format = perf_data::parser::sample_format_flags(295)};
+        // in the following, only sample_format is used.
+        .type          = {},
+        .sample_format = perf_data::parser::sample_format_flags(295),
+        .read_format   = {},
+        .flags         = {},
+        .precise_ip    = {},
+        .name          = {}};
 
     const auto event = perf_data::parser::parse_event<perf_data::parser::sample_event>(attributes, std::as_bytes(std::span(buffer)), std::endian::little);
 
@@ -215,7 +245,13 @@ TEST(PerfDataParser, PerfIdIndexEvent)
         0x3e, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
     const auto attributes = perf_data::parser::event_attributes{
-        .sample_format = perf_data::parser::sample_format_flags(295)};
+        // in the following, only sample_format is used.
+        .type          = {},
+        .sample_format = perf_data::parser::sample_format_flags(295),
+        .read_format   = {},
+        .flags         = {},
+        .precise_ip    = {},
+        .name          = {}};
 
     const auto event_view = perf_data::parser::id_index_event_view(attributes, std::as_bytes(std::span(buffer)), std::endian::little);
 
@@ -237,7 +273,13 @@ TEST(PerfDataParser, PerfThreadMapEvent)
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
     const auto attributes = perf_data::parser::event_attributes{
-        .sample_format = perf_data::parser::sample_format_flags(295)};
+        // in the following, only sample_format is used.
+        .type          = {},
+        .sample_format = perf_data::parser::sample_format_flags(295),
+        .read_format   = {},
+        .flags         = {},
+        .precise_ip    = {},
+        .name          = {}};
 
     const auto event_view = perf_data::parser::thread_map_event_view(attributes, std::as_bytes(std::span(buffer)), std::endian::little);
 
@@ -253,7 +295,13 @@ TEST(PerfDataParser, PerfCpuMapEvent)
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
     const auto attributes = perf_data::parser::event_attributes{
-        .sample_format = perf_data::parser::sample_format_flags(295)};
+        // in the following, only sample_format is used.
+        .type          = {},
+        .sample_format = perf_data::parser::sample_format_flags(295),
+        .read_format   = {},
+        .flags         = {},
+        .precise_ip    = {},
+        .name          = {}};
 
     const auto event_view = perf_data::parser::cpu_map_event_view(attributes, std::as_bytes(std::span(buffer)), std::endian::little);
 
