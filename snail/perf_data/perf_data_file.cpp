@@ -409,6 +409,7 @@ void perf_data_file::open(const std::filesystem::path& file_path)
     }
 
     header_ = std::make_unique<detail::perf_data_file_header_data>(detail::perf_data_file_header_data{
+        .byte_order     = file_byte_order,
         .size           = header.size(),
         .attribute_size = header.attributes_size(),
         .attributes     = detail::perf_data_file_header_data::section_data{
