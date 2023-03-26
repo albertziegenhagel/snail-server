@@ -164,8 +164,8 @@ dwarf_resolver::context_storage* dwarf_resolver::get_dwarf_context(const module_
     auto iter = dwarf_context_cache.find(key);
     if(iter != dwarf_context_cache.end()) return iter->second.get();
 
-    const auto pmsc   = R"(C:\Users\aziegenhagel\data\pmsc.cpython-311-x86_64-linux-gnu.so)";
-    const auto python = R"(C:\Users\aziegenhagel\data\libpython3.11.so)";
+    const auto* const pmsc   = R"(C:\Users\aziegenhagel\data\pmsc.cpython-311-x86_64-linux-gnu.so)";
+    const auto* const python = R"(C:\Users\aziegenhagel\data\libpython3.11.so)";
 
     std::string_view filename = module.image_filename;
     if(filename == "/home/aziegenhagel/build/pmsc/ex-6/pmsc.cpython-311-x86_64-linux-gnu.so")

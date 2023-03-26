@@ -35,8 +35,8 @@ struct named_pipe
 
 TEST(PipeIoStream, DefaultConstructOpen)
 {
-    const auto pipe_path = R"(\\.\pipe\snail-test-pipe-1)";
-    const auto pipe      = named_pipe(pipe_path);
+    const auto* const pipe_path = R"(\\.\pipe\snail-test-pipe-1)";
+    const auto        pipe      = named_pipe(pipe_path);
 
     pipe_iostream stream;
 
@@ -49,8 +49,8 @@ TEST(PipeIoStream, DefaultConstructOpen)
 
 TEST(PipeIoStream, ConstructOpen)
 {
-    const auto pipe_path = R"(\\.\pipe\snail-test-pipe-2)";
-    const auto pipe      = named_pipe(pipe_path);
+    const auto* const pipe_path = R"(\\.\pipe\snail-test-pipe-2)";
+    const auto        pipe      = named_pipe(pipe_path);
 
     pipe_iostream stream(pipe_path);
     EXPECT_TRUE(stream.is_open());
@@ -58,8 +58,8 @@ TEST(PipeIoStream, ConstructOpen)
 
 TEST(PipeIoStream, ConstructOpenInvalid)
 {
-    const auto    pipe_path = R"(\\.\pipe\snail-non-existing-pipe)";
-    pipe_iostream stream(pipe_path);
+    const auto* const pipe_path = R"(\\.\pipe\snail-non-existing-pipe)";
+    pipe_iostream     stream(pipe_path);
     EXPECT_FALSE(stream.is_open());
 }
 
@@ -67,8 +67,8 @@ TEST(PipeIoStream, ReadWrite)
 {
     using namespace std::literals;
 
-    const auto pipe_path = R"(\\.\pipe\snail-test-pipe-3)";
-    const auto pipe      = named_pipe(pipe_path);
+    const auto* const pipe_path = R"(\\.\pipe\snail-test-pipe-3)";
+    const auto        pipe      = named_pipe(pipe_path);
 
     // pipe_iostream stream(pipe_path);
 
