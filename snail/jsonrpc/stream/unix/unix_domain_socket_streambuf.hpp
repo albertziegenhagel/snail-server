@@ -29,8 +29,8 @@ private:
 
     int unix_domain_socket_file_;
 
-    virtual std::streamsize read(char_type* s, std::streamsize n) override;
-    virtual std::streamsize write(const char_type* s, std::streamsize n) override;
+    virtual std::streamsize read(char_type* buffer, std::streamsize bytes_to_read) override;
+    virtual std::streamsize write(const char_type* buffer, std::streamsize bytes_to_write) override;
 };
 
 } // namespace snail::jsonrpc

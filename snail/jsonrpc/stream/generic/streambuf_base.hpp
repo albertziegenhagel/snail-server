@@ -33,8 +33,8 @@ protected:
     // virtual std::streamsize xsputn(const char_type* s, std::streamsize n) override;
     virtual int_type overflow(int_type c = traits_type::eof()) override;
 
-    virtual std::streamsize read(char_type* s, std::streamsize n)        = 0;
-    virtual std::streamsize write(const char_type* s, std::streamsize n) = 0;
+    virtual std::streamsize read(char_type* buffer, std::streamsize bytes_to_read)         = 0;
+    virtual std::streamsize write(const char_type* buffer, std::streamsize bytes_to_write) = 0;
 
 private:
     std::ios_base::openmode mode_;

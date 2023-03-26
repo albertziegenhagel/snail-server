@@ -68,12 +68,12 @@ std::string v2_protocol::dump_response(const jsonrpc::response& response)
     return std::format(R"({{"jsonrpc":"2.0","result":{}}})", response.result.dump());
 }
 
-std::string v2_protocol::dump_error(const rpc_error& data, const nlohmann::json* id)
+std::string v2_protocol::dump_error(const rpc_error& error, const nlohmann::json* id)
 {
     if(id != nullptr)
     {
-        return std::format(R"({{"jsonrpc":"2.0","error":{{"code":{},"message":"{}"}},"id":{}}})", data.code(), data.what(), id->dump());
+        return std::format(R"({{"jsonrpc":"2.0","error":{{"code":{},"message":"{}"}},"id":{}}})", error.code(), error.what(), id->dump());
     }
 
-    return std::format(R"({{"jsonrpc":"2.0","error":{{"code":{},"message":"{}"}}}})", data.code(), data.what());
+    return std::format(R"({{"jsonrpc":"2.0","error":{{"code":{},"message":"{}"}}}})", error.code(), error.what());
 }
