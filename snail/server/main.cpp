@@ -157,7 +157,7 @@ std::unique_ptr<jsonrpc::message_connection> make_connection(const ::options& op
 void wait_for_debugger()
 {
 #if !defined(NDEBUG) && defined(_MSC_VER)
-    while(!IsDebuggerPresent())
+    while(IsDebuggerPresent() == 0)
         ;
     DebugBreak();
 #endif

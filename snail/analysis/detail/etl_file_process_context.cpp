@@ -205,7 +205,7 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
                                             const etl::parser::perfinfo_v2_sampled_profile_event_view& event)
 {
     const auto* const thread = threads.find_at(event.thread_id(), header.timestamp);
-    if(!thread) return;
+    if(thread == nullptr) return;
 
     const auto process_id = thread->payload.process_id;
 
