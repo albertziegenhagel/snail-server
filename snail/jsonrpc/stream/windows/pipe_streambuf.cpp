@@ -34,6 +34,7 @@ pipe_streambuf::~pipe_streambuf()
 pipe_streambuf& pipe_streambuf::operator=(pipe_streambuf&& other) noexcept
 {
     pipe_handle_ = std::exchange(other.pipe_handle_, INVALID_HANDLE_VALUE);
+    streambuf_base::operator=(std::move(other));
     return *this;
 }
 
