@@ -22,6 +22,7 @@ pipe_streambuf::pipe_streambuf(const std::filesystem::path& path, std::ios_base:
 pipe_streambuf::pipe_streambuf(pipe_streambuf&& other) noexcept :
     streambuf_base(std::move(other))
 {
+    // NOLINTNEXTLINE(bugprone-use-after-move)
     pipe_handle_ = std::exchange(other.pipe_handle_, INVALID_HANDLE_VALUE);
 }
 
