@@ -5,7 +5,7 @@
 
 using namespace snail::jsonrpc;
 
-streambuf_base::streambuf_base(streambuf_base&& other) :
+streambuf_base::streambuf_base(streambuf_base&& other) noexcept :
     mode_(other.mode_),
     get_area_size_(other.get_area_size_),
     put_area_size_(other.put_area_size_)
@@ -14,7 +14,7 @@ streambuf_base::streambuf_base(streambuf_base&& other) :
     buffer_ = std::move(other.buffer_);
 }
 
-streambuf_base& streambuf_base::operator=(streambuf_base&& other)
+streambuf_base& streambuf_base::operator=(streambuf_base&& other) noexcept
 {
     this->swap(other);
     other.setg(nullptr, nullptr, nullptr);
