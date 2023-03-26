@@ -12,25 +12,25 @@ struct named_pipe
 {
     named_pipe(const std::filesystem::path& path)
     {
-        handle_ = CreateNamedPipeW(path.c_str(),
-                                   PIPE_ACCESS_DUPLEX,
-                                   PIPE_TYPE_BYTE | PIPE_NOWAIT,
-                                   1,
-                                   64,
-                                   64,
-                                   0,
-                                   nullptr);
+        handle = CreateNamedPipeW(path.c_str(),
+                                  PIPE_ACCESS_DUPLEX,
+                                  PIPE_TYPE_BYTE | PIPE_NOWAIT,
+                                  1,
+                                  64,
+                                  64,
+                                  0,
+                                  nullptr);
 
-        if(handle_ == INVALID_HANDLE_VALUE) throw std::system_error(std::error_code(static_cast<int>(GetLastError()), std::system_category()));
+        if(handle == INVALID_HANDLE_VALUE) throw std::system_error(std::error_code(static_cast<int>(GetLastError()), std::system_category()));
     }
 
     ~named_pipe()
     {
-        if(handle_ == INVALID_HANDLE_VALUE) return;
-        CloseHandle(handle_);
+        if(handle == INVALID_HANDLE_VALUE) return;
+        CloseHandle(handle);
     }
 
-    HANDLE handle_;
+    HANDLE handle;
 };
 
 TEST(PipeIoStream, DefaultConstructOpen)
@@ -80,7 +80,7 @@ TEST(PipeIoStream, ReadWrite)
     const auto test_data_in = "in-data\n"sv;
 
     DWORD      temp_bytes_count;
-    const auto write_result = WriteFile(pipe.handle_, test_data_in.data(), static_cast<DWORD>(test_data_in.size()), &temp_bytes_count, nullptr);
+    const auto write_result = WriteFile(pipe.handle, test_data_in.data(), static_cast<DWORD>(test_data_in.size()), &temp_bytes_count, nullptr);
     EXPECT_TRUE(write_result);
     EXPECT_EQ(temp_bytes_count, test_data_in.size());
 
@@ -97,7 +97,7 @@ TEST(PipeIoStream, ReadWrite)
     buffer.clear();
     buffer.resize(test_data_out.size() + 1);
     buffer.back()          = '\0';
-    const auto read_result = ReadFile(pipe.handle_, buffer.data(), static_cast<DWORD>(test_data_out.size()), &temp_bytes_count, nullptr);
+    const auto read_result = ReadFile(pipe.handle, buffer.data(), static_cast<DWORD>(test_data_out.size()), &temp_bytes_count, nullptr);
     EXPECT_TRUE(read_result);
     EXPECT_EQ(temp_bytes_count, test_data_out.size());
 }
