@@ -52,14 +52,14 @@ TEST(PipeIoStream, ConstructOpen)
     const auto* const pipe_path = R"(\\.\pipe\snail-test-pipe-2)";
     const auto        pipe      = named_pipe(pipe_path);
 
-    pipe_iostream stream(pipe_path);
+    const pipe_iostream stream(pipe_path);
     EXPECT_TRUE(stream.is_open());
 }
 
 TEST(PipeIoStream, ConstructOpenInvalid)
 {
     const auto* const pipe_path = R"(\\.\pipe\snail-non-existing-pipe)";
-    pipe_iostream     stream(pipe_path);
+    const pipe_iostream stream(pipe_path);
     EXPECT_FALSE(stream.is_open());
 }
 
