@@ -7,4 +7,5 @@ Checks: >
     -readability-identifier-length,
     -readability-function-cognitive-complexity,
     performance-*,
+    portability-*,
 FormatStyle:     file
