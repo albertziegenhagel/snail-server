@@ -57,7 +57,7 @@ const pdb_resolver::symbol_info& pdb_resolver::make_generic_symbol(const module_
     auto iter = symbol_cache.find(key);
     if(iter != symbol_cache.end()) return iter->second;
 
-    auto delimiter_pos = module.image_filename.find_last_of("\\");
+    auto delimiter_pos = module.image_filename.find_last_of('\\');
     if(delimiter_pos == std::u16string::npos) delimiter_pos = module.image_filename.find_last_of("//");
 
     const auto filename = delimiter_pos == std::u16string::npos ? module.image_filename : module.image_filename.substr(delimiter_pos + 1);

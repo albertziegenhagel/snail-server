@@ -25,7 +25,7 @@ std::optional<std::string_view> extract_xml_attribute(std::string_view xml_node,
 
     const auto attr_value_offset = attr_name_offset + attribute_name.size() + 2;
 
-    const auto attr_value_end = xml_node.find("\"", attr_value_offset);
+    const auto attr_value_end = xml_node.find('\"', attr_value_offset);
     if(attr_value_end == std::string_view::npos) return {};
 
     return xml_node.substr(attr_value_offset, attr_value_end - attr_value_offset);
