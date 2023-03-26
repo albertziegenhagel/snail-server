@@ -6,6 +6,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include <snail/common/cast.hpp>
+
 #include <snail/jsonrpc/errors.hpp>
 
 using namespace snail::jsonrpc;
@@ -79,7 +81,7 @@ std::string stream_message_reader::read()
 
     std::string content;
     content.resize(header.length);
-    stream_->read(content.data(), header.length);
+    stream_->read(content.data(), common::narrow_cast<std::streamsize>(header.length));
 
     return content;
 }

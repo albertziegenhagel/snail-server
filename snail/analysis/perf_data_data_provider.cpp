@@ -115,7 +115,7 @@ void perf_data_data_provider::process(const std::filesystem::path& file_path)
 
     const auto runtime = start_timestamp < end_timestamp ? end_timestamp - start_timestamp : nanoseconds(0);
 
-    const auto average_sampling_rate = runtime.count() == 0 ? 0.0 : (total_sample_count / duration_cast<duration<double>>(runtime).count());
+    const auto average_sampling_rate = runtime.count() == 0 ? 0.0 : ((double)total_sample_count / duration_cast<duration<double>>(runtime).count());
 
     const auto file_modified_time = std::filesystem::last_write_time(file_path);
 

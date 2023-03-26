@@ -141,7 +141,7 @@ void etl_data_provider::process(const std::filesystem::path& file_path)
     session_end_qpc_ticks_   = session_start_qpc_ticks_ + to_qpc_ticks(runtime, file.header().qpc_frequency);
     qpc_frequency_           = file.header().qpc_frequency;
 
-    const auto average_sampling_rate = runtime.count() == 0 ? 0.0 : (total_sample_count / duration_cast<duration<double>>(runtime).count());
+    const auto average_sampling_rate = runtime.count() == 0 ? 0.0 : ((double)total_sample_count / duration_cast<duration<double>>(runtime).count());
 
     session_info_ = analysis::session_info{
         .command_line          = "[unknown]", // Process-DCStart -> vcdiagnostics commandline
@@ -197,9 +197,9 @@ analysis::process_info etl_data_provider::process_info(common::process_id_t proc
     return analysis::process_info{
         .id         = process_id,
         .name       = process->payload.image_filename,
-        .start_time = process->timestamp >= session_start_qpc_ticks_ ? static_cast<std::uint64_t>(from_qpc_ticks<std::chrono::nanoseconds>(process->timestamp - session_start_qpc_ticks_, qpc_frequency_).count()) : 0,
+        .start_time = process->timestamp >= session_start_qpc_ticks_ ? static_cast<std::uint64_t>(from_qpc_ticks<std::chrono::nanoseconds>(static_cast<std::int64_t>(process->timestamp) - session_start_qpc_ticks_, qpc_frequency_).count()) : 0,
         .end_time   = process->payload.end_time ?
-                          (*process->payload.end_time >= session_start_qpc_ticks_ ? static_cast<std::uint64_t>(from_qpc_ticks<std::chrono::nanoseconds>(*process->payload.end_time - session_start_qpc_ticks_, qpc_frequency_).count()) : 0) :
+                          (*process->payload.end_time >= session_start_qpc_ticks_ ? static_cast<std::uint64_t>(from_qpc_ticks<std::chrono::nanoseconds>(static_cast<std::int64_t>(*process->payload.end_time) - session_start_qpc_ticks_, qpc_frequency_).count()) : 0) :
                           static_cast<std::uint64_t>(from_qpc_ticks<std::chrono::nanoseconds>(session_end_qpc_ticks_, qpc_frequency_).count())};
 }
 

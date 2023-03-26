@@ -21,7 +21,7 @@ struct named_pipe
                                    0,
                                    nullptr);
 
-        if(handle_ == INVALID_HANDLE_VALUE) throw std::system_error(std::error_code(GetLastError(), std::system_category()));
+        if(handle_ == INVALID_HANDLE_VALUE) throw std::system_error(std::error_code(static_cast<int>(GetLastError()), std::system_category()));
     }
 
     ~named_pipe()
@@ -86,12 +86,12 @@ TEST(PipeIoStream, ReadWrite)
 
     std::string buffer;
     buffer.resize(test_data_in.size());
-    stream.read(buffer.data(), test_data_in.size());
+    stream.read(buffer.data(), static_cast<std::streamsize>(test_data_in.size()));
     EXPECT_EQ(buffer, test_data_in);
 
     const auto test_data_out = "out-data\n"sv;
 
-    stream.write(test_data_out.data(), test_data_out.size());
+    stream.write(test_data_out.data(), static_cast<std::streamsize>(test_data_out.size()));
     stream.flush();
 
     buffer.clear();
