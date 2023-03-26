@@ -33,7 +33,7 @@ std::optional<std::string> server::handle(std::string_view data)
     {
         auto request = protocol_->load_request(data);
 
-        if(request.id != std::nullopt)
+        if(request.id.has_value())
         {
             error_id = &request.id.value();
         }
