@@ -532,6 +532,7 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
 
             std::vector<nlohmann::json> line_hits;
 
+            line_hits.reserve(function.hits_by_line.size());
             for(const auto& [line_number, hits] : function.hits_by_line)
             {
                 line_hits.push_back(
