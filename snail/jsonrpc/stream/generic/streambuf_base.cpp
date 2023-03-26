@@ -67,11 +67,9 @@ streambuf_base::int_type streambuf_base::overflow(int_type c)
         {
             return traits_type::not_eof(c);
         }
-        else
-        {
-            const auto character = traits_type::to_char_type(c);
-            if(write(&character, 1) == 1) return traits_type::not_eof(c);
-        }
+
+        const auto character = traits_type::to_char_type(c);
+        if(write(&character, 1) == 1) return traits_type::not_eof(c);
     }
     else
     {
@@ -82,7 +80,7 @@ streambuf_base::int_type streambuf_base::overflow(int_type c)
         if(written == pending)
         {
             if(c == traits_type::eof()) return traits_type::not_eof(c);
-            else return this->sputc(traits_type::to_char_type(c));
+            return this->sputc(traits_type::to_char_type(c));
         }
     }
     return traits_type::eof();

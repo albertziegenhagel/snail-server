@@ -49,10 +49,8 @@ T read_int(std::ifstream& file_stream, std::endian data_byte_order)
         {
             return std::byteswap(value);
         }
-        else
-        {
-            return value;
-        }
+
+        return value;
     }
     else
     {
