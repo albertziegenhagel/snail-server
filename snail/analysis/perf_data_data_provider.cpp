@@ -19,12 +19,12 @@ namespace {
 
 struct perf_data_sample_data : public sample_data
 {
-    virtual bool has_stack() const override
+    bool has_stack() const override
     {
         return true;
     }
 
-    virtual common::generator<stack_frame> reversed_stack() const override
+    common::generator<stack_frame> reversed_stack() const override
     {
         static const std::string unkown_module_name = "[unknown]";
 
