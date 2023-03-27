@@ -69,7 +69,7 @@ void print_usage(std::string_view application_path)
 [[noreturn]] void print_usage_and_exit(std::string_view application_path, int exit_code)
 {
     print_usage(application_path);
-    std::exit(exit_code);
+    std::quick_exit(exit_code);
 }
 
 [[noreturn]] void print_error_and_exit(std::string_view application_path, std::string_view error)
@@ -134,7 +134,7 @@ std::unique_ptr<jsonrpc::message_connection> make_connection(const ::options& op
         if(!socket->is_open())
         {
             std::cout << std::format("  Failed to open {} '{}'!", socket_kind_name, options.socket_name->string()) << std::endl;
-            std::exit(EXIT_FAILURE);
+            std::quick_exit(EXIT_FAILURE);
         }
         return std::make_unique<jsonrpc::message_connection>(
             std::make_unique<jsonrpc::stream_message_reader>(*socket),
@@ -151,7 +151,7 @@ std::unique_ptr<jsonrpc::message_connection> make_connection(const ::options& op
             std::make_unique<jsonrpc::stream_message_writer>(std::cout));
     }
 
-    std::exit(EXIT_FAILURE);
+    std::quick_exit(EXIT_FAILURE);
 }
 
 void wait_for_debugger()
