@@ -86,7 +86,7 @@ struct options
     bool                                 debug = false;
 };
 
-options parse_command_line(int argc, char* argv[])
+options parse_command_line(int argc, char* argv[]) // NOLINT(modernize-avoid-c-arrays)
 {
     const auto application_path = argc > 0 ? std::string_view(argv[0]) : "";
 
