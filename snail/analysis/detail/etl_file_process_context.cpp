@@ -42,8 +42,7 @@ etl_file_process_context::etl_file_process_context()
     register_event<etl::parser::vs_diagnostics_hub_target_profiling_started_event_view>();
 }
 
-etl_file_process_context::~etl_file_process_context()
-{}
+etl_file_process_context::~etl_file_process_context() = default;
 
 etl::dispatching_event_observer& etl_file_process_context::observer()
 {

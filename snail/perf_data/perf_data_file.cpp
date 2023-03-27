@@ -426,7 +426,7 @@ void perf_data_file::open(const std::filesystem::path& file_path)
     });
 }
 
-perf_data_file::~perf_data_file() {}
+perf_data_file::~perf_data_file() = default;
 
 void perf_data_file::close()
 {
