@@ -6,6 +6,8 @@
 #include <numeric>
 #include <ranges>
 
+#include <snail/common/cast.hpp>
+
 #include <snail/etl/etl_file.hpp>
 
 #include <snail/analysis/detail/etl_file_process_context.hpp>
@@ -38,6 +40,14 @@ Duration from_qpc_ticks(std::int64_t ticks, std::uint64_t qpc_frequency)
     // NOTE: Use gcd to reduce chance of overflow
     const auto gcd = std::gcd(Duration::period::den, Duration::period::num * qpc_frequency);
     return Duration(ticks * (Duration::period::den / gcd) / ((Duration::period::num * qpc_frequency) / gcd));
+}
+
+template<typename Duration>
+Duration from_relative_qpc_ticks(std::uint64_t ticks, std::uint64_t start, std::uint64_t qpc_frequency)
+{
+    if(ticks < start) return Duration::zero();
+    const auto relative_ticks = ticks - start;
+    return from_qpc_ticks<Duration>(common::narrow_cast<std::int64_t>(relative_ticks), qpc_frequency);
 }
 
 struct etl_sample_data : public sample_data
@@ -197,10 +207,10 @@ analysis::process_info etl_data_provider::process_info(common::process_id_t proc
     return analysis::process_info{
         .id         = process_id,
         .name       = process->payload.image_filename,
-        .start_time = process->timestamp >= session_start_qpc_ticks_ ? static_cast<std::uint64_t>(from_qpc_ticks<std::chrono::nanoseconds>(static_cast<std::int64_t>(process->timestamp) - session_start_qpc_ticks_, qpc_frequency_).count()) : 0,
+        .start_time = from_relative_qpc_ticks<std::chrono::nanoseconds>(process->timestamp, session_start_qpc_ticks_, qpc_frequency_),
         .end_time   = process->payload.end_time ?
-                          (*process->payload.end_time >= session_start_qpc_ticks_ ? static_cast<std::uint64_t>(from_qpc_ticks<std::chrono::nanoseconds>(static_cast<std::int64_t>(*process->payload.end_time) - session_start_qpc_ticks_, qpc_frequency_).count()) : 0) :
-                          static_cast<std::uint64_t>(from_qpc_ticks<std::chrono::nanoseconds>(session_end_qpc_ticks_, qpc_frequency_).count())};
+                          from_relative_qpc_ticks<std::chrono::nanoseconds>(*process->payload.end_time, session_start_qpc_ticks_, qpc_frequency_) :
+                          from_relative_qpc_ticks<std::chrono::nanoseconds>(session_end_qpc_ticks_, session_start_qpc_ticks_, qpc_frequency_)};
 }
 
 common::generator<analysis::thread_info> etl_data_provider::threads_info(common::process_id_t process_id) const
@@ -219,9 +229,9 @@ common::generator<analysis::thread_info> etl_data_provider::threads_info(common:
         co_yield analysis::thread_info{
             .id         = thread->id,
             .name       = std::nullopt,
-            .start_time = thread->timestamp >= session_start_qpc_ticks_ ? static_cast<std::uint64_t>(from_qpc_ticks<std::chrono::nanoseconds>(thread->timestamp - session_start_qpc_ticks_, qpc_frequency_).count()) : 0,
+            .start_time = from_relative_qpc_ticks<std::chrono::nanoseconds>(thread->timestamp, session_start_qpc_ticks_, qpc_frequency_),
             .end_time   = thread->payload.end_time ?
-                              (*thread->payload.end_time >= session_start_qpc_ticks_ ? static_cast<std::uint64_t>(from_qpc_ticks<std::chrono::nanoseconds>(*thread->payload.end_time - session_start_qpc_ticks_, qpc_frequency_).count()) : 0) :
+                              from_relative_qpc_ticks<std::chrono::nanoseconds>(*thread->payload.end_time, session_start_qpc_ticks_, qpc_frequency_) :
                               process.end_time};
     }
 }

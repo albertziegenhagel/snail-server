@@ -254,18 +254,18 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
                     json_threads.push_back({
                         {"id",         thread_info.id                                                                },
                         {"name",       thread_info.name ? nlohmann::json(*thread_info.name) : nlohmann::json(nullptr)},
-                        {"start_time", thread_info.start_time                                                        },
-                        {"end_time",   thread_info.end_time                                                          }
+                        {"start_time", thread_info.start_time.count()                                                },
+                        {"end_time",   thread_info.end_time.count()                                                  }
                     });
                 }
 
                 const auto& process_info = data_provider.process_info(process_id);
                 json_processes.push_back({
-                    {"id",         process_id             },
-                    {"name",       process_info.name      },
-                    {"start_time", process_info.start_time},
-                    {"end_time",   process_info.end_time  },
-                    {"threads",    std::move(json_threads)}
+                    {"id",         process_id                     },
+                    {"name",       process_info.name              },
+                    {"start_time", process_info.start_time.count()},
+                    {"end_time",   process_info.end_time.count()  },
+                    {"threads",    std::move(json_threads)        }
                 });
             }
             return {

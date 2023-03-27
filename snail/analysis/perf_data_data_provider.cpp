@@ -4,6 +4,8 @@
 #include <numeric>
 #include <ranges>
 
+#include <snail/common/cast.hpp>
+
 #include <snail/perf_data/parser/records/kernel.hpp>
 #include <snail/perf_data/perf_data_file.hpp>
 
@@ -64,6 +66,17 @@ struct perf_data_sample_data : public sample_data
     common::timestamp_t                               timestamp;
 };
 
+template<typename Duration>
+Duration from_relative_timestamps(common::timestamp_t timestamp, common::timestamp_t start_timestamp)
+{
+    if(timestamp < start_timestamp) return Duration::zero();
+
+    // NOTE: timestamps are in nanoseconds
+
+    const auto relative_nanoseconds = timestamp - start_timestamp;
+    return std::chrono::duration_cast<Duration>(std::chrono::nanoseconds(common::narrow_cast<std::chrono::nanoseconds::rep>(relative_nanoseconds)));
+}
+
 } // namespace
 
 perf_data_data_provider::~perf_data_data_provider() = default;
@@ -113,7 +126,7 @@ void perf_data_data_provider::process(const std::filesystem::path& file_path)
     session_start_time_ = start_timestamp.count();
     session_end_time_   = end_timestamp.count();
 
-    const auto runtime = start_timestamp < end_timestamp ? end_timestamp - start_timestamp : nanoseconds(0);
+    const auto runtime = start_timestamp < end_timestamp ? end_timestamp - start_timestamp : nanoseconds::zero();
 
     const auto average_sampling_rate = runtime.count() == 0 ? 0.0 : ((double)total_sample_count / duration_cast<duration<double>>(runtime).count());
 
@@ -179,10 +192,10 @@ analysis::process_info perf_data_data_provider::process_info(common::process_id_
     return analysis::process_info{
         .id         = process_id,
         .name       = process->payload.name ? *process->payload.name : "[unknown]",
-        .start_time = process->timestamp >= session_start_time_ ? process->timestamp - session_start_time_ : 0,
+        .start_time = from_relative_timestamps<std::chrono::nanoseconds>(process->timestamp, session_start_time_),
         .end_time   = process->payload.end_time ?
-                          (*process->payload.end_time >= session_start_time_ ? *process->payload.end_time - session_start_time_ : 0) :
-                          session_end_time_};
+                          from_relative_timestamps<std::chrono::nanoseconds>(*process->payload.end_time, session_start_time_) :
+                          from_relative_timestamps<std::chrono::nanoseconds>(session_end_time_, session_start_time_)};
 }
 
 common::generator<analysis::thread_info> perf_data_data_provider::threads_info(common::process_id_t process_id) const
@@ -201,9 +214,9 @@ common::generator<analysis::thread_info> perf_data_data_provider::threads_info(c
         co_yield analysis::thread_info{
             .id         = thread->id,
             .name       = thread->payload.name,
-            .start_time = thread->timestamp >= session_start_time_ ? thread->timestamp - session_start_time_ : 0,
+            .start_time = from_relative_timestamps<std::chrono::nanoseconds>(thread->timestamp, session_start_time_),
             .end_time   = thread->payload.end_time ?
-                              (*thread->payload.end_time >= session_start_time_ ? *thread->payload.end_time - session_start_time_ : 0) :
+                              from_relative_timestamps<std::chrono::nanoseconds>(*thread->payload.end_time, session_start_time_) :
                               process.end_time};
     }
 }
