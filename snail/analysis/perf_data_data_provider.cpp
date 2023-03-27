@@ -19,7 +19,7 @@ namespace {
 
 struct perf_data_sample_data : public sample_data
 {
-    bool has_stack() const override
+    [[nodiscard]] bool has_stack() const override
     {
         return true;
     }

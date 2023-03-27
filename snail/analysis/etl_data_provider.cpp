@@ -42,7 +42,7 @@ Duration from_qpc_ticks(std::int64_t ticks, std::uint64_t qpc_frequency)
 
 struct etl_sample_data : public sample_data
 {
-    bool has_stack() const override
+    [[nodiscard]] bool has_stack() const override
     {
         return user_stack != nullptr || kernel_stack != nullptr;
     }
