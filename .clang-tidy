@@ -17,6 +17,7 @@ Checks: >
     -misc-non-private-member-variables-in-classes,
     modernize-*,
     -modernize-use-trailing-return-type,
+    concurrency-*,
 FormatStyle:     file
 CheckOptions:
   - key:             readability-identifier-naming.ClassCase
