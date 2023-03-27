@@ -12,6 +12,7 @@ struct named_pipe
 {
     named_pipe(const std::filesystem::path& path)
     {
+        // NOLINTNEXTLINE(cppcoreguidelines-prefer-member-initializer)
         handle = CreateNamedPipeW(path.c_str(),
                                   PIPE_ACCESS_DUPLEX,
                                   PIPE_TYPE_BYTE | PIPE_NOWAIT,

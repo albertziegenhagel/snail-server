@@ -11,7 +11,10 @@ streambuf_base::streambuf_base(streambuf_base&& other) noexcept :
     put_area_size_(other.put_area_size_)
 {
     this->swap(other);
-    buffer_ = std::move(other.buffer_);
+    buffer_ = std::move(other.buffer_); // NOLINT(cppcoreguidelines-prefer-member-initializer)
+                                        // We want this to happen after the base class swap, so that
+                                        // in case that the swap throws an exception, we did not modify
+                                        // `other.buffer`.
 }
 
 streambuf_base& streambuf_base::operator=(streambuf_base&& other) noexcept
