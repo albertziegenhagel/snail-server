@@ -82,7 +82,7 @@ void perf_data_data_provider::process(const std::filesystem::path& file_path)
     {
 #ifdef _MSC_VER // Missing compiler support for `std::views::join_with` in (at least) clang
         auto joined = strings | std::views::join_with(' ');
-        return std::string(std::ranges::begin(joined), std::ranges::end(joined));
+        return {std::ranges::begin(joined), std::ranges::end(joined)};
 #else
         if(strings.empty()) return {};
         std::string result = strings.front();

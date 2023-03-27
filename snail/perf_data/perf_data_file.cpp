@@ -75,7 +75,7 @@ std::string read_string(std::ifstream& file_stream, std::endian data_byte_order)
 
     file_stream.read(buffer.data(), length);
 
-    return std::string(buffer.data());
+    return {buffer.data()};
 }
 
 std::vector<std::string> read_string_list(std::ifstream& file_stream, std::endian data_byte_order)
