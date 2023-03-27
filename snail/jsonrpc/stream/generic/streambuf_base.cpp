@@ -90,7 +90,7 @@ void streambuf_base::init_buffer()
 {
     static constexpr std::size_t buffer_size = BUFSIZ;
 
-    buffer_ = std::make_unique<char[]>(buffer_size); // NOLINT(modernize-avoid-c-arrays)
+    buffer_ = std::make_unique<char[]>(buffer_size); // NOLINT(modernize-avoid-c-arrays,cppcoreguidelines-avoid-c-arrays)
 
     const auto half_buffer_size = std::ldiv(static_cast<long int>(buffer_size), static_cast<long int>(2));
     get_area_size_              = half_buffer_size.quot + half_buffer_size.rem;
