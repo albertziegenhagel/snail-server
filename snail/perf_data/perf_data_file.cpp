@@ -13,6 +13,7 @@
 #include <vector>
 
 #include <snail/common/bit_flags.hpp>
+#include <snail/common/cast.hpp>
 #include <snail/common/chunked_reader.hpp>
 #include <snail/common/stream_position.hpp>
 
@@ -209,7 +210,7 @@ void read_metadata(std::ifstream&                            file_stream,
         {
             const auto resetter = common::stream_position_resetter(file_stream);
 
-            file_stream.seekg(metadata_section.offset());
+            file_stream.seekg(common::narrow_cast<std::streamoff>(metadata_section.offset()));
 
             switch(current_feature)
             {
