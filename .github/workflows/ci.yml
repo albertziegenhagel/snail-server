@@ -44,8 +44,8 @@ jobs:
       - name: Install gcc-13
         if: runner.os == 'Linux'
         run: |
-          wget --no-verbose http://kayari.org/gcc-latest/gcc-latest_13.0.1-20230212git06ca0c9abb26.deb
-          sudo dpkg -i gcc-latest_13.0.1-20230212git06ca0c9abb26.deb
+          wget --no-verbose http://kayari.org/gcc-latest/gcc-latest_13.0.1-20230326git55bc61a75a68.deb
+          sudo dpkg -i gcc-latest_13.0.1-20230326git55bc61a75a68.deb
           echo "/opt/gcc-latest/bin" >> $GITHUB_PATH
           echo "LD_RUN_PATH=/opt/gcc-latest/lib64" >> $GITHUB_ENV
 
