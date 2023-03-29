@@ -8,23 +8,33 @@ on:
 
 jobs:
   job:
-    name: ${{ matrix.os }}-${{ github.workflow }}
+    name: ${{ matrix.platform }}-${{ matrix.arch }}-${{ matrix.compiler }}
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.run-on }}
 
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        run-on: [ubuntu-latest, windows-latest]
+        compiler: [any]
         include:
-          - os: windows-latest
+          - run-on: windows-latest
             triplet: x64-windows-static-release
             arch: x86_64
             platform: windows
-          - os: ubuntu-latest
+            compiler: msvc
+          - run-on: ubuntu-latest
             triplet: x64-linux-release
             arch: x86_64
             platform: linux
+            compiler: gcc
+          - run-on: ubuntu-latest
+            triplet: x64-linux-release
+            arch: x86_64
+            platform: linux
+            compiler: clang
+        exclude:
+          - compiler: any
 
     env:
       VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
@@ -38,6 +48,18 @@ jobs:
           sudo dpkg -i gcc-latest_13.0.1-20230212git06ca0c9abb26.deb
           echo "/opt/gcc-latest/bin" >> $GITHUB_PATH
           echo "LD_RUN_PATH=/opt/gcc-latest/lib64" >> $GITHUB_ENV
+
+      - name: Install clang-16
+        if: runner.os == 'Linux' && matrix.compiler == 'clang'
+        run: |
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-16 main'
+          sudo apt update
+          sudo apt install clang-16
+          echo "CC=clang-16" >> $GITHUB_PATH
+          echo "CXX=clang++-16" >> $GITHUB_PATH
+          echo "CFLAGS=--gcc-toolchain=/opt/gcc-latest" >> $GITHUB_PATH
+          echo "CXXFLAGS=--gcc-toolchain=/opt/gcc-latest" >> $GITHUB_PATH
 
       - uses: actions/checkout@v3
 
@@ -75,6 +97,7 @@ jobs:
 
       - name: Upload binaries
         uses: actions/upload-artifact@v3
-        with: 
+        if: runner.os != 'Linux' || matrix.compiler == 'gcc'
+        with:
           name: snail-server-${{ matrix.arch }}-${{ matrix.platform }}
           path: ${{ github.workspace }}/install/bin/snail-server*
