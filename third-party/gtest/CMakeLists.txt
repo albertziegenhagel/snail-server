@@ -11,3 +11,8 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable(googletest)
+
+set_target_properties(gtest gmock
+  PROPERTIES
+    COMPILE_WARNING_AS_ERROR OFF
+)
