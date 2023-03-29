@@ -49,15 +49,15 @@ jobs:
           echo "/opt/gcc-latest/bin" >> $GITHUB_PATH
           echo "LD_RUN_PATH=/opt/gcc-latest/lib64" >> $GITHUB_ENV
 
-      - name: Install clang-16
+      - name: Install clang-17(dev)
         if: runner.os == 'Linux' && matrix.compiler == 'clang'
         run: |
           wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-          sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-16 main'
+          sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy main'
           sudo apt update
-          sudo apt install clang-16
-          echo "CC=clang-16" >> $GITHUB_ENV
-          echo "CXX=clang++-16" >> $GITHUB_ENV
+          sudo apt install clang-17
+          echo "CC=clang-17" >> $GITHUB_ENV
+          echo "CXX=clang++-17" >> $GITHUB_ENV
           echo "CFLAGS=--gcc-toolchain=/opt/gcc-latest" >> $GITHUB_ENV
           echo "CXXFLAGS=--gcc-toolchain=/opt/gcc-latest" >> $GITHUB_ENV
 
