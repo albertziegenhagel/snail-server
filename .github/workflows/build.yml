@@ -62,17 +62,16 @@ jobs:
       - name: Build & Test project
         uses: lukka/run-cmake@v10
         with:
-          configurePreset: 'ninja-vcpkg'
-          configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Release', '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}', '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded', '-DCMAKE_COMPILE_WARNING_AS_ERROR=ON']"
+          configurePreset: 'ci'
+          configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Release', '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}']"
 
-          buildPreset: 'ninja-vcpkg'
+          buildPreset: 'ci'
 
-          testPreset: 'ninja-vcpkg'
-          testPresetAdditionalArgs: "['--output-on-failure']"
+          testPreset: 'ci'
 
       - name: Install
         run: |
-          cmake --install ${{ github.workspace }}/build/ninja-vcpkg --component server --prefix ${{ github.workspace }}/install
+          cmake --install ${{ github.workspace }}/build/ci --component server --prefix ${{ github.workspace }}/install
 
       - name: Upload binaries
         uses: actions/upload-artifact@v3
