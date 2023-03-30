@@ -35,8 +35,8 @@ private:
     std::optional<std::size_t> id_offset;
     std::optional<std::size_t> id_back_offset;
 
-    std::optional<std::size_t> calculate_id_offset(const parser::sample_format_flags& format);
-    std::optional<std::size_t> calculate_id_back_offset(const parser::sample_format_flags& format);
+    static std::optional<std::size_t> calculate_id_offset(const parser::sample_format_flags& format);
+    static std::optional<std::size_t> calculate_id_back_offset(const parser::sample_format_flags& format);
 };
 
 } // namespace snail::perf_data::detail

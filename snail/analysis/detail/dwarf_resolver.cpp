@@ -54,7 +54,7 @@ const dwarf_resolver::symbol_info& dwarf_resolver::make_generic_symbol(const mod
     auto iter = symbol_cache.find(key);
     if(iter != symbol_cache.end()) return iter->second;
 
-    auto delimiter_pos = module.image_filename.find_last_of("\\");
+    auto delimiter_pos = module.image_filename.find_last_of('\\');
     if(delimiter_pos == std::u16string::npos) delimiter_pos = module.image_filename.find_last_of("//");
 
     const auto filename = delimiter_pos == std::u16string::npos ? module.image_filename : module.image_filename.substr(delimiter_pos + 1);
@@ -164,8 +164,8 @@ dwarf_resolver::context_storage* dwarf_resolver::get_dwarf_context(const module_
     auto iter = dwarf_context_cache.find(key);
     if(iter != dwarf_context_cache.end()) return iter->second.get();
 
-    const auto pmsc   = R"(C:\Users\aziegenhagel\data\pmsc.cpython-311-x86_64-linux-gnu.so)";
-    const auto python = R"(C:\Users\aziegenhagel\data\libpython3.11.so)";
+    const auto* const pmsc   = R"(C:\Users\aziegenhagel\data\pmsc.cpython-311-x86_64-linux-gnu.so)";
+    const auto* const python = R"(C:\Users\aziegenhagel\data\libpython3.11.so)";
 
     std::string_view filename = module.image_filename;
     if(filename == "/home/aziegenhagel/build/pmsc/ex-6/pmsc.cpython-311-x86_64-linux-gnu.so")

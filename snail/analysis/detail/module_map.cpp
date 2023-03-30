@@ -34,7 +34,7 @@ struct module_map::address_range
         // It is common that the latest module will be added last, hence we do not need to sort
         const auto simple_append = new_module.load_timestamp >= active_modules.back().load_timestamp;
 
-        active_modules.push_back(std::move(new_module));
+        active_modules.push_back(new_module);
 
         if(!simple_append)
         {

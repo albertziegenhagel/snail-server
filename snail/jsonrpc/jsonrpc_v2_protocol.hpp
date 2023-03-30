@@ -7,7 +7,7 @@ namespace snail::jsonrpc {
 class v2_protocol : public protocol
 {
 public:
-    [[nodiscard]] virtual request load_request(std::string_view data) override;
+    [[nodiscard]] virtual request load_request(std::string_view content) override;
 
     [[nodiscard]] virtual std::string dump_response(const jsonrpc::response& response) override;
 

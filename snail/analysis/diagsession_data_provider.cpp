@@ -25,7 +25,7 @@ std::optional<std::string_view> extract_xml_attribute(std::string_view xml_node,
 
     const auto attr_value_offset = attr_name_offset + attribute_name.size() + 2;
 
-    const auto attr_value_end = xml_node.find("\"", attr_value_offset);
+    const auto attr_value_end = xml_node.find('\"', attr_value_offset);
     if(attr_value_end == std::string_view::npos) return {};
 
     return xml_node.substr(attr_value_offset, attr_value_end - attr_value_offset);
@@ -49,14 +49,14 @@ void diagsession_data_provider::process(const std::filesystem::path& file_path)
     // Extract the ETL file path from the metadata within the diagsession file.
     std::optional<std::string> archive_etl_file_path;
     {
-        const auto metadataEntry = archive.getEntry("metadata.xml");
-        if(metadataEntry.isNull())
+        const auto metadata_entry = archive.getEntry("metadata.xml");
+        if(metadata_entry.isNull())
         {
             throw std::runtime_error(std::format("Could not find metadata.xml in '{}'", file_path.string()));
         }
 
         std::stringstream metadata_stream;
-        metadataEntry.readContent(metadata_stream);
+        metadata_entry.readContent(metadata_stream);
 
         // NOTE: We want to spare ourselves from a dependency to a real XML parser library and hence
         //       we try to extract only the necessary information "by hand".
@@ -101,14 +101,14 @@ void diagsession_data_provider::process(const std::filesystem::path& file_path)
     temp_etl_file_path_ = temp_dir / std::filesystem::path(*archive_etl_file_path).filename();
 
     {
-        const auto etlFileEntry = archive.getEntry(*archive_etl_file_path);
-        if(etlFileEntry.isNull())
+        const auto etl_file_entry = archive.getEntry(*archive_etl_file_path);
+        if(etl_file_entry.isNull())
         {
             throw std::runtime_error(std::format("Could not find ETL file '{}' in '{}'", *archive_etl_file_path, file_path.string()));
         }
 
         std::ofstream etl_file_stream(*temp_etl_file_path_, std::ios::binary);
-        etlFileEntry.readContent(etl_file_stream);
+        etl_file_entry.readContent(etl_file_stream);
     }
 
     etl_data_provider::process(*temp_etl_file_path_);

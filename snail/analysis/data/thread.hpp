@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <optional>
 #include <string>
 
@@ -13,8 +14,9 @@ struct thread_info
 
     std::optional<std::string> name;
 
-    common::timestamp_t start_time;
-    common::timestamp_t end_time;
+    // Time since session start
+    std::chrono::nanoseconds start_time;
+    std::chrono::nanoseconds end_time;
 };
 
 } // namespace snail::analysis

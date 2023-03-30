@@ -5,16 +5,19 @@
 
 using namespace snail::jsonrpc;
 
-streambuf_base::streambuf_base(streambuf_base&& other) :
+streambuf_base::streambuf_base(streambuf_base&& other) noexcept :
     mode_(other.mode_),
     get_area_size_(other.get_area_size_),
     put_area_size_(other.put_area_size_)
 {
     this->swap(other);
-    buffer_ = std::move(other.buffer_);
+    buffer_ = std::move(other.buffer_); // NOLINT(cppcoreguidelines-prefer-member-initializer)
+                                        // We want this to happen after the base class swap, so that
+                                        // in case that the swap throws an exception, we did not modify
+                                        // `other.buffer`.
 }
 
-streambuf_base& streambuf_base::operator=(streambuf_base&& other)
+streambuf_base& streambuf_base::operator=(streambuf_base&& other) noexcept
 {
     this->swap(other);
     other.setg(nullptr, nullptr, nullptr);
@@ -67,11 +70,9 @@ streambuf_base::int_type streambuf_base::overflow(int_type c)
         {
             return traits_type::not_eof(c);
         }
-        else
-        {
-            const auto character = traits_type::to_char_type(c);
-            if(write(&character, 1) == 1) return traits_type::not_eof(c);
-        }
+
+        const auto character = traits_type::to_char_type(c);
+        if(write(&character, 1) == 1) return traits_type::not_eof(c);
     }
     else
     {
@@ -82,7 +83,7 @@ streambuf_base::int_type streambuf_base::overflow(int_type c)
         if(written == pending)
         {
             if(c == traits_type::eof()) return traits_type::not_eof(c);
-            else return this->sputc(traits_type::to_char_type(c));
+            return this->sputc(traits_type::to_char_type(c));
         }
     }
     return traits_type::eof();
@@ -92,7 +93,7 @@ void streambuf_base::init_buffer()
 {
     static constexpr std::size_t buffer_size = BUFSIZ;
 
-    buffer_ = std::make_unique<char[]>(buffer_size);
+    buffer_ = std::make_unique<char[]>(buffer_size); // NOLINT(modernize-avoid-c-arrays,cppcoreguidelines-avoid-c-arrays)
 
     const auto half_buffer_size = std::ldiv(static_cast<long int>(buffer_size), static_cast<long int>(2));
     get_area_size_              = half_buffer_size.quot + half_buffer_size.rem;

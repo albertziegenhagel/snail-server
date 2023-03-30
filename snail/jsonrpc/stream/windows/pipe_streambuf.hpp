@@ -10,12 +10,12 @@ public:
     pipe_streambuf();
     explicit pipe_streambuf(const std::filesystem::path& path, std::ios_base::openmode mode);
 
-    pipe_streambuf(pipe_streambuf&& other);
+    pipe_streambuf(pipe_streambuf&& other) noexcept;
     pipe_streambuf(const pipe_streambuf& other) = delete;
 
     ~pipe_streambuf();
 
-    pipe_streambuf& operator=(pipe_streambuf&& other);
+    pipe_streambuf& operator=(pipe_streambuf&& other) noexcept;
     pipe_streambuf& operator=(const pipe_streambuf& other) = delete;
 
     virtual void open(const std::filesystem::path& path, std::ios_base::openmode mode) override;
@@ -27,8 +27,8 @@ public:
 private:
     void* pipe_handle_;
 
-    virtual std::streamsize read(char_type* s, std::streamsize n) override;
-    virtual std::streamsize write(const char_type* s, std::streamsize n) override;
+    virtual std::streamsize read(char_type* buffer, std::streamsize bytes_to_read) override;
+    virtual std::streamsize write(const char_type* buffer, std::streamsize bytes_to_write) override;
 };
 
 } // namespace snail::jsonrpc

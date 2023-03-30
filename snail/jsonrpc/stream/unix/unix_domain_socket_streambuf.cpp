@@ -24,6 +24,7 @@ unix_domain_socket_streambuf::unix_domain_socket_streambuf(const std::filesystem
 unix_domain_socket_streambuf::unix_domain_socket_streambuf(unix_domain_socket_streambuf&& other) :
     streambuf_base(std::move(other))
 {
+    // NOLINTNEXTLINE(bugprone-use-after-move)
     unix_domain_socket_file_ = std::exchange(other.unix_domain_socket_file_, invalid_unix_domain_socket_file_);
 }
 
@@ -35,6 +36,7 @@ unix_domain_socket_streambuf::~unix_domain_socket_streambuf()
 unix_domain_socket_streambuf& unix_domain_socket_streambuf::operator=(unix_domain_socket_streambuf&& other)
 {
     unix_domain_socket_file_ = std::exchange(other.unix_domain_socket_file_, invalid_unix_domain_socket_file_);
+    streambuf_base::operator=(std::move(other));
     return *this;
 }
 

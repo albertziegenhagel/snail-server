@@ -42,8 +42,7 @@ etl_file_process_context::etl_file_process_context()
     register_event<etl::parser::vs_diagnostics_hub_target_profiling_started_event_view>();
 }
 
-etl_file_process_context::~etl_file_process_context()
-{}
+etl_file_process_context::~etl_file_process_context() = default;
 
 etl::dispatching_event_observer& etl_file_process_context::observer()
 {
@@ -205,7 +204,7 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
                                             const etl::parser::perfinfo_v2_sampled_profile_event_view& event)
 {
     const auto* const thread = threads.find_at(event.thread_id(), header.timestamp);
-    if(!thread) return;
+    if(thread == nullptr) return;
 
     const auto process_id = thread->payload.process_id;
 

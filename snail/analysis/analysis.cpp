@@ -19,12 +19,12 @@ struct hash<std::pair<T1, T2>>
 {
     [[nodiscard]] size_t operator()(const std::pair<T1, T2>& value) const noexcept
     {
-        return common::hash_combine(first_hasher(value.first), second_hasher(value.second));
+        return common::hash_combine(first_hasher_(value.first), second_hasher_(value.second));
     }
 
 private:
-    std::hash<T1> first_hasher;
-    std::hash<T2> second_hasher;
+    std::hash<T1> first_hasher_;
+    std::hash<T2> second_hasher_;
 };
 
 } // namespace std

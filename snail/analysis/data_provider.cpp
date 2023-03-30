@@ -23,11 +23,11 @@ std::unique_ptr<data_provider> snail::analysis::make_data_provider(const std::fi
     {
         return std::make_unique<snail::analysis::etl_data_provider>();
     }
-    else if(extension == ".diagsession")
+    if(extension == ".diagsession")
     {
         return std::make_unique<snail::analysis::diagsession_data_provider>();
     }
-    else if(extension == ".data")
+    if(extension == ".data")
     {
         return std::make_unique<snail::analysis::perf_data_data_provider>();
     }

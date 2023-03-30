@@ -13,6 +13,7 @@
 #include <vector>
 
 #include <snail/common/bit_flags.hpp>
+#include <snail/common/cast.hpp>
 #include <snail/common/chunked_reader.hpp>
 #include <snail/common/stream_position.hpp>
 
@@ -49,10 +50,8 @@ T read_int(std::ifstream& file_stream, std::endian data_byte_order)
         {
             return std::byteswap(value);
         }
-        else
-        {
-            return value;
-        }
+
+        return value;
     }
     else
     {
@@ -77,7 +76,7 @@ std::string read_string(std::ifstream& file_stream, std::endian data_byte_order)
 
     file_stream.read(buffer.data(), length);
 
-    return std::string(buffer.data());
+    return {buffer.data()};
 }
 
 std::vector<std::string> read_string_list(std::ifstream& file_stream, std::endian data_byte_order)
@@ -211,7 +210,7 @@ void read_metadata(std::ifstream&                            file_stream,
         {
             const auto resetter = common::stream_position_resetter(file_stream);
 
-            file_stream.seekg(metadata_section.offset());
+            file_stream.seekg(common::narrow_cast<std::streamoff>(metadata_section.offset()));
 
             switch(current_feature)
             {
@@ -371,8 +370,8 @@ void perf_data_file::open(const std::filesystem::path& file_path)
 
     // This is actually the string "PERFILE2" encoded as 64-bit integer
     // and it's corresponding byte swapped value.
-    constexpr std::uint64_t magic_v2         = 0x32454c4946524550;
-    constexpr std::uint64_t magic_v2_swapped = 0x32454c4946524550;
+    constexpr std::uint64_t magic_v2         = 0x32454c4946524550ULL;
+    constexpr std::uint64_t magic_v2_swapped = 0x50455246494c4532ULL;
 
     const auto magic = common::parser::extract<std::uint64_t>(file_buffer, 0, std::endian::native);
 
@@ -428,7 +427,7 @@ void perf_data_file::open(const std::filesystem::path& file_path)
     });
 }
 
-perf_data_file::~perf_data_file() {}
+perf_data_file::~perf_data_file() = default;
 
 void perf_data_file::close()
 {
