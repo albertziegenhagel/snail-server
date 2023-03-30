@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  job:
+    name: ${{ matrix.platform }}-${{ matrix.arch }}-${{ matrix.compiler }}
+
+    runs-on: ${{ matrix.run-on }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        run-on: [ubuntu-latest, windows-latest]
+        compiler: [any]
+        include:
+          - run-on: windows-latest
+            triplet: x64-windows-static-release
+            arch: x86_64
+            platform: windows
+            compiler: msvc
+          - run-on: ubuntu-latest
+            triplet: x64-linux-release
+            arch: x86_64
+            platform: linux
+            compiler: gcc
+          - run-on: ubuntu-latest
+            triplet: x64-linux-release
+            arch: x86_64
+            platform: linux
+            compiler: clang
+        exclude:
+          - compiler: any
+
+    env:
+      VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
+      VCPKG_GIT_COMMIT_ID: 'a325228200d7f229f3337e612e0077f2a5307090'
+
+    steps:
+      - name: Install gcc-13
+        if: runner.os == 'Linux'
+        run: |
+          wget --no-verbose http://kayari.org/gcc-latest/gcc-latest_13.0.1-20230326git55bc61a75a68.deb
+          sudo dpkg -i gcc-latest_13.0.1-20230326git55bc61a75a68.deb
+          echo "/opt/gcc-latest/bin" >> $GITHUB_PATH
+          echo "LD_RUN_PATH=/opt/gcc-latest/lib64" >> $GITHUB_ENV
+
+      - name: Install clang-17(dev)
+        if: runner.os == 'Linux' && matrix.compiler == 'clang'
+        run: |
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy main'
+          sudo apt update
+          sudo apt install clang-17 llvm-17-dev
+          echo "CC=clang-17" >> $GITHUB_ENV
+          echo "CXX=clang++-17" >> $GITHUB_ENV
+          echo "CFLAGS=--gcc-toolchain=/opt/gcc-latest" >> $GITHUB_ENV
+          echo "CXXFLAGS=--gcc-toolchain=/opt/gcc-latest" >> $GITHUB_ENV
+
+      - uses: actions/checkout@v3
+
+      - uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: "~3.25.0"
+          ninjaVersion: "^1.11.1"
+          
+      - name: Setup vcpkg (windows)
+        if: runner.os == 'Windows'
+        uses: lukka/run-vcpkg@v10
+        with:
+          vcpkgDirectory: 'C:\vcpkg'
+          vcpkgGitCommitId: '${{ env.VCPKG_GIT_COMMIT_ID }}'
+
+      - name: Setup vcpkg (non-windows)
+        if: runner.os != 'Windows'
+        uses: lukka/run-vcpkg@v10
+        with:
+          vcpkgGitCommitId: '${{ env.VCPKG_GIT_COMMIT_ID }}'
+
+      - name: Build & Test project (default)
+        uses: lukka/run-cmake@v10
+        if: runner.os != 'Linux' || matrix.compiler != 'clang'
+        with:
+          configurePreset: 'ci'
+          configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Release', '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}']"
+          buildPreset: 'ci'
+          testPreset: 'ci'
+
+      - name: Build & Test project (system LLVM)
+        uses: lukka/run-cmake@v10
+        if: runner.os == 'Linux' && matrix.compiler == 'clang'
+        with:
+          configurePreset: 'ci'
+          configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Release', '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}', '-DLLVM_DIR=/usr/lib/llvm-17/lib/cmake/llvm/']"
+          buildPreset: 'ci'
+          testPreset: 'ci'
+
+      - name: Install
+        run: |
+          cmake --install ${{ github.workspace }}/build/ci --component server --prefix ${{ github.workspace }}/install
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v3
+        if: runner.os != 'Linux' || matrix.compiler == 'gcc'
+        with:
+          name: snail-server-${{ matrix.arch }}-${{ matrix.platform }}
+          path: ${{ github.workspace }}/install/bin/snail-server*

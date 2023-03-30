@@ -40,7 +40,7 @@ constexpr void for_each(const std::tuple<Ts...>& data, [[maybe_unused]] F func, 
 }
 
 template<typename RequestType>
-    requires is_request_v<RequestType>
+    requires snail::jsonrpc::detail::is_request_v<RequestType>
 RequestType unpack_request(const nlohmann::json& raw_data)
 {
     RequestType result;

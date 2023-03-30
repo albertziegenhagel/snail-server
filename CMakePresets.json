@@ -7,50 +7,37 @@
     },
     "configurePresets": [
         {
-            "name": "ninja-vcpkg",
-            "displayName": "Ninja Configure Settings",
-            "description": "Configure with vcpkg toolchain",
+            "name": "ci",
+            "displayName": "Configure for CI",
             "binaryDir": "${sourceDir}/build/${presetName}",
             "generator": "Ninja",
+            "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
             "cacheVariables": {
-                "CMAKE_TOOLCHAIN_FILE": {
-                    "type": "FILEPATH",
-                    "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+                "CMAKE_MSVC_RUNTIME_LIBRARY": {
+                    "type": "STRING",
+                    "value": "MultiThreaded"
+                },
+                "CMAKE_COMPILE_WARNING_AS_ERROR": {
+                    "type": "BOOL",
+                    "value": "ON"
                 }
             }
         }
     ],
     "buildPresets": [
         {
-            "name": "ninja-vcpkg",
-            "configurePreset": "ninja-vcpkg",
-            "displayName": "Build ninja-vcpkg",
-            "description": "Build ninja-vcpkg Configurations"
+            "name": "ci",
+            "configurePreset": "ci",
+            "displayName": "Build for CI"
         }
     ],
     "testPresets": [
         {
-            "name": "ninja-vcpkg",
-            "configurePreset": "ninja-vcpkg"
-        }
-    ],
-    "workflowPresets": [
-        {
-            "name": "ninja-workflow",
-            "steps": [
-                {
-                    "type": "configure",
-                    "name": "ninja-vcpkg"
-                },
-                {
-                    "type": "build",
-                    "name": "ninja-vcpkg"
-                },
-                {
-                    "type": "test",
-                    "name": "ninja-vcpkg"
-                }
-            ]
+            "name": "ci",
+            "configurePreset": "ci",
+            "output": {
+                "outputOnFailure": true
+            }
         }
     ]
 }

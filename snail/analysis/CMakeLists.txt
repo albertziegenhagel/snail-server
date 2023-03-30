@@ -41,6 +41,13 @@ if(SNAIL_WITH_LLVM)
     PUBLIC
       SNAIL_HAS_LLVM
   )
+
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    # Workaround for https://github.com/llvm/llvm-project/issues/59784 :
+    # Compile the files that include LLVM headers with C++20 flags only.
+    set_source_files_properties(detail/pdb_resolver.cpp PROPERTIES COMPILE_OPTIONS ${CMAKE_CXX20_STANDARD_COMPILE_OPTION})
+    set_source_files_properties(detail/dwarf_resolver.cpp PROPERTIES COMPILE_OPTIONS ${CMAKE_CXX20_STANDARD_COMPILE_OPTION})
+  endif()
 endif()
 
 target_include_directories(analysis SYSTEM PRIVATE
