@@ -55,7 +55,7 @@ jobs:
           wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
           sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy main'
           sudo apt update
-          sudo apt install clang-17
+          sudo apt install clang-17 llvm-17-dev
           echo "CC=clang-17" >> $GITHUB_ENV
           echo "CXX=clang++-17" >> $GITHUB_ENV
           echo "CFLAGS=--gcc-toolchain=/opt/gcc-latest" >> $GITHUB_ENV
@@ -81,14 +81,22 @@ jobs:
         with:
           vcpkgGitCommitId: '${{ env.VCPKG_GIT_COMMIT_ID }}'
 
-      - name: Build & Test project
+      - name: Build & Test project (default)
         uses: lukka/run-cmake@v10
+        if: runner.os != 'Linux' || matrix.compiler != 'clang'
         with:
           configurePreset: 'ci'
           configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Release', '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}']"
-
           buildPreset: 'ci'
+          testPreset: 'ci'
 
+      - name: Build & Test project (system LLVM)
+        uses: lukka/run-cmake@v10
+        if: runner.os == 'Linux' && matrix.compiler == 'clang'
+        with:
+          configurePreset: 'ci'
+          configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Release', '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}', '-DLLVM_DIR=/usr/lib/llvm-17/lib/cmake/llvm/']"
+          buildPreset: 'ci'
           testPreset: 'ci'
 
       - name: Install
