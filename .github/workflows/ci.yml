@@ -70,14 +70,14 @@ jobs:
 
       - name: Setup vcpkg (windows)
         if: runner.os == 'Windows'
-        uses: lukka/run-vcpkg@v10
+        uses: lukka/run-vcpkg@v11
         with:
           vcpkgDirectory: 'C:\vcpkg'
           vcpkgGitCommitId: "${{ env.VCPKG_GIT_COMMIT_ID }}"
 
       - name: Setup vcpkg (non-windows)
         if: runner.os != 'Windows'
-        uses: lukka/run-vcpkg@v10
+        uses: lukka/run-vcpkg@v11
         with:
           vcpkgGitCommitId: "${{ env.VCPKG_GIT_COMMIT_ID }}"
 
