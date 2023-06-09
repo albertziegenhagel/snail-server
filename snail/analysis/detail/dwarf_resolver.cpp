@@ -101,18 +101,23 @@ const dwarf_resolver::symbol_info& dwarf_resolver::resolve_symbol(const module_i
 
     llvm::object::SectionedAddress sectioned_address;
 
-    sectioned_address.Address = relative_address;
-
-    for(auto section : dwarf_context->object->sections())
+    auto* const elf_object = llvm::dyn_cast<llvm::object::ELFObjectFileBase>(dwarf_context->object);
+    if(elf_object != nullptr)
     {
-        if(!section.isText() || section.isVirtual())
-            continue;
-
-        if(relative_address >= section.getAddress() &&
-           relative_address < section.getAddress() + section.getSize())
+        for(auto section : dwarf_context->object->sections())
         {
-            sectioned_address.SectionIndex = section.getIndex();
-            break;
+            if(!section.isText() || section.isVirtual())
+                continue;
+
+            const auto elf_section = llvm::object::ELFSectionRef(section);
+
+            if(relative_address >= elf_section.getOffset() &&
+               relative_address < elf_section.getOffset() + elf_section.getSize())
+            {
+                sectioned_address.Address      = relative_address - elf_section.getOffset() + elf_section.getAddress();
+                sectioned_address.SectionIndex = section.getIndex();
+                break;
+            }
         }
     }
 
@@ -177,6 +182,8 @@ dwarf_resolver::context_storage* dwarf_resolver::get_dwarf_context(const module_
         filename = python;
     }
 
+    auto& new_context_storage = dwarf_context_cache_[key];
+
     auto binary = llvm::object::createBinary(llvm::StringRef(filename.data(), filename.size()));
     if(!binary)
     {
@@ -198,18 +205,16 @@ dwarf_resolver::context_storage* dwarf_resolver::get_dwarf_context(const module_
         return nullptr;
     }
 
-    auto& storage = dwarf_context_cache_[key];
+    new_context_storage = std::make_unique<context_storage>();
 
-    storage = std::make_unique<context_storage>();
+    auto binary_pair            = binary->takeBinary();
+    new_context_storage->binary = std::move(binary_pair.first);
+    new_context_storage->memory = std::move(binary_pair.second);
 
-    auto binary_pair = binary->takeBinary();
-    storage->binary  = std::move(binary_pair.first);
-    storage->memory  = std::move(binary_pair.second);
+    new_context_storage->object  = object;
+    new_context_storage->context = std::move(context);
 
-    storage->object  = object;
-    storage->context = std::move(context);
-
-    return storage.get();
+    return new_context_storage.get();
 }
 #endif // SNAIL_HAS_LLVM
 
