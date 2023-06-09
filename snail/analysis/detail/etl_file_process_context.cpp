@@ -32,8 +32,10 @@ bool is_kernel_address(std::uint64_t address, std::uint32_t pointer_size)
 
 etl_file_process_context::etl_file_process_context()
 {
+    register_event<etl::parser::system_config_v3_cpu_event_view>();
     register_event<etl::parser::system_config_v2_physical_disk_event_view>();
     register_event<etl::parser::system_config_v2_logical_disk_event_view>();
+    register_event<etl::parser::system_config_v5_pnp_event_view>();
     register_event<etl::parser::process_v4_type_group1_event_view>();
     register_event<etl::parser::thread_v3_type_group1_event_view>();
     register_event<etl::parser::image_v2_load_event_view>();
@@ -116,6 +118,14 @@ void etl_file_process_context::register_event()
 
 void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
                                             const etl::common_trace_header& /*header*/,
+                                            const etl::parser::system_config_v3_cpu_event_view& event)
+{
+    computer_name_          = event.computer_name();
+    processor_architecture_ = event.processor_architecture();
+}
+
+void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
+                                            const etl::common_trace_header& /*header*/,
                                             const etl::parser::system_config_v2_physical_disk_event_view& event)
 {
     const auto disk_number     = event.disk_number();
@@ -139,6 +149,19 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
     }
 
     nt_partition_to_dos_volume_mapping[global_partition_number] = utf8::utf16to8(event.drive_letter());
+}
+
+void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
+                                            const etl::common_trace_header& /*header*/,
+                                            const etl::parser::system_config_v5_pnp_event_view& event)
+{
+    if(processor_name_) return;
+
+    // TODO: add other processors?
+    if(event.device_description() == u"Intel Processor")
+    {
+        processor_name_ = event.friendly_name();
+    }
 }
 
 void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
@@ -271,4 +294,21 @@ const std::vector<etl_file_process_context::sample_info>& etl_file_process_conte
 const std::vector<etl_file_process_context::instruction_pointer_t>& etl_file_process_context::stack(std::size_t stack_index) const
 {
     return stacks.get(stack_index);
+}
+
+std::optional<std::u16string_view> etl_file_process_context::computer_name() const
+{
+    if(!computer_name_) return std::nullopt;
+    return *computer_name_;
+}
+
+std::optional<std::uint16_t> etl_file_process_context::processor_architecture() const
+{
+    return processor_architecture_;
+}
+
+std::optional<std::u16string_view> etl_file_process_context::processor_name() const
+{
+    if(!processor_name_) return std::nullopt;
+    return *processor_name_;
 }

@@ -6,7 +6,10 @@
 #include <numeric>
 #include <ranges>
 
+#include <utf8/cpp17.h>
+
 #include <snail/common/cast.hpp>
+#include <snail/common/string_compare.hpp>
 
 #include <snail/etl/etl_file.hpp>
 
@@ -120,6 +123,23 @@ struct etl_sample_data : public sample_data
     detail::etl_file_process_context*              context;
 };
 
+std::string win_architecture_to_str(std::uint16_t arch)
+{
+    // see https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-processor
+    switch(arch)
+    {
+    case 0: return "x86";
+    case 1: return "MIPS";
+    case 2: return "Alpha";
+    case 3: return "PowerPC";
+    case 5: return "ARM";
+    case 6: return "ia64";
+    case 9: return "x64";
+    case 12: return "ARM64";
+    }
+    return "[unknown]";
+}
+
 } // namespace
 
 etl_data_provider::~etl_data_provider() = default;
@@ -153,8 +173,21 @@ void etl_data_provider::process(const std::filesystem::path& file_path)
 
     const auto average_sampling_rate = runtime.count() == 0 ? 0.0 : ((double)total_sample_count / duration_cast<duration<double>>(runtime).count());
 
+    // This is a very rudimentary way to find the command line used to create the profile:
+    // We assume that the profile has been collected via "vsdiagnostics.exe start"
+    std::string command_line = "[unknown]";
+    for(const auto& [id, infos] : process_context_->get_processes().all_entries())
+    {
+        if(common::ascii_iequals(infos.front().payload.image_filename, "vsdiagnostics.exe") &&
+           infos.front().payload.command_line.contains(u" start "))
+        {
+            command_line = utf8::utf16to8(infos.front().payload.command_line);
+            break;
+        }
+    }
+
     session_info_ = analysis::session_info{
-        .command_line          = "[unknown]", // Process-DCStart -> vcdiagnostics commandline
+        .command_line          = std::move(command_line),
         .date                  = time_point_cast<seconds>(file.header().start_time),
         .runtime               = std::chrono::duration_cast<std::chrono::nanoseconds>(runtime),
         .number_of_processes   = process_context_->profiler_processes().size(),
@@ -163,10 +196,10 @@ void etl_data_provider::process(const std::filesystem::path& file_path)
         .average_sampling_rate = average_sampling_rate};
 
     system_info_ = analysis::system_info{
-        .hostname             = "[unknown]", // Windows Kernel/System Config/CPU -> ComputerName
+        .hostname             = process_context_->computer_name() ? utf8::utf16to8(*process_context_->computer_name()) : "[unknown]",
         .platform             = "Windows",
-        .architecture         = "[unknown]", // MSNT_SystemTrace/EventTrace/BuildInfo -> BuildString
-        .cpu_name             = "[unknown]", // Windows Kernel/System Config/PnP; where ServiceName="intelppm" -> FriendlyName
+        .architecture         = process_context_->processor_architecture() ? win_architecture_to_str(*process_context_->processor_architecture()) : "[unknown]",
+        .cpu_name             = process_context_->processor_name() ? utf8::utf16to8(*process_context_->processor_name()) : "[unknown]",
         .number_of_processors = file.header().number_of_processors,
     };
 }
