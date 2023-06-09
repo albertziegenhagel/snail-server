@@ -148,7 +148,7 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
     if(header.type == 1 || header.type == 3) // load || dc_start
     {
         processes.insert(event.process_id(), header.timestamp,
-                         process_data{.image_filename = std::string(event.image_filename()),
+                         process_data{.image_filename = utf8::replace_invalid(event.image_filename()),
                                       .command_line   = std::u16string(event.command_line()),
                                       .end_time       = {}});
     }
