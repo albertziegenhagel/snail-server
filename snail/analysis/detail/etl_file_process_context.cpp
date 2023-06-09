@@ -4,6 +4,8 @@
 #include <charconv>
 #include <ranges>
 
+#include <utf8/cpp17.h>
+
 #include <snail/etl/parser/records/kernel/config.hpp>
 #include <snail/etl/parser/records/kernel/image.hpp>
 #include <snail/etl/parser/records/kernel/perfinfo.hpp>
@@ -12,8 +14,6 @@
 #include <snail/etl/parser/records/kernel/thread.hpp>
 #include <snail/etl/parser/records/kernel_trace_control/image_id.hpp>
 #include <snail/etl/parser/records/visual_studio/diagnostics_hub.hpp>
-
-#include <snail/common/unicode.hpp>
 
 using namespace snail;
 using namespace snail::analysis::detail;
@@ -138,7 +138,7 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
         global_partition_number += partition_count;
     }
 
-    nt_partition_to_dos_volume_mapping[global_partition_number] = common::utf16_to_utf8<char>(event.drive_letter());
+    nt_partition_to_dos_volume_mapping[global_partition_number] = utf8::utf16to8(event.drive_letter());
 }
 
 void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
@@ -194,7 +194,7 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
     modules.insert(module_info{
                        .base        = event.image_base(),
                        .size        = event.image_size(),
-                       .file_name   = common::utf16_to_utf8<char>(event.file_name()),
+                       .file_name   = utf8::utf16to8(event.file_name()),
                        .page_offset = 0},
                    header.timestamp);
 }

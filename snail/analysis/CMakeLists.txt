@@ -27,6 +27,8 @@ target_link_libraries(analysis
     perf_data
     
     libzippp::libzippp
+
+    utf8cpp
   PUBLIC
     common
 )
