@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <snail/common/filename.hpp>
+#include <snail/common/string_compare.hpp>
 #include <snail/common/trim.hpp>
 
 #include <array>
@@ -52,4 +53,15 @@ TEST(RandomFilename, Empty)
 {
     const auto name = make_random_filename(0);
     EXPECT_EQ(name.size(), 0);
+}
+
+TEST(AsciiIEquals, Strings)
+{
+    EXPECT_TRUE(ascii_iequals("ABC", "ABC"));
+    EXPECT_TRUE(ascii_iequals("ABC", "abc"));
+    EXPECT_TRUE(ascii_iequals("abc", "ABC"));
+    EXPECT_TRUE(ascii_iequals("AbC", "aBc"));
+
+    EXPECT_FALSE(ascii_iequals("ABC", "abcd"));
+    EXPECT_FALSE(ascii_iequals("abc", "cba"));
 }
