@@ -13,6 +13,8 @@ target_sources(analysis
 
     detail/download.cpp
 
+    path_map.cpp
+
     data_provider.cpp
     etl_data_provider.cpp
     diagsession_data_provider.cpp
