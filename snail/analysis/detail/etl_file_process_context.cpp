@@ -255,6 +255,12 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& fi
 
     auto& process_samples = iter->second;
 
+    // We expect the samples to arrive before their stacks.
+    assert(sample_timestamp <= header.timestamp);
+
+    // Try to find the sample for this stack by walking the last samples
+    // backwards. We expect that we there shouldn't be to many events
+    // between the sample and its corresponding stacks.
     for(auto& sample : std::views::reverse(process_samples))
     {
         if(sample.timestamp < sample_timestamp) break;
@@ -267,7 +273,13 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& fi
         const auto starts_in_kernel   = is_kernel_address(event.stack().back(), file_header.pointer_size);
         auto&      sample_stack_index = starts_in_kernel ? sample.kernel_mode_stack : sample.user_mode_stack;
 
-        assert(sample_stack_index == std::nullopt);
+        // Usually, we should have one user mode stack and optionally one kernel mode stack.
+        // But it seems that we can sometimes have multiple kernel mode stacks for a single sample.
+        // In this case we just replace the first kernel mode stack. Maybe the right thing to do would
+        // be to concatenate the stacks, but the kernel mode stacks are kind of useless anyways?! So,
+        // for know, we just replace the old stack.
+        assert(sample_stack_index == std::nullopt || starts_in_kernel);
+
         sample_stack_index = stacks.insert(event.stack());
     }
 }
