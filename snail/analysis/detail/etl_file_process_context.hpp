@@ -24,7 +24,7 @@ struct system_config_v2_logical_disk_event_view;
 struct system_config_v5_pnp_event_view;
 struct process_v4_type_group1_event_view;
 struct thread_v3_type_group1_event_view;
-struct image_v2_load_event_view;
+struct image_v3_load_event_view;
 struct perfinfo_v2_sampled_profile_event_view;
 struct stackwalk_v2_stack_event_view;
 struct vs_diagnostics_hub_target_profiling_started_event_view;
@@ -112,7 +112,7 @@ private:
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::system_config_v5_pnp_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::process_v4_type_group1_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::thread_v3_type_group1_event_view& event);
-    void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::image_v2_load_event_view& event);
+    void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::image_v3_load_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::perfinfo_v2_sampled_profile_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::stackwalk_v2_stack_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::vs_diagnostics_hub_target_profiling_started_event_view& event);
