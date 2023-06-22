@@ -26,7 +26,7 @@ struct event_trace_v2_header_event_view : private extract_view_dynamic_base
     };
 
     inline explicit event_trace_v2_header_event_view(std::span<const std::byte> buffer) :
-        extract_view_dynamic_base(buffer, parser::extract<std::uint32_t>(buffer, 44))
+        extract_view_dynamic_base(buffer, common::parser::extract<std::uint32_t>(buffer, 44, etl_file_byte_order))
     {}
 
     using extract_view_dynamic_base::buffer;

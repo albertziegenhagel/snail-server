@@ -49,6 +49,13 @@ T extract(std::span<const std::byte> data, std::size_t bytes_offset, std::endian
     return static_cast<T>(extract<std::underlying_type_t<T>>(data, bytes_offset, data_byte_order));
 }
 
+inline std::uint64_t extract_pointer(std::span<const std::byte> data, std::size_t bytes_offset, std::size_t pointer_size, std::endian data_byte_order)
+{
+    if(pointer_size == 4) return extract<std::uint32_t>(data, bytes_offset, data_byte_order);
+    assert(pointer_size == 8);
+    return extract<std::uint64_t>(data, bytes_offset, data_byte_order);
+}
+
 template<typename T>
     requires std::is_integral_v<T>
 inline T extract_move(std::span<const std::byte> buffer, std::size_t& bytes_offset, std::endian byte_order)
