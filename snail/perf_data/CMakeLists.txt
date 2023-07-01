@@ -20,3 +20,5 @@ target_link_libraries(perf_data
 )
 
 target_include_directories(perf_data PUBLIC ${CMAKE_SOURCE_DIR})
+
+code_coverage_add_target(perf_data)

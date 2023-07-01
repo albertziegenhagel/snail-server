@@ -55,3 +55,5 @@ target_include_directories(analysis SYSTEM PRIVATE
 )
 
 target_include_directories(analysis PUBLIC ${CMAKE_SOURCE_DIR})
+
+code_coverage_add_target(analysis)

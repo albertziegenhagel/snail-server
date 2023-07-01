@@ -1,0 +1,75 @@
+name: Coverage
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  job:
+    name: ${{ matrix.platform }}-llvm-cov
+
+    runs-on: ${{ matrix.run-on }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        run-on: [ubuntu-latest]
+        include:
+          - run-on: ubuntu-latest
+            triplet: x64-linux-release
+            platform: linux
+
+    env:
+      VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
+      VCPKG_GIT_COMMIT_ID: "f6a5d4e8eb7476b8d7fc12a56dff300c1c986131"
+
+    steps:
+      - name: Install gcc-13
+        run: |
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+          sudo apt update
+          sudo apt install gcc-13 g++-13
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 60 --slave /usr/bin/g++ g++ /usr/bin/g++-13
+
+      - name: Install clang-17(dev)
+        run: |
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy main'
+          sudo apt update
+          sudo apt install clang-17 llvm-17-dev
+          echo "CC=clang-17" >> $GITHUB_ENV
+          echo "CXX=clang++-17" >> $GITHUB_ENV
+
+      - uses: actions/checkout@v3
+
+      - uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: "~3.25.0"
+          ninjaVersion: "^1.11.1"
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: "${{ env.VCPKG_GIT_COMMIT_ID }}"
+
+      - name: Build & Test project
+        uses: lukka/run-cmake@v10
+        with:
+          configurePreset: "coverage"
+          configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Debug', '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}', '-DLLVM_DIR=/usr/lib/llvm-17/lib/cmake/llvm/']"
+          buildPreset: "coverage"
+          testPreset: "coverage"
+
+      - name: Coverage Report
+        run: cmake --build ${{ github.workspace }}/build/coverage --target code_coverage_report
+
+      - name: Coverage Export
+        run: cmake --build ${{ github.workspace }}/build/coverage --target code_coverage_export_lcov
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ${{ github.workspace }}/build/coverage/coverage.info

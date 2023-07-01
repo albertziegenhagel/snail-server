@@ -39,3 +39,5 @@ target_link_libraries(jsonrpc
 )
 
 target_include_directories(jsonrpc PUBLIC ${CMAKE_SOURCE_DIR})
+
+code_coverage_add_target(jsonrpc)
