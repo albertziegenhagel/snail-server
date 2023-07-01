@@ -10,11 +10,16 @@ function(enable_code_coverage)
   if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
     get_filename_component(_compiler_path "${CMAKE_CXX_COMPILER}" PATH)
     string(REGEX MATCH "^[0-9]+.[0-9]+" _llvm_version "${CMAKE_CXX_COMPILER_VERSION}")
+    string(REGEX MATCH "^[0-9]+" _llvm_version_major "${CMAKE_CXX_COMPILER_VERSION}")
 
     find_program(
       LLVM_PROFDATA_PATH
-      NAMES "llvm-profdata" "llvm-profdata-${_llvm_version}"
-      HINTS ${_compiler_path}
+      NAMES
+        "llvm-profdata-${_llvm_version}"
+        "llvm-profdata-${_llvm_version_major}"
+        "llvm-profdata"
+      HINTS
+        "${_compiler_path}"
     )
     if(NOT LLVM_PROFDATA_PATH)
       message(SEND_ERROR "Missing: LLVM_PROFDATA_PATH")
@@ -22,8 +27,12 @@ function(enable_code_coverage)
 
     find_program(
       LLVM_COV_PATH
-      NAMES "llvm-cov" "llvm-cov-${_llvm_version}"
-      HINTS ${_compiler_path}
+      NAMES
+        "llvm-cov-${_llvm_version}"
+        "llvm-cov-${_llvm_version_major}"
+        "llvm-cov"
+      HINTS
+        "${_compiler_path}"
     )
     if(NOT LLVM_COV_PATH)
       message(SEND_ERROR "Missing: LLVM_COV_PATH")

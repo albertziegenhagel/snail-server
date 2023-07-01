@@ -22,6 +22,23 @@
                     "value": "ON"
                 }
             }
+        },
+        {
+            "name": "coverage",
+            "displayName": "Configure for CI coverage",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "generator": "Ninja",
+            "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+            "cacheVariables": {
+                "CMAKE_MSVC_RUNTIME_LIBRARY": {
+                    "type": "STRING",
+                    "value": "MultiThreaded"
+                },
+                "SNAIL_ENABLE_CODE_COVERAGE": {
+                    "type": "BOOL",
+                    "value": "ON"
+                }
+            }
         }
     ],
     "buildPresets": [
@@ -29,12 +46,24 @@
             "name": "ci",
             "configurePreset": "ci",
             "displayName": "Build for CI"
+        },
+        {
+            "name": "coverage",
+            "configurePreset": "coverage",
+            "displayName": "Build for coverage CI"
         }
     ],
     "testPresets": [
         {
             "name": "ci",
             "configurePreset": "ci",
+            "output": {
+                "outputOnFailure": true
+            }
+        },
+        {
+            "name": "coverage",
+            "configurePreset": "coverage",
             "output": {
                 "outputOnFailure": true
             }
