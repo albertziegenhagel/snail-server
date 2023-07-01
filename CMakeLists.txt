@@ -34,6 +34,8 @@ find_package(nlohmann_json CONFIG REQUIRED)
 
 find_package(libzippp CONFIG REQUIRED)
 
+find_package(utf8cpp CONFIG REQUIRED)
+
 # =======
 # Compile options
 

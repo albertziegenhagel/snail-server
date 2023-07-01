@@ -4,6 +4,8 @@
 #include <charconv>
 #include <ranges>
 
+#include <utf8/cpp17.h>
+
 #include <snail/etl/parser/records/kernel/config.hpp>
 #include <snail/etl/parser/records/kernel/image.hpp>
 #include <snail/etl/parser/records/kernel/perfinfo.hpp>
@@ -12,8 +14,6 @@
 #include <snail/etl/parser/records/kernel/thread.hpp>
 #include <snail/etl/parser/records/kernel_trace_control/image_id.hpp>
 #include <snail/etl/parser/records/visual_studio/diagnostics_hub.hpp>
-
-#include <snail/common/unicode.hpp>
 
 using namespace snail;
 using namespace snail::analysis::detail;
@@ -32,8 +32,10 @@ bool is_kernel_address(std::uint64_t address, std::uint32_t pointer_size)
 
 etl_file_process_context::etl_file_process_context()
 {
+    register_event<etl::parser::system_config_v3_cpu_event_view>();
     register_event<etl::parser::system_config_v2_physical_disk_event_view>();
     register_event<etl::parser::system_config_v2_logical_disk_event_view>();
+    register_event<etl::parser::system_config_v5_pnp_event_view>();
     register_event<etl::parser::process_v4_type_group1_event_view>();
     register_event<etl::parser::thread_v3_type_group1_event_view>();
     register_event<etl::parser::image_v2_load_event_view>();
@@ -116,6 +118,14 @@ void etl_file_process_context::register_event()
 
 void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
                                             const etl::common_trace_header& /*header*/,
+                                            const etl::parser::system_config_v3_cpu_event_view& event)
+{
+    computer_name_          = event.computer_name();
+    processor_architecture_ = event.processor_architecture();
+}
+
+void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
+                                            const etl::common_trace_header& /*header*/,
                                             const etl::parser::system_config_v2_physical_disk_event_view& event)
 {
     const auto disk_number     = event.disk_number();
@@ -138,7 +148,20 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
         global_partition_number += partition_count;
     }
 
-    nt_partition_to_dos_volume_mapping[global_partition_number] = common::utf16_to_utf8<char>(event.drive_letter());
+    nt_partition_to_dos_volume_mapping[global_partition_number] = utf8::utf16to8(event.drive_letter());
+}
+
+void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
+                                            const etl::common_trace_header& /*header*/,
+                                            const etl::parser::system_config_v5_pnp_event_view& event)
+{
+    if(processor_name_) return;
+
+    // TODO: add other processors?
+    if(event.device_description() == u"Intel Processor")
+    {
+        processor_name_ = event.friendly_name();
+    }
 }
 
 void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
@@ -148,7 +171,7 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
     if(header.type == 1 || header.type == 3) // load || dc_start
     {
         processes.insert(event.process_id(), header.timestamp,
-                         process_data{.image_filename = std::string(event.image_filename()),
+                         process_data{.image_filename = utf8::replace_invalid(event.image_filename()),
                                       .command_line   = std::u16string(event.command_line()),
                                       .end_time       = {}});
     }
@@ -194,7 +217,7 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
     modules.insert(module_info{
                        .base        = event.image_base(),
                        .size        = event.image_size(),
-                       .file_name   = common::utf16_to_utf8<char>(event.file_name()),
+                       .file_name   = utf8::utf16to8(event.file_name()),
                        .page_offset = 0},
                    header.timestamp);
 }
@@ -271,4 +294,21 @@ const std::vector<etl_file_process_context::sample_info>& etl_file_process_conte
 const std::vector<etl_file_process_context::instruction_pointer_t>& etl_file_process_context::stack(std::size_t stack_index) const
 {
     return stacks.get(stack_index);
+}
+
+std::optional<std::u16string_view> etl_file_process_context::computer_name() const
+{
+    if(!computer_name_) return std::nullopt;
+    return *computer_name_;
+}
+
+std::optional<std::uint16_t> etl_file_process_context::processor_architecture() const
+{
+    return processor_architecture_;
+}
+
+std::optional<std::u16string_view> etl_file_process_context::processor_name() const
+{
+    if(!processor_name_) return std::nullopt;
+    return *processor_name_;
 }
