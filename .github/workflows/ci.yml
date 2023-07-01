@@ -38,7 +38,7 @@ jobs:
 
     env:
       VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
-      VCPKG_GIT_COMMIT_ID: "a325228200d7f229f3337e612e0077f2a5307090"
+      VCPKG_GIT_COMMIT_ID: "f6a5d4e8eb7476b8d7fc12a56dff300c1c986131"
 
     steps:
       - name: Install gcc-13
