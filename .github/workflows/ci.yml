@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   job:
@@ -38,7 +38,7 @@ jobs:
 
     env:
       VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
-      VCPKG_GIT_COMMIT_ID: 'a325228200d7f229f3337e612e0077f2a5307090'
+      VCPKG_GIT_COMMIT_ID: "f6a5d4e8eb7476b8d7fc12a56dff300c1c986131"
 
     steps:
       - name: Install gcc-13
@@ -67,37 +67,87 @@ jobs:
         with:
           cmakeVersion: "~3.25.0"
           ninjaVersion: "^1.11.1"
-          
+
+      - uses: TheMrMilchmann/setup-msvc-dev@v2
+        if: runner.os == 'Windows'
+        with:
+          arch: x64
+
       - name: Setup vcpkg (windows)
         if: runner.os == 'Windows'
-        uses: lukka/run-vcpkg@v10
+        run: |
+          cd "C:\"
+          if(Test-Path C:\vcpkg) { rm -r -Force "C:\vcpkg" }
+          git clone --depth 1 --branch "2023.06.20" https://github.com/microsoft/vcpkg.git
+
+      - name: Restore vcpkg-tool (windows)
+        if: runner.os == 'Windows'
+        id: restore-vcpkg-tool
+        uses: actions/cache/restore@v3
         with:
-          vcpkgDirectory: 'C:\vcpkg'
-          vcpkgGitCommitId: '${{ env.VCPKG_GIT_COMMIT_ID }}'
+          path: C:\vcpkg\vcpkg.exe
+          key: windows-cache-vcpkg-tool
+
+      - name: Build vcpkg-tool (windows)
+        if: runner.os == 'Windows' && steps.restore-vcpkg-tool.outputs.cache-hit != 'true'
+        run: |
+          cd "C:\"
+          if(Test-Path C:\vcpkg-tool) { rm -r -Force "C:\vcpkg-tool" }
+          git clone --depth 1 --branch gha-upload-fixes https://github.com/albertziegenhagel/vcpkg-tool.git
+          cd "C:\vcpkg-tool"
+          mkdir build
+          cd build
+          cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release
+          ninja
+          cp .\vcpkg.exe C:\vcpkg\
+
+      - name: Store vcpkg-tool (windows)
+        if: runner.os == 'Windows' && steps.restore-vcpkg-tool.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v3
+        with:
+          path: C:\vcpkg\vcpkg.exe
+          key: ${{ steps.restore-vcpkg-tool.outputs.cache-primary-key }}
+
+      - name: Setup GHA cache
+        if: runner.os == 'Windows'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
 
       - name: Setup vcpkg (non-windows)
         if: runner.os != 'Windows'
-        uses: lukka/run-vcpkg@v10
+        uses: lukka/run-vcpkg@v11
         with:
-          vcpkgGitCommitId: '${{ env.VCPKG_GIT_COMMIT_ID }}'
+          vcpkgGitCommitId: "${{ env.VCPKG_GIT_COMMIT_ID }}"
+
+      - name: Build & Test project (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cd '${{ github.workspace }}'
+          $env:VCPKG_BINARY_SOURCES="clear;x-gha,readwrite"
+          cmake --preset ci . -G Ninja -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake -DCMAKE_BUILD_TYPE=Release "-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}" "-DVCPKG_INSTALL_OPTIONS=--debug"
+          cmake --build --preset ci .
+          ctest --preset ci
 
       - name: Build & Test project (default)
         uses: lukka/run-cmake@v10
-        if: runner.os != 'Linux' || matrix.compiler != 'clang'
+        if: runner.os == 'Linux' && matrix.compiler != 'clang'
         with:
-          configurePreset: 'ci'
-          configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Release', '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}']"
-          buildPreset: 'ci'
-          testPreset: 'ci'
+          configurePreset: "ci"
+          configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Release', '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}', '-DVCPKG_VERBOSE=ON', '-DVCPKG_INSTALL_OPTIONS=--debug']"
+          buildPreset: "ci"
+          testPreset: "ci"
 
       - name: Build & Test project (system LLVM)
         uses: lukka/run-cmake@v10
         if: runner.os == 'Linux' && matrix.compiler == 'clang'
         with:
-          configurePreset: 'ci'
+          configurePreset: "ci"
           configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Release', '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}', '-DLLVM_DIR=/usr/lib/llvm-17/lib/cmake/llvm/']"
-          buildPreset: 'ci'
-          testPreset: 'ci'
+          buildPreset: "ci"
+          testPreset: "ci"
 
       - name: Install
         run: |
