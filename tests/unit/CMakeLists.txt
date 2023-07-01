@@ -21,10 +21,11 @@ function(add_unit_test_executable TEST_NAME)
   )
 
   target_link_libraries(test_${TEST_NAME}
-    compile_options
-    test_main
-    GTest::gtest
-    ${args_DEPENDENCIES}
+    PRIVATE
+      compile_options
+      test_main
+      GTest::gtest
+      ${args_DEPENDENCIES}
   )
 
   target_include_directories(test_${TEST_NAME}
@@ -32,10 +33,13 @@ function(add_unit_test_executable TEST_NAME)
       "${CMAKE_CURRENT_SOURCE_DIR}"
   )
 
+  code_coverage_add_target(test_${TEST_NAME})
+
   cmake_path(NATIVE_PATH CMAKE_SOURCE_DIR native_source_dir)
   gtest_discover_tests(test_${TEST_NAME}
     EXTRA_ARGS "--snail-root-dir=${native_source_dir}"
   )
+  code_coverage_setup_discovered_tests(test_${TEST_NAME})
 endfunction()
 
 add_unit_test_executable(common

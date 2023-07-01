@@ -15,3 +15,5 @@ target_link_libraries(etl
 )
 
 target_include_directories(etl PUBLIC ${CMAKE_SOURCE_DIR})
+
+code_coverage_add_target(etl)
