@@ -24,10 +24,10 @@ template<typename T>
 concept parsable_event_record = requires(const parser::event_attributes& attributes,
                                          std::span<const std::byte>      buffer,
                                          std::endian                     byte_order) {
-                                    {
-                                        parser::parse_event<T>(attributes, buffer, byte_order)
-                                        } -> std::same_as<T>;
-                                };
+    {
+        parser::parse_event<T>(attributes, buffer, byte_order)
+    } -> std::same_as<T>;
+};
 
 template<typename T, typename EventType>
 concept event_handler = std::invocable<T, parser::event_header_view, EventType>;
