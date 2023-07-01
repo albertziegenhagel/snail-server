@@ -28,10 +28,10 @@ jobs:
     steps:
       - name: Install gcc-13
         run: |
-          wget --no-verbose http://kayari.org/gcc-latest/gcc-latest_13.0.1-20230326git55bc61a75a68.deb
-          sudo dpkg -i gcc-latest_13.0.1-20230326git55bc61a75a68.deb
-          echo "/opt/gcc-latest/bin" >> $GITHUB_PATH
-          echo "LD_RUN_PATH=/opt/gcc-latest/lib64" >> $GITHUB_ENV
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+          sudo apt update
+          sudo apt install gcc-13 g++-13
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 60 --slave /usr/bin/g++ g++ /usr/bin/g++-13
 
       - name: Install clang-17(dev)
         run: |
@@ -41,8 +41,6 @@ jobs:
           sudo apt install clang-17 llvm-17-dev
           echo "CC=clang-17" >> $GITHUB_ENV
           echo "CXX=clang++-17" >> $GITHUB_ENV
-          echo "CFLAGS=--gcc-toolchain=/opt/gcc-latest" >> $GITHUB_ENV
-          echo "CXXFLAGS=--gcc-toolchain=/opt/gcc-latest" >> $GITHUB_ENV
 
       - uses: actions/checkout@v3
 
