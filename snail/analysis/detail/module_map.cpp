@@ -17,7 +17,7 @@ struct module_map::address_range
     struct module_entry
     {
         common::timestamp_t load_timestamp;
-        std::size_t       module_index;
+        std::size_t         module_index;
     };
 
     // Sorted by load_timestamp (from oldest to newest)

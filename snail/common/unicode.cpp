@@ -43,7 +43,7 @@ std::basic_string<Utf8Char> snail::common::utf16_to_utf8(std::u16string_view inp
     return result_string;
 #else
     // FIXME: do not rely on deprecated functionality
-    auto convert = std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t>{};
+    auto       convert       = std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t>{};
     const auto result_string = convert.to_bytes(input.data(), input.data() + input.size());
 
     if constexpr(std::is_same_v<Utf8Char, char>)
@@ -58,5 +58,5 @@ std::basic_string<Utf8Char> snail::common::utf16_to_utf8(std::u16string_view inp
 #endif
 }
 
-template std::basic_string<char> snail::common::utf16_to_utf8<char>(std::u16string_view);
+template std::basic_string<char>    snail::common::utf16_to_utf8<char>(std::u16string_view);
 template std::basic_string<char8_t> snail::common::utf16_to_utf8<char8_t>(std::u16string_view);

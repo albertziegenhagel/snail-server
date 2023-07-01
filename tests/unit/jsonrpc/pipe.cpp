@@ -59,7 +59,7 @@ TEST(PipeIoStream, ConstructOpen)
 
 TEST(PipeIoStream, ConstructOpenInvalid)
 {
-    const auto* const pipe_path = R"(\\.\pipe\snail-non-existing-pipe)";
+    const auto* const   pipe_path = R"(\\.\pipe\snail-non-existing-pipe)";
     const pipe_iostream stream(pipe_path);
     EXPECT_FALSE(stream.is_open());
 }
