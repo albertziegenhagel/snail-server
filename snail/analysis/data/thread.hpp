@@ -10,7 +10,7 @@ namespace snail::analysis {
 
 struct thread_info
 {
-    common::process_id_t id;
+    common::thread_id_t id;
 
     std::optional<std::string> name;
 
