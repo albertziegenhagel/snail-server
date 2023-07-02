@@ -242,8 +242,8 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
     });
 }
 
-void etl_file_process_context::handle_event(const etl::etl_file::header_data& file_header,
-                                            const etl::common_trace_header& /*header*/,
+void etl_file_process_context::handle_event(const etl::etl_file::header_data&                 file_header,
+                                            [[maybe_unused]] const etl::common_trace_header&  header,
                                             const etl::parser::stackwalk_v2_stack_event_view& event)
 {
     const auto process_id = event.process_id();
