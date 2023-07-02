@@ -54,12 +54,13 @@ void print_usage(std::string_view application_path)
 {
     std::cout << std::format("Usage: {} <Options>", extract_application_name(application_path)) << "\n"
               << "\n"
-              << "Options:\n";
-    std::cout << "  --socket <path>  Path to the socket/pipe to connect to.\n"
-              << "                   Uses unix domain sockets on Unix and named pipes on Windows.\n"
-              << "                   Cannot be used together with --stdio.\n"
-              << "  --pipe   <path>  Alias for --socket.\n";
-    std::cout << "  --stdio          Connect on stdio. Cannot be used together with --socket (or --pipe).\n";
+              << "Options:\n"
+              << "  --help, -h       Show this help text.\n"
+              << "  --socket <path>  Path to the socket/pipe to connect to.\n"
+              << "                   Uses unix domain sockets on Unix like systems and named pipes\n"
+              << "                   on Windows. Cannot be used together with --stdio.\n"
+              << "  --pipe   <path>  Alias for --socket.\n"
+              << "  --stdio          Connect on stdio. Cannot be used together with --socket (or --pipe).\n";
 
 #if !defined(NDEBUG) && defined(_MSC_VER)
     std::cout << "  --debug          Wait for debugger to attach right after start.\n";
@@ -91,6 +92,7 @@ options parse_command_line(int argc, char* argv[]) // NOLINT(modernize-avoid-c-a
     const auto application_path = argc > 0 ? std::string_view(argv[0]) : "";
 
     options result;
+    bool    help = false;
     for(int arg_i = 1; arg_i < argc; ++arg_i)
     {
         const auto current_arg = std::string_view(argv[arg_i]);
@@ -98,15 +100,29 @@ options parse_command_line(int argc, char* argv[]) // NOLINT(modernize-avoid-c-a
         {
             if(argc <= arg_i + 1) print_error_and_exit(application_path, "Missing unix domain socket or named pipe name.");
             result.socket_name = argv[arg_i + 1];
+            arg_i += 1;
         }
-        if(current_arg == "--stdio")
+        else if(current_arg == "--stdio")
         {
             result.stdio = true;
         }
-        if(current_arg == "--debug")
+        else if(current_arg == "--debug")
         {
             result.debug = true;
         }
+        else if(current_arg == "--help" || current_arg == "-h")
+        {
+            help = true;
+        }
+        else
+        {
+            print_error_and_exit(application_path, std::format("Unknown command line argument: {}", current_arg));
+        }
+    }
+
+    if(help)
+    {
+        print_usage_and_exit(application_path, EXIT_SUCCESS);
     }
 
     if(result.socket_name && result.stdio)
