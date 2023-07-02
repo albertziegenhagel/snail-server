@@ -46,7 +46,7 @@ jobs:
         uses: dawidd6/action-download-artifact@v2
         with:
           workflow: ci.yml
-          workflow_conclusion: success
+          workflow_conclusion: in_progress
           branch: ${{ github.ref_name }}
           name: snail-server-${{ matrix.arch }}-${{ matrix.platform }}
           path: bin
