@@ -6,8 +6,12 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: write
+  deployments: write
+
 jobs:
-  job:
+  build:
     name: ${{ matrix.platform }}-${{ matrix.arch }}-${{ matrix.compiler }}
 
     runs-on: ${{ matrix.run-on }}
@@ -157,3 +161,9 @@ jobs:
         with:
           name: snail-server-${{ matrix.arch }}-${{ matrix.platform }}
           path: ${{ github.workspace }}/install/bin/snail-server*
+
+  deploy-head:
+    name: "Deploy head"
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/deploy-head.yml
