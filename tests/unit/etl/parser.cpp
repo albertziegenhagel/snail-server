@@ -274,15 +274,15 @@ TEST(EtlParser, ImageV2LoadEventView)
         0x5c, 0x00, 0x6e, 0x00, 0x74, 0x00, 0x6f, 0x00, 0x73, 0x00, 0x6b, 0x00, 0x72, 0x00, 0x6e, 0x00,
         0x6c, 0x00, 0x2e, 0x00, 0x65, 0x00, 0x78, 0x00, 0x65, 0x00, 0x00, 0x00};
 
-    const auto event = etl::parser::image_v2_load_event_view(std::as_bytes(std::span(buffer)), 8);
+    const auto event = etl::parser::image_v3_load_event_view(std::as_bytes(std::span(buffer)), 8);
 
     EXPECT_EQ(event.image_base(), 18446735291271086080ULL);
     EXPECT_EQ(event.image_size(), 17068032);
     EXPECT_EQ(event.process_id(), 0);
     EXPECT_EQ(event.image_checksum(), 12051543);
-    EXPECT_EQ(event.time_date_stamp(), 147);
-    EXPECT_EQ(event.signature_level(), 90);
-    EXPECT_EQ(event.signature_type(), 62843);
+    EXPECT_EQ(event.time_date_stamp(), 4118502035);
+    EXPECT_EQ(event.signature_level(), 0);
+    EXPECT_EQ(event.signature_type(), 1);
     EXPECT_EQ(event.default_base(), 0);
     EXPECT_EQ(event.file_name(), std::u16string(u"\\SystemRoot\\system32\\ntoskrnl.exe"));
 }

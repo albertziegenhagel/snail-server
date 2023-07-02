@@ -19,7 +19,7 @@ namespace snail::etl::parser {
 
 // See https://learn.microsoft.com/en-us/windows/win32/etw/image-load
 // or `Image_Load:Image` from wmicore.mof in WDK 10.0.22621.0
-struct image_v2_load_event_view : private extract_view_dynamic_base
+struct image_v3_load_event_view : private extract_view_dynamic_base
 {
     static inline constexpr std::uint16_t event_version = 3;
     static inline constexpr auto          event_types   = std::array{
@@ -39,12 +39,12 @@ struct image_v2_load_event_view : private extract_view_dynamic_base
 
     inline auto image_checksum() const { return extract<std::uint32_t>(dynamic_offset(4, 2)); }
 
-    inline auto time_date_stamp() const { return extract<std::uint8_t>(dynamic_offset(8, 2)); }
+    inline auto time_date_stamp() const { return extract<std::uint32_t>(dynamic_offset(8, 2)); }
 
-    inline auto signature_level() const { return extract<std::uint8_t>(dynamic_offset(9, 2)); }
-    inline auto signature_type() const { return extract<std::uint16_t>(dynamic_offset(10, 2)); }
+    inline auto signature_level() const { return extract<std::uint8_t>(dynamic_offset(12, 2)); }
+    inline auto signature_type() const { return extract<std::uint8_t>(dynamic_offset(13, 2)); }
 
-    // inline auto reserved_0() const { return extract<std::uint32_t>(dynamic_offset(12, 2)); }
+    // inline auto reserved_0() const { return extract<std::uint16_t>(dynamic_offset(14, 2)); }
 
     inline auto default_base() const { return extract<std::uint64_t>(dynamic_offset(16, 2)); }
 

@@ -94,10 +94,10 @@ int main(int /*argc*/, char* /*argv*/[])
         {
             [[maybe_unused]] const auto process_id = event.process_id();
         });
-    observer.register_event<etl::parser::image_v2_load_event_view>(
+    observer.register_event<etl::parser::image_v3_load_event_view>(
         [](const etl::etl_file::header_data& /*file_header*/,
            const etl::common_trace_header& /*header*/,
-           const etl::parser::image_v2_load_event_view& event)
+           const etl::parser::image_v3_load_event_view& event)
         {
             [[maybe_unused]] const auto image_base = event.image_base();
         });

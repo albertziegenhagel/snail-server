@@ -38,7 +38,7 @@ etl_file_process_context::etl_file_process_context()
     register_event<etl::parser::system_config_v5_pnp_event_view>();
     register_event<etl::parser::process_v4_type_group1_event_view>();
     register_event<etl::parser::thread_v3_type_group1_event_view>();
-    register_event<etl::parser::image_v2_load_event_view>();
+    register_event<etl::parser::image_v3_load_event_view>();
     register_event<etl::parser::perfinfo_v2_sampled_profile_event_view>();
     register_event<etl::parser::stackwalk_v2_stack_event_view>();
     register_event<etl::parser::vs_diagnostics_hub_target_profiling_started_event_view>();
@@ -208,7 +208,7 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
 
 void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
                                             const etl::common_trace_header&              header,
-                                            const etl::parser::image_v2_load_event_view& event)
+                                            const etl::parser::image_v3_load_event_view& event)
 {
     if(header.type != 10 && header.type != 3) return; // We do only handle load events
 
@@ -242,8 +242,8 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
     });
 }
 
-void etl_file_process_context::handle_event(const etl::etl_file::header_data& file_header,
-                                            const etl::common_trace_header& /*header*/,
+void etl_file_process_context::handle_event(const etl::etl_file::header_data&                 file_header,
+                                            [[maybe_unused]] const etl::common_trace_header&  header,
                                             const etl::parser::stackwalk_v2_stack_event_view& event)
 {
     const auto process_id = event.process_id();
