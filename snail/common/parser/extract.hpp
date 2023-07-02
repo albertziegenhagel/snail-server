@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassert>
+#include <cstdint>
 
 #include <bit>
 #include <optional>
@@ -49,6 +50,20 @@ T extract(std::span<const std::byte> data, std::size_t bytes_offset, std::endian
     return static_cast<T>(extract<std::underlying_type_t<T>>(data, bytes_offset, data_byte_order));
 }
 
+template<typename T>
+    requires std::is_same_v<T, float>
+T extract(std::span<const std::byte> data, std::size_t bytes_offset, std::endian data_byte_order)
+{
+    return std::bit_cast<T>(extract<std::uint32_t>(data, bytes_offset, data_byte_order));
+}
+
+template<typename T>
+    requires std::is_same_v<T, double>
+T extract(std::span<const std::byte> data, std::size_t bytes_offset, std::endian data_byte_order)
+{
+    return std::bit_cast<T>(extract<std::uint64_t>(data, bytes_offset, data_byte_order));
+}
+
 inline std::uint64_t extract_pointer(std::span<const std::byte> data, std::size_t bytes_offset, std::size_t pointer_size, std::endian data_byte_order)
 {
     if(pointer_size == 4) return extract<std::uint32_t>(data, bytes_offset, data_byte_order);
@@ -91,17 +106,39 @@ inline std::optional<T> extract_move_back_if(bool condition, std::span<const std
     return extract_move_back<T>(buffer, offset, byte_order);
 }
 
-template<typename CharIntType>
-inline std::size_t detect_string_length(std::span<const std::byte> data, std::size_t bytes_offset, std::endian data_byte_order)
+inline bool is_all_zero(std::span<const std::byte> data, std::size_t bytes_offset, std::size_t bytes_size)
 {
-    std::size_t size = 0;
-    while(size * sizeof(CharIntType) < data.size())
+    for(const auto byte : data.subspan(bytes_offset, bytes_size))
     {
-        if(extract<CharIntType>(data, bytes_offset + size * sizeof(CharIntType), data_byte_order) == 0) break;
-        ++size;
+        if(byte != std::byte{0}) return false;
     }
-    assert(size * sizeof(CharIntType) < data.size()); // we could not find a null-terminated string
-    return size;
+    return true;
+}
+
+template<typename CharType>
+inline std::size_t detect_string_size(std::span<const std::byte> data, std::size_t bytes_offset)
+{
+    std::size_t next_char_bytes_offset = bytes_offset;
+    while(next_char_bytes_offset < data.size())
+    {
+        // Check for null termination
+        if(is_all_zero(data, next_char_bytes_offset, sizeof(CharType))) break;
+        next_char_bytes_offset += sizeof(CharType);
+    }
+    assert(next_char_bytes_offset < data.size()); // we could not find a null-terminated string
+    return (next_char_bytes_offset - bytes_offset) / sizeof(CharType);
+}
+
+template<typename CharType>
+inline std::basic_string_view<CharType> extract_string(std::span<const std::byte> data, std::size_t bytes_offset, std::optional<std::size_t>& string_size)
+{
+    if(!string_size) string_size = detect_string_size<CharType>(data, bytes_offset);
+
+    // NOTE: we do not swap bytes here, even if sizeof(CharType) > 0 (e.g. UTF-16).
+    //       This is because we assume that UTF-16 strings are always encoded in little endian,
+    //       even on machines that represent integers in big endian byte order.
+    const auto* const chars = reinterpret_cast<const CharType*>(data.data() + bytes_offset);
+    return std::basic_string_view<CharType>(chars, *string_size);
 }
 
 struct extract_view_base
@@ -120,21 +157,12 @@ protected:
 
     inline std::string_view extract_string(std::size_t bytes_offset, std::optional<std::size_t>& string_length) const
     {
-        const auto* const chars = reinterpret_cast<const char*>(buffer_.data() + bytes_offset);
-        if(!string_length) string_length = detect_string_length<std::uint8_t>(buffer_, bytes_offset, byte_order_);
-        return std::string_view(chars, *string_length);
+        return parser::extract_string<char>(buffer_, bytes_offset, string_length);
     }
 
     inline std::u16string_view extract_u16string(std::size_t bytes_offset, std::optional<std::size_t>& string_length) const
     {
-        // Just a stupid sanity check. Actually this should never be able to be false, since
-        // if the platform provides a std::uint16_t, char16_t has to be 16 bits wide as well
-        // and we do not support a platform without std::uint16_t anyways.
-        static_assert(sizeof(char16_t) == sizeof(std::uint16_t));
-
-        const auto* const chars = reinterpret_cast<const char16_t*>(buffer_.data() + bytes_offset);
-        if(!string_length) string_length = detect_string_length<std::uint16_t>(buffer_, bytes_offset, byte_order_);
-        return std::u16string_view(chars, *string_length);
+        return parser::extract_string<char16_t>(buffer_, bytes_offset, string_length);
     }
 
     inline std::span<const std::byte> buffer() const
