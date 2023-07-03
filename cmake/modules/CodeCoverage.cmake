@@ -159,9 +159,12 @@ function(code_coverage_report)
     set(_all_objects)
     get_property(_targets GLOBAL PROPERTY "_CodeCoverage_targets")
     foreach(target_name IN LISTS _targets)
-      list(APPEND _all_objects
-        -object "$<TARGET_FILE:${target_name}>"
-      )
+      get_target_property(target_type ${target_name} TYPE)
+      if("${target_type}" STREQUAL "SHARED_LIBRARY" OR "${target_type}" STREQUAL "EXECUTABLE")
+        list(APPEND _all_objects
+          -object "$<TARGET_FILE:${target_name}>"
+        )
+      endif()
     endforeach()
 
     set(_data_dir "${CMAKE_BINARY_DIR}/tests/unit/code_coverage") # TODO: detect these
