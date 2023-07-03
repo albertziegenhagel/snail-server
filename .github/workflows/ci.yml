@@ -53,15 +53,15 @@ jobs:
           sudo apt install gcc-13 g++-13
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 60 --slave /usr/bin/g++ g++ /usr/bin/g++-13
 
-      - name: Install clang-17(dev)
+      - name: Install clang-16
         if: runner.os == 'Linux' && matrix.compiler == 'clang'
         run: |
           wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-          sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy main'
+          sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-16 main'
           sudo apt update
-          sudo apt install clang-17 llvm-17-dev
-          echo "CC=clang-17" >> $GITHUB_ENV
-          echo "CXX=clang++-17" >> $GITHUB_ENV
+          sudo apt install clang-16 llvm-16-dev
+          echo "CC=clang-16" >> $GITHUB_ENV
+          echo "CXX=clang++-16" >> $GITHUB_ENV
 
       - uses: actions/checkout@v3
 
@@ -147,7 +147,7 @@ jobs:
         if: runner.os == 'Linux' && matrix.compiler == 'clang'
         with:
           configurePreset: "ci"
-          configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Release', '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}', '-DLLVM_DIR=/usr/lib/llvm-17/lib/cmake/llvm/']"
+          configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Release', '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}', '-DLLVM_DIR=/usr/lib/llvm-16/lib/cmake/llvm/']"
           buildPreset: "ci"
           testPreset: "ci"
 
