@@ -65,7 +65,20 @@ if(BUILD_TESTING)
   add_subdirectory(apps)
 endif()
 
-string(REGEX REPLACE "([][+.*()^])" "\\\\\\1" _SOURCE_DIR_REGEX "${PROJECT_SOURCE_DIR}")
+set(coverage_exclude_dirs
+  "tests"
+  "snail/common/third_party"
+)
+
+set(coverage_exclude_regexes)
+foreach(dir IN LISTS coverage_exclude_dirs)
+  cmake_path(APPEND PROJECT_SOURCE_DIR "${dir}" OUTPUT_VARIABLE _exclude_path)
+  cmake_path(NATIVE_PATH _exclude_path NORMALIZE _exclude_path)
+  string(REGEX REPLACE "([][+.*()^\\])" "\\\\\\1" _exclude_path_regex "${_exclude_path}")
+  list(APPEND coverage_exclude_regexes "${_exclude_path_regex}")
+endforeach()
+
+list(JOIN coverage_exclude_regexes "|" coverage_joined_exclude_regex)
 code_coverage_report(
-  EXCLUDE "${_SOURCE_DIR_REGEX}/tests/"
+  EXCLUDE "${coverage_joined_exclude_regex}"
 )
