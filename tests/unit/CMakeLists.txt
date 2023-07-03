@@ -25,6 +25,7 @@ function(add_unit_test_executable TEST_NAME)
       compile_options
       test_main
       GTest::gtest
+      GTest::gmock
       ${args_DEPENDENCIES}
   )
 
@@ -44,6 +45,7 @@ endfunction()
 
 add_unit_test_executable(common
   SOURCES
+    common/parser.cpp
     common/utility.cpp
   DEPENDENCIES
     common

@@ -22,7 +22,7 @@
 #include <snail/etl/parser/trace_headers/perfinfo_trace.hpp>
 #include <snail/etl/parser/trace_headers/system_trace.hpp>
 
-using namespace snail::common;
+using namespace snail;
 using namespace snail::etl;
 
 namespace {
@@ -70,7 +70,7 @@ buffer_info read_buffer(std::ifstream&                          file_stream,
                         std::array<std::byte, max_buffer_size>& buffer_data)
 {
     file_stream.seekg(buffer_start_pos);
-    file_stream.read(reinterpret_cast<char*>(buffer_data.data()), narrow_cast<std::streamsize>(buffer_data.size()));
+    file_stream.read(reinterpret_cast<char*>(buffer_data.data()), common::narrow_cast<std::streamsize>(buffer_data.size()));
 
     const auto read_bytes = file_stream.tellg() - buffer_start_pos;
     if(read_bytes < static_cast<std::streamoff>(parser::wmi_buffer_header_view::static_size))

@@ -22,6 +22,13 @@ constexpr inline auto vs_diagnostics_hub_guid = guid{
     0x9e5f9046, 0x43c6, 0x4f62, {0xba, 0x13, 0x7b, 0x19, 0x89, 0x62, 0x53, 0xff}
 };
 
+enum class counter_type : std::uint32_t
+{
+    unknown      = 0,
+    PrivateBytes = 1,
+    CPU          = 2
+};
+
 enum class target_start_reason : std::uint32_t
 {
     app_package_launch = 0,
@@ -91,9 +98,9 @@ struct vs_diagnostics_hub_counter_info_event_view : private extract_view_dynamic
 
     using extract_view_dynamic_base::extract_view_dynamic_base;
 
-    inline auto counter() const { return extract<std::uint32_t>(dynamic_offset(0, 0)); }
+    inline auto counter() const { return extract<counter_type>(dynamic_offset(0, 0)); }
     inline auto timestamp() const { return extract<std::uint64_t>(dynamic_offset(4, 0)); }
-    // inline auto counter() const { return extract<double>(dynamic_offset(12, 0)); }
+    inline auto value() const { return extract<double>(dynamic_offset(12, 0)); }
 };
 
 struct vs_diagnostics_hub_mark_info_event_view : private extract_view_dynamic_base
