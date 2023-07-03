@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <snail/common/bit_flags.hpp>
+#include <snail/common/date_time.hpp>
 #include <snail/common/filename.hpp>
 #include <snail/common/string_compare.hpp>
 #include <snail/common/trim.hpp>
@@ -64,4 +66,95 @@ TEST(AsciiIEquals, Strings)
 
     EXPECT_FALSE(ascii_iequals("ABC", "abcd"));
     EXPECT_FALSE(ascii_iequals("abc", "cba"));
+}
+
+enum class test_flags
+{
+    a = 1,
+    b = 2,
+
+    d = 15
+};
+
+TEST(BitFlags, Basic)
+{
+    bit_flags<test_flags, 16> flags;
+
+    const auto& c_flags = flags;
+
+    EXPECT_EQ(flags.count(), 0);
+    EXPECT_FALSE(flags.test(test_flags::a));
+    EXPECT_FALSE(flags.test(test_flags::b));
+    EXPECT_FALSE(flags.test(test_flags::d));
+    EXPECT_EQ(flags.data(), std::bitset<16>("0000000000000000"));
+    EXPECT_EQ(c_flags.count(), 0);
+    EXPECT_FALSE(c_flags.test(test_flags::a));
+    EXPECT_FALSE(c_flags.test(test_flags::b));
+    EXPECT_FALSE(c_flags.test(test_flags::d));
+    EXPECT_EQ(c_flags.data(), std::bitset<16>("0000000000000000"));
+
+    flags.set();
+    EXPECT_EQ(flags.count(), 16);
+    EXPECT_TRUE(flags.test(test_flags::a));
+    EXPECT_TRUE(flags.test(test_flags::b));
+    EXPECT_TRUE(flags.test(test_flags::d));
+    EXPECT_EQ(flags.data(), std::bitset<16>("1111111111111111"));
+    EXPECT_EQ(c_flags.count(), 16);
+    EXPECT_TRUE(c_flags.test(test_flags::a));
+    EXPECT_TRUE(c_flags.test(test_flags::b));
+    EXPECT_TRUE(c_flags.test(test_flags::d));
+    EXPECT_EQ(c_flags.data(), std::bitset<16>("1111111111111111"));
+
+    flags.set(test_flags::b, false);
+    EXPECT_EQ(flags.count(), 15);
+    EXPECT_TRUE(flags.test(test_flags::a));
+    EXPECT_FALSE(flags.test(test_flags::b));
+    EXPECT_TRUE(flags.test(test_flags::d));
+    EXPECT_EQ(flags.data(), std::bitset<16>("1111111111111011"));
+    EXPECT_EQ(c_flags.count(), 15);
+    EXPECT_TRUE(c_flags.test(test_flags::a));
+    EXPECT_FALSE(c_flags.test(test_flags::b));
+    EXPECT_TRUE(c_flags.test(test_flags::d));
+    EXPECT_EQ(c_flags.data(), std::bitset<16>("1111111111111011"));
+
+    flags.reset();
+    EXPECT_EQ(flags.count(), 0);
+    EXPECT_FALSE(flags.test(test_flags::a));
+    EXPECT_FALSE(flags.test(test_flags::b));
+    EXPECT_FALSE(flags.test(test_flags::d));
+    EXPECT_EQ(flags.data(), std::bitset<16>("0000000000000000"));
+    EXPECT_EQ(c_flags.count(), 0);
+    EXPECT_FALSE(c_flags.test(test_flags::a));
+    EXPECT_FALSE(c_flags.test(test_flags::b));
+    EXPECT_FALSE(c_flags.test(test_flags::d));
+    EXPECT_EQ(c_flags.data(), std::bitset<16>("0000000000000000"));
+
+    flags.set(test_flags::a);
+    flags.set(test_flags::b, false);
+    flags.set(test_flags::d, true);
+    EXPECT_EQ(flags.count(), 2);
+    EXPECT_TRUE(flags.test(test_flags::a));
+    EXPECT_FALSE(flags.test(test_flags::b));
+    EXPECT_TRUE(flags.test(test_flags::d));
+    EXPECT_EQ(flags.data(), std::bitset<16>("1000000000000010"));
+    EXPECT_EQ(c_flags.count(), 2);
+    EXPECT_TRUE(c_flags.test(test_flags::a));
+    EXPECT_FALSE(c_flags.test(test_flags::b));
+    EXPECT_TRUE(c_flags.test(test_flags::d));
+    EXPECT_EQ(c_flags.data(), std::bitset<16>("1000000000000010"));
+}
+
+TEST(DateTime, FromNtTimestamp)
+{
+    {
+        const auto nt_sys   = from_nt_timestamp(nt_duration(129227643272589782));
+        const auto time_str = std::format("{0:%F}T{0:%T%z}", nt_sys);
+        EXPECT_EQ(time_str, "2010-07-05T00:45:27.2589782+0000");
+    }
+
+    {
+        const auto nt_sys   = from_nt_timestamp(nt_duration(133327618442589782));
+        const auto time_str = std::format("{0:%F}T{0:%T%z}", nt_sys);
+        EXPECT_EQ(time_str, "2023-07-02T08:57:24.2589782+0000");
+    }
 }
