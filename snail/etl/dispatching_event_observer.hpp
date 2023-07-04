@@ -103,6 +103,11 @@ concept event_handler = std::invocable<T, etl_file::header_data, any_group_trace
                         std::invocable<T, etl_file::header_data, any_guid_trace_header, EventType> ||
                         std::invocable<T, etl_file::header_data, common_trace_header, EventType>;
 
+template<typename T>
+concept unknown_event_handler = std::invocable<T, etl_file::header_data, any_group_trace_header, std::span<const std::byte>> ||
+                                std::invocable<T, etl_file::header_data, any_guid_trace_header, std::span<const std::byte>> ||
+                                std::invocable<T, etl_file::header_data, common_trace_header, std::span<const std::byte>>;
+
 class dispatching_event_observer : public event_observer
 {
 public:
@@ -144,12 +149,19 @@ public:
         requires event_record_view<EventType> && event_handler<HandlerType, EventType>
     inline void register_event(HandlerType&& handler);
 
+    template<typename HandlerType>
+        requires unknown_event_handler<HandlerType>
+    inline void register_unknown_event(HandlerType&& handler);
+
 private:
     using group_handler_dispatch_type = std::function<void(const etl_file::header_data&, const any_group_trace_header&, std::span<const std::byte>)>;
     using guid_handler_dispatch_type  = std::function<void(const etl_file::header_data&, const any_guid_trace_header&, std::span<const std::byte>)>;
 
     std::unordered_map<detail::group_handler_key, std::vector<group_handler_dispatch_type>> group_handlers_;
     std::unordered_map<detail::guid_handler_key, std::vector<guid_handler_dispatch_type>>   guid_handlers_;
+
+    std::vector<group_handler_dispatch_type> unknown_group_handlers_;
+    std::vector<guid_handler_dispatch_type>  unknown_guid_handlers_;
 
     static common_trace_header make_common_trace_header(const any_group_trace_header& trace_header_variant);
     static common_trace_header make_common_trace_header(const any_guid_trace_header& trace_header_variant);
@@ -230,6 +242,52 @@ inline void dispatching_event_observer::register_event(HandlerType&& handler)
     for(const auto& [group_or_guid, type, name] : EventType::event_types)
     {
         register_event<EventType>(group_or_guid, type, EventType::event_version, handler);
+    }
+}
+
+template<typename HandlerType>
+    requires unknown_event_handler<HandlerType>
+inline void dispatching_event_observer::register_unknown_event(HandlerType&& handler)
+{
+    if constexpr(std::invocable<HandlerType, etl_file::header_data, any_group_trace_header, std::span<const std::byte>>)
+    {
+        unknown_group_handlers_.push_back(
+            [handler = std::forward<HandlerType>(handler)](const etl_file::header_data&  file_header,
+                                                           const any_group_trace_header& trace_header_variant,
+                                                           std::span<const std::byte>    user_data)
+            {
+                std::invoke(handler, file_header, trace_header_variant, user_data);
+            });
+    }
+    if constexpr(std::invocable<HandlerType, etl_file::header_data, any_guid_trace_header, std::span<const std::byte>>)
+    {
+        unknown_guid_handlers_.push_back(
+            [handler = std::forward<HandlerType>(handler)](const etl_file::header_data& file_header,
+                                                           const any_guid_trace_header& trace_header_variant,
+                                                           std::span<const std::byte>   user_data)
+            {
+                std::invoke(handler, file_header, trace_header_variant, user_data);
+            });
+    }
+    if constexpr(std::invocable<HandlerType, etl_file::header_data, common_trace_header, std::span<const std::byte>>)
+    {
+        const auto shared_handle_holder = std::make_shared(std::forward<HandlerType>(handler));
+
+        unknown_group_handlers_.push_back(
+            [handle_holder = shared_handle_holder](const etl_file::header_data&  file_header,
+                                                   const any_group_trace_header& trace_header_variant,
+                                                   std::span<const std::byte>    user_data)
+            {
+                std::invoke(*handle_holder, file_header, trace_header_variant, user_data);
+            });
+        unknown_guid_handlers_.push_back(
+            [handle_holder = shared_handle_holder](const etl_file::header_data& file_header,
+                                                   const any_guid_trace_header& trace_header_variant,
+                                                   std::span<const std::byte>   user_data)
+            {
+                const auto common_header = make_common_trace_header(trace_header_variant);
+                std::invoke(*handle_holder, file_header, common_header, user_data);
+            });
     }
 }
 
