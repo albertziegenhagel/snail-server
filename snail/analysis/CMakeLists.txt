@@ -11,6 +11,8 @@ target_sources(analysis
     detail/pdb_resolver.cpp
     detail/dwarf_resolver.cpp
 
+    detail/download.cpp
+
     data_provider.cpp
     etl_data_provider.cpp
     diagsession_data_provider.cpp
@@ -29,6 +31,8 @@ target_link_libraries(analysis
     libzippp::libzippp
 
     utf8cpp
+
+    CURL::libcurl
   PUBLIC
     common
 )
