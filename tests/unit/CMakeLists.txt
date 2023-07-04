@@ -71,6 +71,7 @@ add_unit_test_executable(analysis
   SOURCES
     analysis/module_map.cpp
     analysis/process_history.cpp
+    analysis/path_map.cpp
   DEPENDENCIES
     analysis
 )
