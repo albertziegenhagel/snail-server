@@ -36,6 +36,8 @@ find_package(libzippp CONFIG REQUIRED)
 
 find_package(utf8cpp CONFIG REQUIRED)
 
+find_package(CURL CONFIG REQUIRED)
+
 # =======
 # Compile options
 
