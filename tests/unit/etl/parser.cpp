@@ -231,6 +231,20 @@ TEST(EtlParser, Kernel_PerfinfoV2SampledProfileEventView)
     EXPECT_EQ(event.count(), 4718593);
 }
 
+TEST(EtlParser, Kernel_PerfinfoV2SampledProfileIntervalEventView)
+{
+    const std::array<std::uint8_t, 24> buffer = {
+        0x00, 0x00, 0x00, 0x00, 0x10, 0x27, 0x00, 0x00, 0x10, 0x27, 0x00, 0x00, 0x54, 0x00, 0x69, 0x00,
+        0x6d, 0x00, 0x65, 0x00, 0x72, 0x00, 0x00, 0x00};
+
+    const auto event = etl::parser::perfinfo_v3_sampled_profile_interval_event_view(std::as_bytes(std::span(buffer)), 8);
+
+    EXPECT_EQ(event.source(), 0);
+    EXPECT_EQ(event.old_interval(), 10000);
+    EXPECT_EQ(event.new_interval(), 10000);
+    EXPECT_EQ(event.source_name(), std::u16string(u"Timer"));
+}
+
 TEST(EtlParser, Kernel_StackwalkV2StackEventView)
 {
     const std::array<std::uint8_t, 120> buffer = {

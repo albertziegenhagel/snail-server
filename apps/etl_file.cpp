@@ -120,6 +120,7 @@ void print_usage(std::string_view application_path)
               << "  --dump           Dump event buffers.\n"
               << "  --header         Print header event.\n"
               << "  --config         Print kernel config events.\n"
+              << "  --perfinfo       Print kernel perfinfo events (does not include samples).\n"
               << "  --vs-diag        Print events from the VS Diagnostics Hub.\n"
               << "  --pid <pid>      Process ID of the process of interest. Pass 'any' to show\n"
               << "                   information for all processes.\n"
@@ -148,9 +149,10 @@ struct options
 
     bool dump = false;
 
-    bool show_header  = false;
-    bool show_config  = false;
-    bool show_vs_diag = false;
+    bool show_header   = false;
+    bool show_config   = false;
+    bool show_perfinfo = false;
+    bool show_vs_diag  = false;
 
     std::optional<common::process_id_t> process_of_interest;
     bool                                all_processes = false;
@@ -188,6 +190,10 @@ options parse_command_line(int argc, char* argv[]) // NOLINT(modernize-avoid-c-a
         else if(current_arg == "--config")
         {
             result.show_config = true;
+        }
+        else if(current_arg == "--perfinfo")
+        {
+            result.show_perfinfo = true;
         }
         else if(current_arg == "--vs-diag")
         {
@@ -482,6 +488,20 @@ int main(int argc, char* argv[])
                 if(!options.all_processes && process_id != options.process_of_interest) return;
 
                 ++sample_count;
+            });
+        observer.register_event<etl::parser::perfinfo_v3_sampled_profile_interval_event_view>(
+            [&options]([[maybe_unused]] const etl::etl_file::header_data&                  file_header,
+                       [[maybe_unused]] const etl::common_trace_header&                    header,
+                       const etl::parser::perfinfo_v3_sampled_profile_interval_event_view& event)
+            {
+                if(!options.show_perfinfo) return;
+
+                const auto event_name = std::format("Kernel:PerfInfoV3-SampledProfileInterval-{}", header.type);
+                if(should_ignore(options, event_name)) return;
+
+                std::cout << std::format("@{} {:30}: source {} new-interval {} old-interval {} source-name '{}'\n", header.timestamp, event_name, event.source(), event.new_interval(), event.old_interval(), utf8::utf16to8(event.source_name()));
+
+                if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
             });
     }
 
