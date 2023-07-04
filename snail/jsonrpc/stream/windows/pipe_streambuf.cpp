@@ -1,9 +1,11 @@
 
 #include <snail/jsonrpc/stream/windows/pipe_streambuf.hpp>
 
-#include <cassert>
-
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
+
+#include <cassert>
 
 using namespace snail::jsonrpc;
 

@@ -1,15 +1,17 @@
 
 #include <snail/etl/etl_file.hpp>
 
+#ifdef _WIN32
+#    define NOMINMAX
+#    define WIN32_LEAN_AND_MEAN
+#    include <Windows.h>
+#endif
+
 #include <optional>
 #include <stdexcept>
 #include <string_view>
 
 #include <utf8/cpp17.h>
-
-#ifdef _WIN32
-#    include <Windows.h>
-#endif
 
 #include <snail/etl/dispatching_event_observer.hpp>
 
