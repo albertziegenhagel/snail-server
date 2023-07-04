@@ -532,6 +532,21 @@ int main(int argc, char* argv[])
 
                 if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
             });
+        observer.register_event<etl::parser::thread_v2_set_name_event_view>(
+            [&options]([[maybe_unused]] const etl::etl_file::header_data& file_header,
+                       const etl::common_trace_header&                    header,
+                       const etl::parser::thread_v2_set_name_event_view&  event)
+            {
+                const auto process_id = event.process_id();
+                if(!options.all_processes && process_id != options.process_of_interest) return;
+
+                const auto event_name = "Kernel:ThreadV2-SetName";
+                if(should_ignore(options, event_name)) return;
+
+                std::cout << std::format("@{} {:30}: pid {} tid {} name '{}'\n", header.timestamp, event_name, process_id, event.thread_id(), utf8::utf16to8(event.thread_name()));
+
+                if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
+            });
     }
 
     // Kernel: image
