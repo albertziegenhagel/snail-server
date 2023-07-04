@@ -191,10 +191,13 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
 {
     if(header.type == 1 || header.type == 3) // start || dc_start
     {
-        threads.insert(event.thread_id(), header.timestamp,
-                       thread_data{.process_id = event.process_id(),
-                                   .end_time   = {}});
-        threads_per_process_[event.process_id()].emplace(event.thread_id(), header.timestamp);
+        const auto is_new_thread = threads.insert(event.thread_id(), header.timestamp,
+                                                  thread_data{.process_id = event.process_id(),
+                                                              .end_time   = {}});
+        if(is_new_thread)
+        {
+            threads_per_process_[event.process_id()].emplace(event.thread_id(), header.timestamp);
+        }
     }
     else if(header.type == 2 || header.type == 4) // end || dc_end
     {
