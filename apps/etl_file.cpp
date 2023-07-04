@@ -239,7 +239,7 @@ options parse_command_line(int argc, char* argv[]) // NOLINT(modernize-avoid-c-a
         }
         else if(etl_file_path != std::nullopt)
         {
-            print_error_and_exit(application_path, std::format("Multiple files not supported: first was '' second is '{}'", etl_file_path->string(), current_arg));
+            print_error_and_exit(application_path, std::format("Multiple files not supported: first was '{}' second is '{}'", etl_file_path->string(), current_arg));
         }
         else
         {
