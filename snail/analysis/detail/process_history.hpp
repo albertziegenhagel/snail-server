@@ -20,7 +20,7 @@ public:
         Data payload;
     };
 
-    void insert(Id id, Timestamp timestamp, Data payload);
+    bool insert(Id id, Timestamp timestamp, Data payload);
 
     [[nodiscard]] const entry* find_at(Id id, Timestamp timestamp, bool strict = false) const;
     [[nodiscard]] entry*       find_at(Id id, Timestamp timestamp, bool strict = false);
@@ -36,13 +36,13 @@ private:
 
 template<std::integral Id, std::integral Timestamp, typename Data>
     requires std::equality_comparable<Data>
-void history<Id, Timestamp, Data>::insert(Id id, Timestamp timestamp, Data payload)
+bool history<Id, Timestamp, Data>::insert(Id id, Timestamp timestamp, Data payload)
 {
     auto& entries = entries_by_id[id];
 
     if(entries.empty() || entries.back().timestamp <= timestamp)
     {
-        if(!entries.empty() && entries.back().payload == payload) return;
+        if(!entries.empty() && entries.back().payload == payload) return false;
 
         entries.push_back(entry{
             .id        = id,
@@ -53,6 +53,8 @@ void history<Id, Timestamp, Data>::insert(Id id, Timestamp timestamp, Data paylo
     {
         assert(false); // not yet implemented
     }
+
+    return true;
 }
 
 template<std::integral Id, std::integral Timestamp, typename Data>
@@ -70,7 +72,7 @@ const typename history<Id, Timestamp, Data>::entry* history<Id, Timestamp, Data>
 
     if(strict) return nullptr;
 
-    return &iter->second.back();
+    return &iter->second.front();
 }
 
 template<std::integral Id, std::integral Timestamp, typename Data>
