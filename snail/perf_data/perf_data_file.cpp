@@ -96,8 +96,7 @@ void read_attributes_section(std::ifstream&                            file_stre
                              const detail::perf_data_file_header_data& header,
                              detail::event_attributes_database&        attributes_database)
 {
-    constexpr auto attribute_static_size = parser::event_attributes_view::static_size + parser::file_section_view::static_size;
-    assert(attribute_static_size <= header.attribute_size);
+    const auto chunk_size = header.attribute_size + parser::file_section_view::static_size;
 
     struct attribute_and_ids
     {
@@ -109,22 +108,24 @@ void read_attributes_section(std::ifstream&                            file_stre
     auto reader = common::chunked_reader<max_chunk_size>(file_stream, header.attributes.offset, header.attributes.size);
     while(reader.keep_going())
     {
-        const auto buffer = reader.retrieve_data(attribute_static_size);
-        if(buffer.size() != attribute_static_size) continue;
+        const auto buffer = reader.retrieve_data(chunk_size);
+        if(buffer.size() != chunk_size) continue;
 
-        const auto attribute_view = parser::event_attributes_view(buffer, header.byte_order);
+        const auto max_attribute_size = std::min(header.attribute_size, parser::event_attributes_view::static_size);
 
-        if(attribute_view.size() != parser::event_attributes_view::static_size)
+        const auto attribute_view = parser::event_attributes_view(buffer.subspan(0, max_attribute_size), header.byte_order);
+
+        if(attribute_view.size() != header.attribute_size)
         {
             std::cout << std::format(
                              "Invalid event in perf.data: Event attribute size is given as {} bytes but should be {}.",
                              attribute_view.size(),
-                             parser::event_attributes_view::static_size)
+                             header.attribute_size)
                       << std::endl;
             return;
         }
 
-        const auto ids_section = parser::file_section_view(buffer.subspan(parser::event_attributes_view::static_size), header.byte_order);
+        const auto ids_section = parser::file_section_view(buffer.subspan(header.attribute_size), header.byte_order);
 
         std::vector<std::uint64_t> ids;
         ids.reserve(ids_section.size() / sizeof(std::uint64_t));
@@ -299,19 +300,26 @@ void read_metadata(std::ifstream&                            file_stream,
             {
                 const auto                  nr_events = read_int<std::uint32_t>(file_stream, header.byte_order);
                 [[maybe_unused]] const auto attr_size = read_int<std::uint32_t>(file_stream, header.byte_order);
-                assert(attr_size == parser::event_attributes_view::static_size);
+
                 std::array<std::byte, parser::event_attributes_view::static_size> attribute_buffer;
+
+                const auto max_buffer_size = std::min(std::size_t(attr_size), parser::event_attributes_view::static_size);
+
                 for(std::uint32_t event_i = 0; event_i < nr_events; ++event_i)
                 {
-                    file_stream.read(reinterpret_cast<char*>(attribute_buffer.data()), attribute_buffer.size());
-                    const auto                 attribute_view = parser::event_attributes_view(attribute_buffer, header.byte_order);
-                    const auto                 nr_ids         = read_int<std::uint32_t>(file_stream, header.byte_order);
-                    auto                       event_string   = read_string(file_stream, header.byte_order);
+                    file_stream.read(reinterpret_cast<char*>(attribute_buffer.data()), max_buffer_size);
+                    if(attr_size > parser::event_attributes_view::static_size) file_stream.seekg(attr_size - parser::event_attributes_view::static_size, std::ios::cur);
+
+                    const auto attribute_view = parser::event_attributes_view(std::span(attribute_buffer).subspan(0, max_buffer_size), header.byte_order);
+                    const auto nr_ids         = read_int<std::uint32_t>(file_stream, header.byte_order);
+                    auto       event_string   = read_string(file_stream, header.byte_order);
+
                     std::vector<std::uint64_t> ids;
                     for(std::uint32_t id_i = 0; id_i < nr_ids; ++id_i)
                     {
                         ids.push_back(read_int<std::uint64_t>(file_stream, header.byte_order));
                     }
+
                     metadata.event_desc.push_back(perf_data_metadata::event_desc_data{
                         .attribute    = attribute_view.instantiate(),
                         .event_string = std::move(event_string),

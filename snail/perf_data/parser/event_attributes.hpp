@@ -210,7 +210,9 @@ struct event_attributes_view : protected common::parser::extract_view_base
 
     inline auto sig_data() const { return extract<std::uint64_t>(120); }
 
-    static inline constexpr std::size_t static_size = 128;
+    inline auto config3() const { return extract<std::uint64_t>(128); }
+
+    static inline constexpr std::size_t static_size = 134;
 
     inline auto instantiate() const
     {
