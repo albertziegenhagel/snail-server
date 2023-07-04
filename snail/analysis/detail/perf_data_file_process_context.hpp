@@ -93,10 +93,10 @@ private:
     template<typename T>
     void register_event();
 
-    void handle_event(const perf_data::parser::event_header_view& header, const perf_data::parser::comm_event_view& event);
-    void handle_event(const perf_data::parser::event_header_view& header, const perf_data::parser::fork_event_view& event);
-    void handle_event(const perf_data::parser::event_header_view& header, const perf_data::parser::mmap2_event_view& event);
-    void handle_event(const perf_data::parser::event_header_view& header, const perf_data::parser::sample_event& event);
+    void handle_event(const perf_data::parser::comm_event_view& event);
+    void handle_event(const perf_data::parser::fork_event_view& event);
+    void handle_event(const perf_data::parser::mmap2_event_view& event);
+    void handle_event(const perf_data::parser::sample_event& event);
 
     perf_data::dispatching_event_observer observer_;
 

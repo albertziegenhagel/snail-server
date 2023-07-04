@@ -34,8 +34,7 @@ int main(int /*argc*/, char* /*argv*/[])
     };
 
     observer.register_event<perf_data::parser::id_index_event_view>(
-        [&](const perf_data::parser::event_header_view& /*header*/,
-            const perf_data::parser::id_index_event_view& event)
+        [&](const perf_data::parser::id_index_event_view& event)
         {
             flush_samples();
             std::cout << std::format("ID INDEX; nr {}:", event.nr()) << "\n";
@@ -47,8 +46,7 @@ int main(int /*argc*/, char* /*argv*/[])
             }
         });
     observer.register_event<perf_data::parser::thread_map_event_view>(
-        [&](const perf_data::parser::event_header_view& /*header*/,
-            const perf_data::parser::thread_map_event_view& event)
+        [&](const perf_data::parser::thread_map_event_view& event)
         {
             flush_samples();
             std::cout << std::format("THREAD MAP; nr {}:", event.nr()) << "\n";
@@ -60,8 +58,7 @@ int main(int /*argc*/, char* /*argv*/[])
             }
         });
     observer.register_event<perf_data::parser::cpu_map_event_view>(
-        [&](const perf_data::parser::event_header_view& /*header*/,
-            const perf_data::parser::cpu_map_event_view& event)
+        [&](const perf_data::parser::cpu_map_event_view& event)
         {
             flush_samples();
             switch(event.type())
@@ -97,51 +94,44 @@ int main(int /*argc*/, char* /*argv*/[])
             }
         });
     observer.register_event<perf_data::parser::comm_event_view>(
-        [&](const perf_data::parser::event_header_view& /*header*/,
-            const perf_data::parser::comm_event_view& event)
+        [&](const perf_data::parser::comm_event_view& event)
         {
             flush_samples();
             std::cout << std::format("COMM @{} ({},{}): {}", *event.sample_id().time, event.pid(), event.tid(), event.comm()) << "\n";
         });
     observer.register_event<perf_data::parser::mmap2_event_view>(
-        [&](const perf_data::parser::event_header_view& /*header*/,
-            const perf_data::parser::mmap2_event_view& event)
+        [&](const perf_data::parser::mmap2_event_view& event)
         {
             flush_samples();
             std::cout << std::format("MMAP2 @{} ({},{}): {} @{:#018x} + {:#018x} ; {:#18x}", *event.sample_id().time, event.pid(), event.tid(), event.filename(), event.addr(), event.len(), event.pgoff()) << "\n";
         });
     observer.register_event<perf_data::parser::fork_event_view>(
-        [&](const perf_data::parser::event_header_view& /*header*/,
-            const perf_data::parser::fork_event_view& event)
+        [&](const perf_data::parser::fork_event_view& event)
         {
             flush_samples();
             std::cout << std::format("FORK @{}|{} ({},{}) -> ({},{})", *event.sample_id().time, event.time(), event.ppid(), event.ptid(), event.pid(), event.tid()) << "\n";
         });
     observer.register_event<perf_data::parser::exit_event_view>(
-        [&](const perf_data::parser::event_header_view& /*header*/,
-            const perf_data::parser::exit_event_view& event)
+        [&](const perf_data::parser::exit_event_view& event)
         {
             flush_samples();
             std::cout << std::format("EXIT @{}|{} ({},{}) -> ({},{})", *event.sample_id().time, event.time(), event.ppid(), event.ptid(), event.pid(), event.tid()) << "\n";
         });
     observer.register_event<perf_data::parser::finished_round_event_view>(
-        [&](const perf_data::parser::event_header_view& /*header*/,
-            const perf_data::parser::finished_round_event_view& /*event*/)
+        [&](const perf_data::parser::finished_round_event_view& /*event*/)
         {
             flush_samples();
             std::cout << std::format("FINISHED ROUND") << "\n";
         });
     observer.register_event<perf_data::parser::finished_init_event_view>(
-        [&](const perf_data::parser::event_header_view& /*header*/,
-            const perf_data::parser::finished_init_event_view& /*event*/)
+        [&](const perf_data::parser::finished_init_event_view& /*event*/)
         {
             flush_samples();
             std::cout << std::format("FINISHED INIT") << "\n";
         });
 
     observer.register_event<perf_data::parser::sample_event>(
-        [&](const perf_data::parser::event_header_view& /*header*/,
-            const perf_data::parser::sample_event& event)
+        [&](const perf_data::parser::sample_event& event)
         {
             ++samples_data.count;
             samples_data.first_time = std::min(samples_data.first_time, *event.time);

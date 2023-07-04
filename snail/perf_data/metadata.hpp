@@ -5,17 +5,25 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <snail/perf_data/parser/event_attributes.hpp>
 
-namespace snail::perf_data::detail {
+#include <snail/perf_data/build_id.hpp>
+
+namespace snail::perf_data {
+
+namespace detail {
 
 struct event_attributes_database;
 
+} // namespace detail
+
 struct perf_data_metadata
 {
-    // build_id_event build_id;
+    std::optional<std::unordered_map<std::string, build_id>> build_ids;
+
     std::optional<std::string> hostname;
     std::optional<std::string> os_release;
     std::optional<std::string> version;
@@ -62,7 +70,7 @@ struct perf_data_metadata
     // hybrid_topology;
     // pmu_caps;
 
-    void extract_event_attributes_database(event_attributes_database& database);
+    void extract_event_attributes_database(detail::event_attributes_database& database);
 };
 
-} // namespace snail::perf_data::detail
+} // namespace snail::perf_data

@@ -16,6 +16,6 @@ void dispatching_event_observer::handle(const parser::event_header_view& event_h
 
     for(const auto& handler : iter->second)
     {
-        handler(event_header, attributes, event_data, byte_order);
+        handler(attributes, event_data, byte_order);
     }
 }

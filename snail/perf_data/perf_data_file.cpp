@@ -26,7 +26,7 @@
 
 #include <snail/perf_data/detail/attributes_database.hpp>
 #include <snail/perf_data/detail/file_header.hpp>
-#include <snail/perf_data/detail/metadata.hpp>
+#include <snail/perf_data/metadata.hpp>
 
 #include <snail/common/detail/dump.hpp>
 
@@ -187,9 +187,41 @@ parser::header_feature proceed_to_next_feature(const parser::header_feature_flag
     return parser::header_feature(next_feature_index);
 }
 
+template<typename F>
+void read_events(std::ifstream&                            file_stream,
+                 const detail::perf_data_file_header_data& header,
+                 std::uint64_t                             offset,
+                 std::uint64_t                             size,
+                 F&&                                       callback)
+{
+    auto reader = common::chunked_reader<max_chunk_size>(file_stream, offset, size);
+    while(reader.keep_going())
+    {
+        const auto event_header_buffer = reader.retrieve_data(parser::event_header_view::static_size, true);
+        if(event_header_buffer.size() != parser::event_header_view::static_size) continue;
+
+        const auto event_header = parser::event_header_view(event_header_buffer, header.byte_order);
+
+        if(event_header.size() < parser::event_header_view::static_size)
+        {
+            std::cout << std::format(
+                             "Invalid event in perf.data: Event size is given as {} bytes but header is at least {} bytes.",
+                             event_header.size(),
+                             parser::event_header_view::static_size)
+                      << std::endl;
+            return;
+        }
+
+        const auto event_buffer = reader.retrieve_data(event_header.size());
+        if(event_buffer.size() != event_header.size()) continue;
+
+        callback(event_header, event_buffer);
+    }
+}
+
 void read_metadata(std::ifstream&                            file_stream,
                    const detail::perf_data_file_header_data& header,
-                   detail::perf_data_metadata&               metadata)
+                   perf_data_metadata&                       metadata)
 {
     const auto active_features_count = header.additional_features.count();
     if(active_features_count == 0) return;
@@ -215,7 +247,25 @@ void read_metadata(std::ifstream&                            file_stream,
             switch(current_feature)
             {
             // case parser::header_feature::tracing_data:
-            // case parser::header_feature::build_id:
+            case parser::header_feature::build_id:
+                read_events(
+                    file_stream,
+                    header,
+                    metadata_section.offset(), metadata_section.size(),
+                    [&header, &metadata](parser::event_header_view /*event_header*/,
+                                         std::span<const std::byte> event_buffer)
+                    {
+                        const auto event = parser::header_build_id_event_view(event_buffer, header.byte_order);
+
+                        if(!metadata.build_ids) metadata.build_ids.emplace();
+
+                        auto& build_id_entry = metadata.build_ids.value()[std::string(event.filename())];
+
+                        const auto event_build_id = event.build_id();
+                        build_id_entry.size_      = event_build_id.size();
+                        std::ranges::copy(event_build_id, build_id_entry.buffer_.begin());
+                    });
+                break;
             case parser::header_feature::hostname:
                 metadata.hostname = read_string(file_stream, header.byte_order);
                 break;
@@ -262,7 +312,7 @@ void read_metadata(std::ifstream&                            file_stream,
                     {
                         ids.push_back(read_int<std::uint64_t>(file_stream, header.byte_order));
                     }
-                    metadata.event_desc.push_back(detail::perf_data_metadata::event_desc_data{
+                    metadata.event_desc.push_back(perf_data_metadata::event_desc_data{
                         .attribute    = attribute_view.instantiate(),
                         .event_string = std::move(event_string),
                         .ids          = std::move(ids)});
@@ -307,33 +357,16 @@ void read_data_section(std::ifstream&                            file_stream,
                        const detail::event_attributes_database&  attributes_database,
                        event_observer&                           callbacks)
 {
-    auto reader = common::chunked_reader<max_chunk_size>(file_stream, header.data.offset, header.data.size);
-    while(reader.keep_going())
-    {
-        const auto event_header_buffer = reader.retrieve_data(parser::event_header_view::static_size, true);
-        if(event_header_buffer.size() != parser::event_header_view::static_size) continue;
-
-        const auto event_header = parser::event_header_view(event_header_buffer, header.byte_order);
-
-        if(event_header.size() < parser::event_header_view::static_size)
+    read_events(
+        file_stream,
+        header,
+        header.data.offset, header.data.size,
+        [&header, &attributes_database, &callbacks](parser::event_header_view  event_header,
+                                                    std::span<const std::byte> event_buffer)
         {
-            std::cout << std::format(
-                             "Invalid event in perf.data: Event size is given as {} bytes but header is at least {}.",
-                             event_header.size(),
-                             parser::event_header_view::static_size)
-                      << std::endl;
-            return;
-        }
-
-        const auto full_event_buffer = reader.retrieve_data(event_header.size());
-        if(full_event_buffer.size() != event_header.size()) continue;
-
-        const auto event_buffer = full_event_buffer.subspan(parser::event_header_view::static_size);
-
-        const auto& event_attributes = attributes_database.get_event_attributes(header, event_header, event_buffer);
-
-        callbacks.handle(event_header, event_attributes, event_buffer, header.byte_order);
-    }
+            const auto& event_attributes = attributes_database.get_event_attributes(header, event_header, event_buffer.subspan(parser::event_header_view::static_size));
+            callbacks.handle(event_header, event_attributes, event_buffer, header.byte_order);
+        });
 }
 
 } // namespace
@@ -454,7 +487,7 @@ void perf_data_file::process(event_observer& callbacks)
         read_attributes_section(file_stream_, *header_, attributes_database);
     }
 
-    metadata_ = std::make_unique<detail::perf_data_metadata>();
+    metadata_ = std::make_unique<perf_data_metadata>();
     read_metadata(file_stream_, *header_, *metadata_);
 
     if(header_->additional_features.test(parser::header_feature::event_desc))
@@ -467,7 +500,7 @@ void perf_data_file::process(event_observer& callbacks)
     read_event_types_section(file_stream_, *header_);
 }
 
-const detail::perf_data_metadata& perf_data_file::metadata() const
+const perf_data_metadata& perf_data_file::metadata() const
 {
     assert(metadata_ != nullptr);
     return *metadata_;

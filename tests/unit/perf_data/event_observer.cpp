@@ -35,8 +35,7 @@ TEST(PerfDataDispatchEventObserver, Dispatch)
 
     bool fork_event_called = false;
     observer.register_event<perf_data::parser::fork_event_view>(
-        [&fork_event_called](const perf_data::parser::event_header_view& /*header*/,
-                             const perf_data::parser::fork_event_view& event)
+        [&fork_event_called](const perf_data::parser::fork_event_view& event)
         {
             EXPECT_EQ(event.pid(), 1343);
             EXPECT_EQ(event.ppid(), 1342);
@@ -45,8 +44,7 @@ TEST(PerfDataDispatchEventObserver, Dispatch)
         });
     bool sample_event_called = false;
     observer.register_event<perf_data::parser::sample_event>(
-        [&sample_event_called](const perf_data::parser::event_header_view& /*header*/,
-                               const perf_data::parser::sample_event& event)
+        [&sample_event_called](const perf_data::parser::sample_event& event)
         {
             EXPECT_EQ(event.ip, 140270571258003UL);
             EXPECT_EQ(event.ips, (std::vector<std::uint64_t>{18446744073709551104UL, 140270571258003UL, 94208011558848UL}));
@@ -60,9 +58,8 @@ TEST(PerfDataDispatchEventObserver, Dispatch)
 
         const auto buffer       = std::as_bytes(std::span(fork_buffer_data));
         const auto event_header = perf_data::parser::event_header_view(buffer, std::endian::little);
-        const auto event_buffer = buffer.subspan(perf_data::parser::event_header_view::static_size);
 
-        observer.handle(event_header, event_attributes, event_buffer, std::endian::little);
+        observer.handle(event_header, event_attributes, buffer, std::endian::little);
 
         EXPECT_TRUE(fork_event_called);
         EXPECT_FALSE(sample_event_called);
@@ -74,9 +71,8 @@ TEST(PerfDataDispatchEventObserver, Dispatch)
 
         const auto buffer       = std::as_bytes(std::span(sample_buffer_data));
         const auto event_header = perf_data::parser::event_header_view(buffer, std::endian::little);
-        const auto event_buffer = buffer.subspan(perf_data::parser::event_header_view::static_size);
 
-        observer.handle(event_header, event_attributes, event_buffer, std::endian::little);
+        observer.handle(event_header, event_attributes, buffer, std::endian::little);
 
         EXPECT_FALSE(fork_event_called);
         EXPECT_TRUE(sample_event_called);
