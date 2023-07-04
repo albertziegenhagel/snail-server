@@ -314,10 +314,10 @@ int main(int argc, char* argv[])
     std::size_t                                                     stack_count  = 0;
 
     const std::unordered_map<etl::detail::guid_handler_key, std::string> known_guid_event_names = {
-        {etl::detail::guid_handler_key{etl::parser::image_id_task_guid, 32, 2}, "XPerf:ImageIdV2-DbgIdNone"       },
-        {etl::detail::guid_handler_key{etl::parser::image_id_task_guid, 38, 2}, "XPerf:ImageIdV2-DbgIdPPdb"       },
-        {etl::detail::guid_handler_key{etl::parser::image_id_task_guid, 40, 1}, "XPerf:ImageIdV2-DbgIdDeterm"     },
-        {etl::detail::guid_handler_key{etl::parser::image_id_task_guid, 64, 0}, "XPerf:ImageIdV2-DbgIdFileVersion"},
+        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 32, 2}, "XPerf:ImageIdV2-DbgIdNone"       },
+        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 38, 2}, "XPerf:ImageIdV2-DbgIdPPdb"       },
+        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 40, 1}, "XPerf:ImageIdV2-DbgIdDeterm"     },
+        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 64, 0}, "XPerf:ImageIdV2-DbgIdFileVersion"},
     };
     const std::unordered_map<etl::detail::group_handler_key, std::string> known_group_event_names = {
         {etl::detail::group_handler_key{etl::parser::event_trace_group::header, 5, 2},   "Kernel:EventTraceV2-ExtensionTypeGroup-5:Extension"    },
@@ -602,6 +602,21 @@ int main(int argc, char* argv[])
                 if(should_ignore(options, event_name)) return;
 
                 std::cout << std::format("@{} {:30}: pid {} name '{}' image_base {:#0x} time_stamp {}\n", header.timestamp, event_name, process_id, utf8::utf16to8(event.original_file_name()), event.image_base(), event.time_date_stamp());
+
+                if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
+            });
+        observer.register_event<etl::parser::image_id_v2_dbg_id_pdb_info_event_view>(
+            [&options]([[maybe_unused]] const etl::etl_file::header_data&         file_header,
+                       const etl::common_trace_header&                            header,
+                       const etl::parser::image_id_v2_dbg_id_pdb_info_event_view& event)
+            {
+                const auto process_id = event.process_id();
+                if(!options.all_processes && process_id != options.process_of_interest) return;
+
+                const auto event_name = "XPerf:ImageIdV2-DbgIdPdbInfo";
+                if(should_ignore(options, event_name)) return;
+
+                std::cout << std::format("@{} {:30}: pid {} image-base {} guid {} age {} pdb '{}'\n", header.timestamp, event_name, process_id, event.image_base(), event.guid().instantiate().to_string(), event.age(), event.pdb_file_name());
 
                 if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
             });
