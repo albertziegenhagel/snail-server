@@ -22,6 +22,7 @@
 #include <snail/etl/parser/records/kernel/thread.hpp>
 
 #include <snail/etl/parser/records/kernel_trace_control/image_id.hpp>
+#include <snail/etl/parser/records/kernel_trace_control/system_config_ex.hpp>
 
 #include <snail/etl/parser/records/visual_studio/diagnostics_hub.hpp>
 
@@ -121,6 +122,7 @@ void print_usage(std::string_view application_path)
               << "  --header         Print header event.\n"
               << "  --config         Print kernel config events.\n"
               << "  --perfinfo       Print kernel perfinfo events (does not include samples).\n"
+              << "  --config-ex      Print XPerf extended config events.\n"
               << "  --vs-diag        Print events from the VS Diagnostics Hub.\n"
               << "  --pid <pid>      Process ID of the process of interest. Pass 'any' to show\n"
               << "                   information for all processes.\n"
@@ -149,10 +151,11 @@ struct options
 
     bool dump = false;
 
-    bool show_header   = false;
-    bool show_config   = false;
-    bool show_perfinfo = false;
-    bool show_vs_diag  = false;
+    bool show_header    = false;
+    bool show_config    = false;
+    bool show_perfinfo  = false;
+    bool show_config_ex = false;
+    bool show_vs_diag   = false;
 
     std::optional<common::process_id_t> process_of_interest;
     bool                                all_processes = false;
@@ -194,6 +197,10 @@ options parse_command_line(int argc, char* argv[]) // NOLINT(modernize-avoid-c-a
         else if(current_arg == "--perfinfo")
         {
             result.show_perfinfo = true;
+        }
+        else if(current_arg == "--config-ex")
+        {
+            result.show_config_ex = true;
         }
         else if(current_arg == "--vs-diag")
         {
@@ -314,10 +321,11 @@ int main(int argc, char* argv[])
     std::size_t                                                     stack_count  = 0;
 
     const std::unordered_map<etl::detail::guid_handler_key, std::string> known_guid_event_names = {
-        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 32, 2}, "XPerf:ImageIdV2-DbgIdNone"       },
-        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 38, 2}, "XPerf:ImageIdV2-DbgIdPPdb"       },
-        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 40, 1}, "XPerf:ImageIdV2-DbgIdDeterm"     },
-        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 64, 0}, "XPerf:ImageIdV2-DbgIdFileVersion"},
+        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 32, 2},         "XPerf:ImageIdV2-DbgIdNone"        },
+        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 38, 2},         "XPerf:ImageIdV2-DbgIdPPdb"        },
+        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 40, 1},         "XPerf:ImageIdV2-DbgIdDeterm"      },
+        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 64, 0},         "XPerf:ImageIdV2-DbgIdFileVersion" },
+        {etl::detail::guid_handler_key{etl::parser::system_config_ex_guid, 34, 0}, "XPerf:SysConfigExV0-UnknownVolume"}
     };
     const std::unordered_map<etl::detail::group_handler_key, std::string> known_group_event_names = {
         {etl::detail::group_handler_key{etl::parser::event_trace_group::header, 5, 2},   "Kernel:EventTraceV2-ExtensionTypeGroup-5:Extension"    },
@@ -617,6 +625,49 @@ int main(int argc, char* argv[])
                 if(should_ignore(options, event_name)) return;
 
                 std::cout << std::format("@{} {:30}: pid {} image-base {} guid {} age {} pdb '{}'\n", header.timestamp, event_name, process_id, event.image_base(), event.guid().instantiate().to_string(), event.age(), event.pdb_file_name());
+
+                if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
+            });
+    }
+
+    // Kernel-trace-control (Xperf): system-config-ex
+    {
+        observer.register_event<etl::parser::system_config_ex_v0_build_info_event_view>(
+            [&options]([[maybe_unused]] const etl::etl_file::header_data&            file_header,
+                       const etl::common_trace_header&                               header,
+                       const etl::parser::system_config_ex_v0_build_info_event_view& event)
+            {
+                if(!options.show_config_ex) return;
+                const auto event_name = "XPerf:SysConfigExV0-BuildInfo";
+                if(should_ignore(options, event_name)) return;
+
+                std::cout << std::format("@{} {:30}: install-date {} build-lab '{}' product-name '{}'\n", header.timestamp, event_name, event.install_date(), utf8::utf16to8(event.build_lab()), utf8::utf16to8(event.product_name()));
+
+                if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
+            });
+        observer.register_event<etl::parser::system_config_ex_v0_system_paths_event_view>(
+            [&options]([[maybe_unused]] const etl::etl_file::header_data&              file_header,
+                       const etl::common_trace_header&                                 header,
+                       const etl::parser::system_config_ex_v0_system_paths_event_view& event)
+            {
+                if(!options.show_config_ex) return;
+                const auto event_name = "XPerf:SysConfigExV0-SysPaths";
+                if(should_ignore(options, event_name)) return;
+
+                std::cout << std::format("@{} {:30}: sys-dir '{}' sys-win-dir '{}'\n", header.timestamp, event_name, utf8::utf16to8(event.system_directory()), utf8::utf16to8(event.system_windows_directory()));
+
+                if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
+            });
+        observer.register_event<etl::parser::system_config_ex_v0_volume_mapping_event_view>(
+            [&options]([[maybe_unused]] const etl::etl_file::header_data&                file_header,
+                       const etl::common_trace_header&                                   header,
+                       const etl::parser::system_config_ex_v0_volume_mapping_event_view& event)
+            {
+                if(!options.show_config_ex) return;
+                const auto event_name = "XPerf:SysConfigExV0-VolumeMapping";
+                if(should_ignore(options, event_name)) return;
+
+                std::cout << std::format("@{} {:30}: nt-path '{}' dos-path '{}'\n", header.timestamp, event_name, utf8::utf16to8(event.nt_path()), utf8::utf16to8(event.dos_path()));
 
                 if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
             });
