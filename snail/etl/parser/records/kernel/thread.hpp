@@ -17,6 +17,26 @@
 
 namespace snail::etl::parser {
 
+// `ThreadSetName:Thread_V2` from wmicore.mof in WDK 10.0.22621.0
+struct thread_v2_set_name_event_view : private extract_view_dynamic_base
+{
+    static inline constexpr std::uint16_t event_version = 2;
+    static inline constexpr auto          event_types   = std::array{
+        event_identifier_group{event_trace_group::thread, 72, "set name"},
+    };
+
+    using extract_view_dynamic_base::buffer;
+    using extract_view_dynamic_base::extract_view_dynamic_base;
+
+    inline auto process_id() const { return extract<std::uint32_t>(dynamic_offset(0, 0)); }
+    inline auto thread_id() const { return extract<std::uint32_t>(dynamic_offset(4, 0)); }
+
+    inline auto thread_name() const { return extract_u16string(dynamic_offset(8, 0), thread_name_length); }
+
+private:
+    mutable std::optional<std::size_t> thread_name_length;
+};
+
 // `Thread_V3_TypeGroup1:Thread_V3` from wmicore.mof in WDK 10.0.22621.0
 struct thread_v3_type_group1_event_view : private extract_view_dynamic_base
 {
