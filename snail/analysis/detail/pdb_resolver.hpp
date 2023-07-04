@@ -75,10 +75,10 @@ private:
 #ifdef SNAIL_HAS_LLVM
     llvm::pdb::IPDBSession* get_pdb_session(const module_info& module);
 
-    std::unordered_map<module_key, std::unique_ptr<llvm::pdb::IPDBSession>, module_key_hasher> pdb_session_cache;
+    std::unordered_map<module_key, std::unique_ptr<llvm::pdb::IPDBSession>, module_key_hasher> pdb_session_cache_;
 #endif // SNAIL_HAS_LLVM
 
-    std::unordered_map<symbol_key, symbol_info, symbol_key_hasher> symbol_cache;
+    std::unordered_map<symbol_key, symbol_info, symbol_key_hasher> symbol_cache_;
 };
 
 struct pdb_resolver::symbol_info

@@ -28,8 +28,8 @@ const dwarf_resolver::symbol_info& dwarf_resolver::make_generic_symbol(instructi
                                  .load_timestamp = 0},
         .address = address
     };
-    auto iter = symbol_cache.find(key);
-    if(iter != symbol_cache.end()) return iter->second;
+    auto iter = symbol_cache_.find(key);
+    if(iter != symbol_cache_.end()) return iter->second;
 
     const auto new_symbol = symbol_info{
         .name                    = std::format("{:#018x}", address),
@@ -39,7 +39,7 @@ const dwarf_resolver::symbol_info& dwarf_resolver::make_generic_symbol(instructi
         .instruction_line_number = {},
     };
 
-    const auto [new_iter, _] = symbol_cache.emplace(key, new_symbol);
+    const auto [new_iter, _] = symbol_cache_.emplace(key, new_symbol);
     return new_iter->second;
 }
 
@@ -51,8 +51,8 @@ const dwarf_resolver::symbol_info& dwarf_resolver::make_generic_symbol(const mod
                                  .load_timestamp = module.load_timestamp},
         .address = address
     };
-    auto iter = symbol_cache.find(key);
-    if(iter != symbol_cache.end()) return iter->second;
+    auto iter = symbol_cache_.find(key);
+    if(iter != symbol_cache_.end()) return iter->second;
 
     auto delimiter_pos = module.image_filename.find_last_of('\\');
     if(delimiter_pos == std::u16string::npos) delimiter_pos = module.image_filename.find_last_of("//");
@@ -67,7 +67,7 @@ const dwarf_resolver::symbol_info& dwarf_resolver::make_generic_symbol(const mod
         .instruction_line_number = {},
     };
 
-    const auto [new_iter, inserted] = symbol_cache.emplace(key, new_symbol);
+    const auto [new_iter, inserted] = symbol_cache_.emplace(key, new_symbol);
     assert(inserted);
     return new_iter->second;
 }
@@ -90,8 +90,8 @@ const dwarf_resolver::symbol_info& dwarf_resolver::resolve_symbol(const module_i
                                  .load_timestamp = module.load_timestamp},
         .address = address
     };
-    auto iter = symbol_cache.find(key);
-    if(iter != symbol_cache.end()) return iter->second;
+    auto iter = symbol_cache_.find(key);
+    if(iter != symbol_cache_.end()) return iter->second;
 
 #ifdef SNAIL_HAS_LLVM
     const auto relative_address = address - module.image_base + module.page_offset;
@@ -101,18 +101,23 @@ const dwarf_resolver::symbol_info& dwarf_resolver::resolve_symbol(const module_i
 
     llvm::object::SectionedAddress sectioned_address;
 
-    sectioned_address.Address = relative_address;
-
-    for(auto section : dwarf_context->object->sections())
+    auto* const elf_object = llvm::dyn_cast<llvm::object::ELFObjectFileBase>(dwarf_context->object);
+    if(elf_object != nullptr)
     {
-        if(!section.isText() || section.isVirtual())
-            continue;
-
-        if(relative_address >= section.getAddress() &&
-           relative_address < section.getAddress() + section.getSize())
+        for(auto section : dwarf_context->object->sections())
         {
-            sectioned_address.SectionIndex = section.getIndex();
-            break;
+            if(!section.isText() || section.isVirtual())
+                continue;
+
+            const auto elf_section = llvm::object::ELFSectionRef(section);
+
+            if(relative_address >= elf_section.getOffset() &&
+               relative_address < elf_section.getOffset() + elf_section.getSize())
+            {
+                sectioned_address.Address      = relative_address - elf_section.getOffset() + elf_section.getAddress();
+                sectioned_address.SectionIndex = section.getIndex();
+                break;
+            }
         }
     }
 
@@ -146,7 +151,7 @@ const dwarf_resolver::symbol_info& dwarf_resolver::resolve_symbol(const module_i
         new_symbol.name = line_info.FunctionName;
     }
 
-    const auto [new_iter, inserted] = symbol_cache.emplace(key, std::move(new_symbol));
+    const auto [new_iter, inserted] = symbol_cache_.emplace(key, std::move(new_symbol));
     assert(inserted);
     return new_iter->second;
 #else  // SNAIL_HAS_LLVM
@@ -161,8 +166,8 @@ dwarf_resolver::context_storage* dwarf_resolver::get_dwarf_context(const module_
         .process_id     = module.process_id,
         .load_timestamp = module.load_timestamp};
 
-    auto iter = dwarf_context_cache.find(key);
-    if(iter != dwarf_context_cache.end()) return iter->second.get();
+    auto iter = dwarf_context_cache_.find(key);
+    if(iter != dwarf_context_cache_.end()) return iter->second.get();
 
     const auto* const pmsc   = R"(C:\Users\aziegenhagel\data\pmsc.cpython-311-x86_64-linux-gnu.so)";
     const auto* const python = R"(C:\Users\aziegenhagel\data\libpython3.11.so)";
@@ -176,6 +181,8 @@ dwarf_resolver::context_storage* dwarf_resolver::get_dwarf_context(const module_
     {
         filename = python;
     }
+
+    auto& new_context_storage = dwarf_context_cache_[key];
 
     auto binary = llvm::object::createBinary(llvm::StringRef(filename.data(), filename.size()));
     if(!binary)
@@ -198,18 +205,16 @@ dwarf_resolver::context_storage* dwarf_resolver::get_dwarf_context(const module_
         return nullptr;
     }
 
-    auto& storage = dwarf_context_cache[key];
+    new_context_storage = std::make_unique<context_storage>();
 
-    storage = std::make_unique<context_storage>();
+    auto binary_pair            = binary->takeBinary();
+    new_context_storage->binary = std::move(binary_pair.first);
+    new_context_storage->memory = std::move(binary_pair.second);
 
-    auto binary_pair = binary->takeBinary();
-    storage->binary  = std::move(binary_pair.first);
-    storage->memory  = std::move(binary_pair.second);
+    new_context_storage->object  = object;
+    new_context_storage->context = std::move(context);
 
-    storage->object  = object;
-    storage->context = std::move(context);
-
-    return storage.get();
+    return new_context_storage.get();
 }
 #endif // SNAIL_HAS_LLVM
 

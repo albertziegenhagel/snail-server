@@ -31,8 +31,8 @@ const pdb_resolver::symbol_info& pdb_resolver::make_generic_symbol(instruction_p
                                  .load_timestamp = 0},
         .address = address
     };
-    auto iter = symbol_cache.find(key);
-    if(iter != symbol_cache.end()) return iter->second;
+    auto iter = symbol_cache_.find(key);
+    if(iter != symbol_cache_.end()) return iter->second;
 
     const auto new_symbol = symbol_info{
         .name                    = std::format("{:#018x}", address),
@@ -42,7 +42,7 @@ const pdb_resolver::symbol_info& pdb_resolver::make_generic_symbol(instruction_p
         .instruction_line_number = {},
     };
 
-    const auto [new_iter, _] = symbol_cache.emplace(key, new_symbol);
+    const auto [new_iter, _] = symbol_cache_.emplace(key, new_symbol);
     return new_iter->second;
 }
 
@@ -54,8 +54,8 @@ const pdb_resolver::symbol_info& pdb_resolver::make_generic_symbol(const module_
                                  .load_timestamp = module.load_timestamp},
         .address = address
     };
-    auto iter = symbol_cache.find(key);
-    if(iter != symbol_cache.end()) return iter->second;
+    auto iter = symbol_cache_.find(key);
+    if(iter != symbol_cache_.end()) return iter->second;
 
     auto delimiter_pos = module.image_filename.find_last_of('\\');
     if(delimiter_pos == std::u16string::npos) delimiter_pos = module.image_filename.find_last_of("//");
@@ -70,7 +70,7 @@ const pdb_resolver::symbol_info& pdb_resolver::make_generic_symbol(const module_
         .instruction_line_number = {},
     };
 
-    const auto [new_iter, inserted] = symbol_cache.emplace(key, new_symbol);
+    const auto [new_iter, inserted] = symbol_cache_.emplace(key, new_symbol);
     assert(inserted);
     return new_iter->second;
 }
@@ -83,8 +83,8 @@ const pdb_resolver::symbol_info& pdb_resolver::resolve_symbol(const module_info&
                                  .load_timestamp = module.load_timestamp},
         .address = address
     };
-    auto iter = symbol_cache.find(key);
-    if(iter != symbol_cache.end()) return iter->second;
+    auto iter = symbol_cache_.find(key);
+    if(iter != symbol_cache_.end()) return iter->second;
 
 #ifdef SNAIL_HAS_LLVM
     auto* const pdb_session = get_pdb_session(module);
@@ -134,7 +134,7 @@ const pdb_resolver::symbol_info& pdb_resolver::resolve_symbol(const module_info&
         new_symbol.instruction_line_number = line_info->getLineNumber() - 1; // we want line numbers to be zero based
     }
 
-    const auto [new_iter, inserted] = symbol_cache.emplace(key, std::move(new_symbol));
+    const auto [new_iter, inserted] = symbol_cache_.emplace(key, std::move(new_symbol));
     assert(inserted);
     return new_iter->second;
 #else  // SNAIL_HAS_LLVM
@@ -149,10 +149,10 @@ llvm::pdb::IPDBSession* pdb_resolver::get_pdb_session(const module_info& module)
         .process_id     = module.process_id,
         .load_timestamp = module.load_timestamp};
 
-    auto iter = pdb_session_cache.find(key);
-    if(iter != pdb_session_cache.end()) return iter->second.get();
+    auto iter = pdb_session_cache_.find(key);
+    if(iter != pdb_session_cache_.end()) return iter->second.get();
 
-    auto& new_pdb_session = pdb_session_cache[key];
+    auto& new_pdb_session = pdb_session_cache_[key];
 
     const auto filename = std::string(module.image_filename);
 
