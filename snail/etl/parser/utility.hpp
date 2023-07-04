@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 
-#include <snail/etl/guid.hpp>
+#include <snail/common/guid.hpp>
 
 #include <snail/etl/parser/extract.hpp>
 
@@ -63,10 +63,10 @@ struct guid_view : private extract_view_base
 
     static inline constexpr std::size_t static_size = 16;
 
-    etl::guid instantiate() const
+    common::guid instantiate() const
     {
         const auto data_4_ = data_4();
-        return etl::guid{
+        return common::guid{
             data_1(), data_2(), data_3(), {data_4_[0], data_4_[1], data_4_[2], data_4_[3], data_4_[4], data_4_[5], data_4_[6], data_4_[7]}
         };
     }

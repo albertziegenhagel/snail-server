@@ -65,6 +65,7 @@ struct thread_v4_type_group1_event_view : private extract_view_dynamic_base
         event_identifier_group{event_trace_group::thread, 4, "dc_end"  }
     };
 
+    using extract_view_dynamic_base::buffer;
     using extract_view_dynamic_base::extract_view_dynamic_base;
 
     inline auto process_id() const { return extract<std::uint32_t>(dynamic_offset(0, 0)); }

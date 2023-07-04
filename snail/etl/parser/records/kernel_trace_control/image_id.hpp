@@ -7,13 +7,15 @@
 #include <optional>
 #include <string>
 
+#include <snail/common/guid.hpp>
+
 #include <snail/etl/parser/extract.hpp>
 #include <snail/etl/parser/records/identifier.hpp>
 #include <snail/etl/parser/utility.hpp>
 
 namespace snail::etl::parser {
 
-constexpr inline auto image_id_task_guid = guid{
+constexpr inline auto image_id_task_guid = common::guid{
     0xb3e675d7, 0x2554, 0x4f18, {0x83, 0x0b, 0x27, 0x62, 0x73, 0x25, 0x60, 0xde}
 };
 
