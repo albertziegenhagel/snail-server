@@ -7,7 +7,6 @@
 #include <variant>
 
 #include <snail/etl/etl_file.hpp>
-#include <snail/etl/guid.hpp>
 
 #include <snail/etl/parser/trace_headers/compact_trace.hpp>
 #include <snail/etl/parser/trace_headers/event_header_trace.hpp>
@@ -16,6 +15,7 @@
 #include <snail/etl/parser/trace_headers/perfinfo_trace.hpp>
 #include <snail/etl/parser/trace_headers/system_trace.hpp>
 
+#include <snail/common/guid.hpp>
 #include <snail/common/hash_combine.hpp>
 
 namespace snail::etl::detail {
@@ -36,7 +36,7 @@ struct group_handler_key
 
 struct guid_handler_key
 {
-    etl::guid     guid;
+    common::guid  guid;
     std::uint16_t type;
     std::uint16_t version;
 
@@ -69,8 +69,8 @@ struct hash<snail::etl::detail::guid_handler_key>
 {
     std::size_t operator()(const snail::etl::detail::guid_handler_key& key) const noexcept
     {
-        std::hash<snail::etl::guid> guid_hash;
-        std::hash<std::uint32_t>    int_hash;
+        std::hash<snail::common::guid> guid_hash;
+        std::hash<std::uint32_t>       int_hash;
         return snail::common::hash_combine(guid_hash(key.guid), int_hash((std::uint32_t(key.type) << 16) | std::uint32_t(key.version)));
     }
 };
@@ -137,7 +137,7 @@ public:
 
     template<typename EventType, typename HandlerType>
         requires event_record_view<EventType> && event_handler<HandlerType, EventType>
-    inline void register_event(const etl::guid& guid, std::uint16_t type, std::uint8_t version,
+    inline void register_event(const common::guid& guid, std::uint16_t type, std::uint8_t version,
                                HandlerType&& handler);
 
     template<typename EventType, typename HandlerType>
@@ -191,7 +191,7 @@ inline void dispatching_event_observer::register_event(etl::parser::event_trace_
 
 template<typename EventType, typename HandlerType>
     requires event_record_view<EventType> && event_handler<HandlerType, EventType>
-inline void dispatching_event_observer::register_event(const etl::guid& guid, std::uint16_t type, std::uint8_t version,
+inline void dispatching_event_observer::register_event(const common::guid& guid, std::uint16_t type, std::uint8_t version,
                                                        HandlerType&& handler)
 {
     const auto key = detail::guid_handler_key{guid, type, version};

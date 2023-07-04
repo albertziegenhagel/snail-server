@@ -6,6 +6,7 @@ target_sources(common
     trim.cpp
     filename.cpp
     string_compare.cpp
+    guid.cpp
 )
 
 target_link_libraries(common 

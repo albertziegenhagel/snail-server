@@ -141,7 +141,7 @@ struct system_config_v5_pnp_event_view : private extract_view_dynamic_base
 
     inline auto class_guid() const
     {
-        return guid{
+        return common::guid{
             extract<std::uint32_t>(dynamic_offset(4, 0)),
             extract<std::uint16_t>(dynamic_offset(6, 0)),
             extract<std::uint16_t>(dynamic_offset(8, 0)),

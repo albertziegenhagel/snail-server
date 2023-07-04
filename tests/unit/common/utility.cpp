@@ -3,6 +3,7 @@
 #include <snail/common/bit_flags.hpp>
 #include <snail/common/date_time.hpp>
 #include <snail/common/filename.hpp>
+#include <snail/common/guid.hpp>
 #include <snail/common/string_compare.hpp>
 #include <snail/common/trim.hpp>
 
@@ -157,4 +158,48 @@ TEST(DateTime, FromNtTimestamp)
         const auto time_str = std::format("{0:%F}T{0:%T%z}", nt_sys);
         EXPECT_EQ(time_str, "2023-07-02T08:57:24.2589782+0000");
     }
+}
+
+TEST(Guid, Compare)
+{
+    constexpr auto guid_a = guid{
+        0x70ace273, 0x1367, 0x42a0, {0x86, 0x0a, 0x45, 0x4c, 0x34, 0x8c, 0xbd, 0x81}
+    };
+    constexpr auto guid_b = guid{
+        0xabb71d87, 0x4758, 0x40d1, {0xa2, 0x63, 0xc6, 0xea, 0x7d, 0x96, 0x4c, 0x75}
+    };
+
+    EXPECT_TRUE(guid_a == guid_a);
+    EXPECT_TRUE(guid_b == guid_b);
+    EXPECT_FALSE(guid_a == guid_b);
+    EXPECT_FALSE(guid_b == guid_a);
+
+    EXPECT_FALSE(guid_a != guid_a);
+    EXPECT_FALSE(guid_b != guid_b);
+    EXPECT_TRUE(guid_a != guid_b);
+    EXPECT_TRUE(guid_b != guid_a);
+}
+
+TEST(Guid, ToString)
+{
+    constexpr auto guid_a = guid{
+        0x70ace273, 0x1367, 0x42a0, {0x86, 0x0a, 0x45, 0x4c, 0x34, 0x8c, 0xbd, 0x81}
+    };
+
+    EXPECT_EQ(guid_a.to_string(), "70ACE273136742A0860A454C348CBD81");
+    EXPECT_EQ(guid_a.to_string(true), "70ACE273-1367-42A0-860A-454C348CBD81");
+}
+
+TEST(Guid, Hash)
+{
+    constexpr auto guid_a = guid{
+        0x70ace273, 0x1367, 0x42a0, {0x86, 0x0a, 0x45, 0x4c, 0x34, 0x8c, 0xbd, 0x81}
+    };
+    constexpr auto guid_b = guid{
+        0xabb71d87, 0x4758, 0x40d1, {0xa2, 0x63, 0xc6, 0xea, 0x7d, 0x96, 0x4c, 0x75}
+    };
+
+    EXPECT_EQ(std::hash<guid>{}(guid_a), std::hash<guid>{}(guid_a));
+    EXPECT_EQ(std::hash<guid>{}(guid_b), std::hash<guid>{}(guid_b));
+    EXPECT_NE(std::hash<guid>{}(guid_a), std::hash<guid>{}(guid_b));
 }

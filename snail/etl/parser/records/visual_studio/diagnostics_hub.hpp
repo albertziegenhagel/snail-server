@@ -7,6 +7,8 @@
 #include <optional>
 #include <string>
 
+#include <snail/common/guid.hpp>
+
 #include <snail/etl/parser/extract.hpp>
 #include <snail/etl/parser/records/identifier.hpp>
 #include <snail/etl/parser/utility.hpp>
@@ -18,7 +20,7 @@
 
 namespace snail::etl::parser {
 
-constexpr inline auto vs_diagnostics_hub_guid = guid{
+constexpr inline auto vs_diagnostics_hub_guid = common::guid{
     0x9e5f9046, 0x43c6, 0x4f62, {0xba, 0x13, 0x7b, 0x19, 0x89, 0x62, 0x53, 0xff}
 };
 

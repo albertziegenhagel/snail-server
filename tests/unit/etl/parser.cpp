@@ -104,7 +104,7 @@ TEST(EtlParser, FullHeaderTraceHeader)
     EXPECT_EQ(trace_header.thread_id(), 26400);
     EXPECT_EQ(trace_header.process_id(), 0);
     EXPECT_EQ(trace_header.timestamp(), 3072009312284);
-    EXPECT_EQ(trace_header.guid().instantiate(), (etl::guid{
+    EXPECT_EQ(trace_header.guid().instantiate(), (common::guid{
                                                      0xb3e675d7, 0x2554, 0x4f18, {0x83, 0x0b, 0x27, 0x62, 0x73, 0x25, 0x60, 0xde}
     }));
     EXPECT_EQ(trace_header.processor_time(), 0);
@@ -129,7 +129,7 @@ TEST(EtlParser, EventHeaderTraceHeader)
     EXPECT_EQ(trace_header.thread_id(), 0);
     EXPECT_EQ(trace_header.process_id(), 0);
     EXPECT_EQ(trace_header.timestamp(), 3072041514673);
-    EXPECT_EQ(trace_header.provider_id().instantiate(), (etl::guid{
+    EXPECT_EQ(trace_header.provider_id().instantiate(), (common::guid{
                                                             0x9e5f9046, 0x43c6, 0x4f62, {0xba, 0x13, 0x7b, 0x19, 0x89, 0x62, 0x53, 0xff}
     }));
     EXPECT_EQ(trace_header.event_descriptor().id(), 6);
@@ -140,7 +140,7 @@ TEST(EtlParser, EventHeaderTraceHeader)
     EXPECT_EQ(trace_header.event_descriptor().task(), 0);
     EXPECT_EQ(trace_header.event_descriptor().keyword(), 0);
     EXPECT_EQ(trace_header.processor_time(), 0);
-    EXPECT_EQ(trace_header.activity_id().instantiate(), (etl::guid{
+    EXPECT_EQ(trace_header.activity_id().instantiate(), (common::guid{
                                                             0x00000000, 0x0000, 0x0000, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
     }));
 }
@@ -477,7 +477,7 @@ TEST(EtlParser, SystemConfigV5PnpEventView)
 
     const auto event = etl::parser::system_config_v5_pnp_event_view(std::as_bytes(std::span(buffer)), 8);
 
-    EXPECT_EQ(event.class_guid(), (etl::guid{
+    EXPECT_EQ(event.class_guid(), (common::guid{
                                       0x415E0F36, 0x415E, 0xCCA6, {0x4C, 0xB3, 0xBE, 0x91, 0x0B, 0x65, 0x00, 0x00}
     }));
     EXPECT_EQ(event.upper_filters_count(), 0);
