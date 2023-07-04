@@ -3,10 +3,11 @@ add_library(perf_data)
 
 target_sources(perf_data
   PRIVATE
+    build_id.cpp
+    metadata.cpp
     perf_data_file.cpp
     dispatching_event_observer.cpp
-    
-    detail/metadata.cpp
+
     detail/attributes_database.cpp
 
     parser/records/kernel.cpp

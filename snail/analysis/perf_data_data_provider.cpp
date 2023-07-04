@@ -9,7 +9,7 @@
 #include <snail/perf_data/parser/records/kernel.hpp>
 #include <snail/perf_data/perf_data_file.hpp>
 
-#include <snail/perf_data/detail/metadata.hpp>
+#include <snail/perf_data/metadata.hpp>
 
 #include <snail/analysis/detail/dwarf_resolver.hpp>
 #include <snail/analysis/detail/perf_data_file_process_context.hpp>

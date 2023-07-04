@@ -26,7 +26,7 @@
 
 #include <snail/perf_data/detail/attributes_database.hpp>
 #include <snail/perf_data/detail/file_header.hpp>
-#include <snail/perf_data/detail/metadata.hpp>
+#include <snail/perf_data/metadata.hpp>
 
 #include <snail/common/detail/dump.hpp>
 
@@ -96,8 +96,7 @@ void read_attributes_section(std::ifstream&                            file_stre
                              const detail::perf_data_file_header_data& header,
                              detail::event_attributes_database&        attributes_database)
 {
-    constexpr auto attribute_static_size = parser::event_attributes_view::static_size + parser::file_section_view::static_size;
-    assert(attribute_static_size <= header.attribute_size);
+    const auto chunk_size = header.attribute_size + parser::file_section_view::static_size;
 
     struct attribute_and_ids
     {
@@ -109,22 +108,24 @@ void read_attributes_section(std::ifstream&                            file_stre
     auto reader = common::chunked_reader<max_chunk_size>(file_stream, header.attributes.offset, header.attributes.size);
     while(reader.keep_going())
     {
-        const auto buffer = reader.retrieve_data(attribute_static_size);
-        if(buffer.size() != attribute_static_size) continue;
+        const auto buffer = reader.retrieve_data(chunk_size);
+        if(buffer.size() != chunk_size) continue;
 
-        const auto attribute_view = parser::event_attributes_view(buffer, header.byte_order);
+        const auto max_attribute_size = std::min(header.attribute_size, parser::event_attributes_view::static_size);
 
-        if(attribute_view.size() != parser::event_attributes_view::static_size)
+        const auto attribute_view = parser::event_attributes_view(buffer.subspan(0, max_attribute_size), header.byte_order);
+
+        if(attribute_view.size() != header.attribute_size)
         {
             std::cout << std::format(
                              "Invalid event in perf.data: Event attribute size is given as {} bytes but should be {}.",
                              attribute_view.size(),
-                             parser::event_attributes_view::static_size)
+                             header.attribute_size)
                       << std::endl;
             return;
         }
 
-        const auto ids_section = parser::file_section_view(buffer.subspan(parser::event_attributes_view::static_size), header.byte_order);
+        const auto ids_section = parser::file_section_view(buffer.subspan(header.attribute_size), header.byte_order);
 
         std::vector<std::uint64_t> ids;
         ids.reserve(ids_section.size() / sizeof(std::uint64_t));
@@ -187,9 +188,41 @@ parser::header_feature proceed_to_next_feature(const parser::header_feature_flag
     return parser::header_feature(next_feature_index);
 }
 
+template<typename F>
+void read_events(std::ifstream&                            file_stream,
+                 const detail::perf_data_file_header_data& header,
+                 std::uint64_t                             offset,
+                 std::uint64_t                             size,
+                 F&&                                       callback)
+{
+    auto reader = common::chunked_reader<max_chunk_size>(file_stream, offset, size);
+    while(reader.keep_going())
+    {
+        const auto event_header_buffer = reader.retrieve_data(parser::event_header_view::static_size, true);
+        if(event_header_buffer.size() != parser::event_header_view::static_size) continue;
+
+        const auto event_header = parser::event_header_view(event_header_buffer, header.byte_order);
+
+        if(event_header.size() < parser::event_header_view::static_size)
+        {
+            std::cout << std::format(
+                             "Invalid event in perf.data: Event size is given as {} bytes but header is at least {} bytes.",
+                             event_header.size(),
+                             parser::event_header_view::static_size)
+                      << std::endl;
+            return;
+        }
+
+        const auto event_buffer = reader.retrieve_data(event_header.size());
+        if(event_buffer.size() != event_header.size()) continue;
+
+        callback(event_header, event_buffer);
+    }
+}
+
 void read_metadata(std::ifstream&                            file_stream,
                    const detail::perf_data_file_header_data& header,
-                   detail::perf_data_metadata&               metadata)
+                   perf_data_metadata&                       metadata)
 {
     const auto active_features_count = header.additional_features.count();
     if(active_features_count == 0) return;
@@ -215,7 +248,25 @@ void read_metadata(std::ifstream&                            file_stream,
             switch(current_feature)
             {
             // case parser::header_feature::tracing_data:
-            // case parser::header_feature::build_id:
+            case parser::header_feature::build_id:
+                read_events(
+                    file_stream,
+                    header,
+                    metadata_section.offset(), metadata_section.size(),
+                    [&header, &metadata](parser::event_header_view /*event_header*/,
+                                         std::span<const std::byte> event_buffer)
+                    {
+                        const auto event = parser::header_build_id_event_view(event_buffer, header.byte_order);
+
+                        if(!metadata.build_ids) metadata.build_ids.emplace();
+
+                        auto& build_id_entry = metadata.build_ids.value()[std::string(event.filename())];
+
+                        const auto event_build_id = event.build_id();
+                        build_id_entry.size_      = event_build_id.size();
+                        std::ranges::copy(event_build_id, build_id_entry.buffer_.begin());
+                    });
+                break;
             case parser::header_feature::hostname:
                 metadata.hostname = read_string(file_stream, header.byte_order);
                 break;
@@ -249,20 +300,27 @@ void read_metadata(std::ifstream&                            file_stream,
             {
                 const auto                  nr_events = read_int<std::uint32_t>(file_stream, header.byte_order);
                 [[maybe_unused]] const auto attr_size = read_int<std::uint32_t>(file_stream, header.byte_order);
-                assert(attr_size == parser::event_attributes_view::static_size);
+
                 std::array<std::byte, parser::event_attributes_view::static_size> attribute_buffer;
+
+                const auto max_buffer_size = std::min(std::size_t(attr_size), parser::event_attributes_view::static_size);
+
                 for(std::uint32_t event_i = 0; event_i < nr_events; ++event_i)
                 {
-                    file_stream.read(reinterpret_cast<char*>(attribute_buffer.data()), attribute_buffer.size());
-                    const auto                 attribute_view = parser::event_attributes_view(attribute_buffer, header.byte_order);
-                    const auto                 nr_ids         = read_int<std::uint32_t>(file_stream, header.byte_order);
-                    auto                       event_string   = read_string(file_stream, header.byte_order);
+                    file_stream.read(reinterpret_cast<char*>(attribute_buffer.data()), max_buffer_size);
+                    if(attr_size > parser::event_attributes_view::static_size) file_stream.seekg(attr_size - parser::event_attributes_view::static_size, std::ios::cur);
+
+                    const auto attribute_view = parser::event_attributes_view(std::span(attribute_buffer).subspan(0, max_buffer_size), header.byte_order);
+                    const auto nr_ids         = read_int<std::uint32_t>(file_stream, header.byte_order);
+                    auto       event_string   = read_string(file_stream, header.byte_order);
+
                     std::vector<std::uint64_t> ids;
                     for(std::uint32_t id_i = 0; id_i < nr_ids; ++id_i)
                     {
                         ids.push_back(read_int<std::uint64_t>(file_stream, header.byte_order));
                     }
-                    metadata.event_desc.push_back(detail::perf_data_metadata::event_desc_data{
+
+                    metadata.event_desc.push_back(perf_data_metadata::event_desc_data{
                         .attribute    = attribute_view.instantiate(),
                         .event_string = std::move(event_string),
                         .ids          = std::move(ids)});
@@ -307,33 +365,16 @@ void read_data_section(std::ifstream&                            file_stream,
                        const detail::event_attributes_database&  attributes_database,
                        event_observer&                           callbacks)
 {
-    auto reader = common::chunked_reader<max_chunk_size>(file_stream, header.data.offset, header.data.size);
-    while(reader.keep_going())
-    {
-        const auto event_header_buffer = reader.retrieve_data(parser::event_header_view::static_size, true);
-        if(event_header_buffer.size() != parser::event_header_view::static_size) continue;
-
-        const auto event_header = parser::event_header_view(event_header_buffer, header.byte_order);
-
-        if(event_header.size() < parser::event_header_view::static_size)
+    read_events(
+        file_stream,
+        header,
+        header.data.offset, header.data.size,
+        [&header, &attributes_database, &callbacks](parser::event_header_view  event_header,
+                                                    std::span<const std::byte> event_buffer)
         {
-            std::cout << std::format(
-                             "Invalid event in perf.data: Event size is given as {} bytes but header is at least {}.",
-                             event_header.size(),
-                             parser::event_header_view::static_size)
-                      << std::endl;
-            return;
-        }
-
-        const auto full_event_buffer = reader.retrieve_data(event_header.size());
-        if(full_event_buffer.size() != event_header.size()) continue;
-
-        const auto event_buffer = full_event_buffer.subspan(parser::event_header_view::static_size);
-
-        const auto& event_attributes = attributes_database.get_event_attributes(header, event_header, event_buffer);
-
-        callbacks.handle(event_header, event_attributes, event_buffer, header.byte_order);
-    }
+            const auto& event_attributes = attributes_database.get_event_attributes(header, event_header, event_buffer.subspan(parser::event_header_view::static_size));
+            callbacks.handle(event_header, event_attributes, event_buffer, header.byte_order);
+        });
 }
 
 } // namespace
@@ -454,7 +495,7 @@ void perf_data_file::process(event_observer& callbacks)
         read_attributes_section(file_stream_, *header_, attributes_database);
     }
 
-    metadata_ = std::make_unique<detail::perf_data_metadata>();
+    metadata_ = std::make_unique<perf_data_metadata>();
     read_metadata(file_stream_, *header_, *metadata_);
 
     if(header_->additional_features.test(parser::header_feature::event_desc))
@@ -467,7 +508,7 @@ void perf_data_file::process(event_observer& callbacks)
     read_event_types_section(file_stream_, *header_);
 }
 
-const detail::perf_data_metadata& perf_data_file::metadata() const
+const perf_data_metadata& perf_data_file::metadata() const
 {
     assert(metadata_ != nullptr);
     return *metadata_;

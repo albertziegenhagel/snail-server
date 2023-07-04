@@ -1,6 +1,7 @@
 
 #include <array>
 
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <snail/perf_data/parser/event_attributes.hpp>
@@ -84,7 +85,8 @@ TEST(PerfDataParser, EventAttributes)
 
 TEST(PerfDataParser, KernelCommEvent)
 {
-    const std::array<std::uint8_t, 40> buffer = {
+    const std::array<std::uint8_t, 48> buffer = {
+        0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x00,
         0x3e, 0x05, 0x00, 0x00, 0x3e, 0x05, 0x00, 0x00, 0x70, 0x65, 0x72, 0x66, 0x2d, 0x65, 0x78, 0x65,
         0x63, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -100,14 +102,28 @@ TEST(PerfDataParser, KernelCommEvent)
 
     const auto event_view = perf_data::parser::comm_event_view(attributes, std::as_bytes(std::span(buffer)), std::endian::little);
 
+    EXPECT_EQ(event_view.header().type(), perf_data::parser::comm_event_view::event_type);
+    EXPECT_EQ(event_view.header().misc(), 0);
+    EXPECT_EQ(event_view.header().size(), 40);
+
     EXPECT_EQ(event_view.pid(), 1342);
     EXPECT_EQ(event_view.tid(), 1342);
     EXPECT_EQ(event_view.comm(), "perf-exec");
+
+    const auto sample_id = event_view.sample_id();
+    EXPECT_THAT(sample_id.pid, testing::Optional(0));
+    EXPECT_THAT(sample_id.tid, testing::Optional(0));
+    EXPECT_THAT(sample_id.time, testing::Optional(0));
+    EXPECT_EQ(sample_id.id, std::nullopt);
+    EXPECT_EQ(sample_id.stream_id, std::nullopt);
+    EXPECT_EQ(sample_id.cpu, std::nullopt);
+    EXPECT_EQ(sample_id.res, std::nullopt);
 }
 
 TEST(PerfDataParser, KernelExitEvent)
 {
-    const std::array<std::uint8_t, 40> buffer = {
+    const std::array<std::uint8_t, 48> buffer = {
+        0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x00,
         0x3e, 0x05, 0x00, 0x00, 0x3d, 0x05, 0x00, 0x00, 0x3e, 0x05, 0x00, 0x00, 0x3d, 0x05, 0x00, 0x00,
         0x08, 0xe7, 0xa0, 0x13, 0xc4, 0x01, 0x00, 0x00, 0x3e, 0x05, 0x00, 0x00, 0x3e, 0x05, 0x00, 0x00,
         0x90, 0xe1, 0xa0, 0x13, 0xc4, 0x01, 0x00, 0x00};
@@ -123,16 +139,30 @@ TEST(PerfDataParser, KernelExitEvent)
 
     const auto event_view = perf_data::parser::exit_event_view(attributes, std::as_bytes(std::span(buffer)), std::endian::little);
 
+    EXPECT_EQ(event_view.header().type(), perf_data::parser::exit_event_view::event_type);
+    EXPECT_EQ(event_view.header().misc(), 0);
+    EXPECT_EQ(event_view.header().size(), 40);
+
     EXPECT_EQ(event_view.pid(), 1342);
     EXPECT_EQ(event_view.ppid(), 1341);
     EXPECT_EQ(event_view.tid(), 1342);
     EXPECT_EQ(event_view.ptid(), 1341);
     EXPECT_EQ(event_view.time(), 1941654529800);
+
+    const auto sample_id = event_view.sample_id();
+    EXPECT_THAT(sample_id.pid, testing::Optional(1342));
+    EXPECT_THAT(sample_id.tid, testing::Optional(1342));
+    EXPECT_THAT(sample_id.time, testing::Optional(1941654528400));
+    EXPECT_EQ(sample_id.id, std::nullopt);
+    EXPECT_EQ(sample_id.stream_id, std::nullopt);
+    EXPECT_EQ(sample_id.cpu, std::nullopt);
+    EXPECT_EQ(sample_id.res, std::nullopt);
 }
 
 TEST(PerfDataParser, KernelForkEvent)
 {
-    const std::array<std::uint8_t, 40> buffer = {
+    const std::array<std::uint8_t, 48> buffer = {
+        0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x00,
         0x3f, 0x05, 0x00, 0x00, 0x3e, 0x05, 0x00, 0x00, 0x3f, 0x05, 0x00, 0x00, 0x3e, 0x05, 0x00, 0x00,
         0xec, 0xf7, 0xab, 0x37, 0xc3, 0x01, 0x00, 0x00, 0x3e, 0x05, 0x00, 0x00, 0x3e, 0x05, 0x00, 0x00,
         0x88, 0xf7, 0xab, 0x37, 0xc3, 0x01, 0x00, 0x00};
@@ -148,16 +178,30 @@ TEST(PerfDataParser, KernelForkEvent)
 
     const auto event_view = perf_data::parser::fork_event_view(attributes, std::as_bytes(std::span(buffer)), std::endian::little);
 
+    EXPECT_EQ(event_view.header().type(), perf_data::parser::fork_event_view::event_type);
+    EXPECT_EQ(event_view.header().misc(), 0);
+    EXPECT_EQ(event_view.header().size(), 40);
+
     EXPECT_EQ(event_view.pid(), 1343);
     EXPECT_EQ(event_view.ppid(), 1342);
     EXPECT_EQ(event_view.tid(), 1343);
     EXPECT_EQ(event_view.ptid(), 1342);
     EXPECT_EQ(event_view.time(), 1937964267500);
+
+    const auto sample_id = event_view.sample_id();
+    EXPECT_THAT(sample_id.pid, testing::Optional(1342));
+    EXPECT_THAT(sample_id.tid, testing::Optional(1342));
+    EXPECT_THAT(sample_id.time, testing::Optional(1937964267400));
+    EXPECT_EQ(sample_id.id, std::nullopt);
+    EXPECT_EQ(sample_id.stream_id, std::nullopt);
+    EXPECT_EQ(sample_id.cpu, std::nullopt);
+    EXPECT_EQ(sample_id.res, std::nullopt);
 }
 
 TEST(PerfDataParser, KernelMmap2Event)
 {
-    const std::array<std::uint8_t, 128> buffer = {
+    const std::array<std::uint8_t, 136> buffer = {
+        0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00,
         0x3e, 0x05, 0x00, 0x00, 0x3e, 0x05, 0x00, 0x00, 0x00, 0x50, 0x0e, 0xce, 0x94, 0x7f, 0x00, 0x00,
         0x00, 0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x08, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00, 0x6e, 0x61, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -178,6 +222,10 @@ TEST(PerfDataParser, KernelMmap2Event)
 
     const auto event_view = perf_data::parser::mmap2_event_view(attributes, std::as_bytes(std::span(buffer)), std::endian::little);
 
+    EXPECT_EQ(event_view.header().type(), perf_data::parser::mmap2_event_view::event_type);
+    EXPECT_EQ(event_view.header().misc(), 0);
+    EXPECT_EQ(event_view.header().size(), 128);
+
     EXPECT_EQ(event_view.pid(), 1342);
     EXPECT_EQ(event_view.tid(), 1342);
 
@@ -185,14 +233,30 @@ TEST(PerfDataParser, KernelMmap2Event)
     EXPECT_EQ(event_view.len(), 20480);
     EXPECT_EQ(event_view.pgoff(), 8192);
 
+    EXPECT_FALSE(event_view.has_build_id());
+    EXPECT_EQ(event_view.maj(), 8);
+    EXPECT_EQ(event_view.min(), 32);
+    EXPECT_EQ(event_view.ino(), 24942);
+    EXPECT_EQ(event_view.ino_generation(), 242810420);
+
     EXPECT_EQ(event_view.prot(), 5);
     EXPECT_EQ(event_view.flags(), 2);
     EXPECT_EQ(event_view.filename(), "/usr/lib64/openmpi/lib/openmpi/mca_btl_vader.so");
+
+    const auto sample_id = event_view.sample_id();
+    EXPECT_THAT(sample_id.pid, testing::Optional(1342));
+    EXPECT_THAT(sample_id.tid, testing::Optional(1342));
+    EXPECT_THAT(sample_id.time, testing::Optional(1938327778300));
+    EXPECT_EQ(sample_id.id, std::nullopt);
+    EXPECT_EQ(sample_id.stream_id, std::nullopt);
+    EXPECT_EQ(sample_id.cpu, std::nullopt);
+    EXPECT_EQ(sample_id.res, std::nullopt);
 }
 
 TEST(PerfDataParser, KernelSampleEvent)
 {
-    const std::array<std::uint8_t, 64> buffer = {
+    const std::array<std::uint8_t, 72> buffer = {
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x93, 0x80, 0x92, 0x49, 0x93, 0x7f, 0x00, 0x00, 0x3f, 0x05, 0x00, 0x00, 0x3f, 0x05, 0x00, 0x00,
         0x38, 0xb7, 0xf5, 0x37, 0xc3, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -225,7 +289,8 @@ TEST(PerfDataParser, KernelSampleEvent)
 
 TEST(PerfDataParser, PerfIdIndexEvent)
 {
-    const std::array<std::uint8_t, 264> buffer = {
+    const std::array<std::uint8_t, 272> buffer = {
+        0x45, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x01,
         0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xcd, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x3e, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xce, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -244,16 +309,11 @@ TEST(PerfDataParser, PerfIdIndexEvent)
         0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x3e, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-    const auto attributes = perf_data::parser::event_attributes{
-        // in the following, only sample_format is used.
-        .type          = {},
-        .sample_format = perf_data::parser::sample_format_flags(295),
-        .read_format   = {},
-        .flags         = {},
-        .precise_ip    = {},
-        .name          = {}};
+    const auto event_view = perf_data::parser::id_index_event_view(std::as_bytes(std::span(buffer)), std::endian::little);
 
-    const auto event_view = perf_data::parser::id_index_event_view(attributes, std::as_bytes(std::span(buffer)), std::endian::little);
+    EXPECT_EQ(event_view.header().type(), perf_data::parser::id_index_event_view::event_type);
+    EXPECT_EQ(event_view.header().misc(), 0);
+    EXPECT_EQ(event_view.header().size(), 264);
 
     EXPECT_EQ(event_view.nr(), 8);
     EXPECT_EQ(event_view.entry(0).id(), 461);
@@ -264,48 +324,85 @@ TEST(PerfDataParser, PerfIdIndexEvent)
     EXPECT_EQ(event_view.entry(1).idx(), 1);
     EXPECT_EQ(event_view.entry(1).cpu(), 1);
     EXPECT_EQ(event_view.entry(1).tid(), 1342);
+    EXPECT_EQ(event_view.entry(2).id(), 463);
+    EXPECT_EQ(event_view.entry(2).idx(), 2);
+    EXPECT_EQ(event_view.entry(2).cpu(), 2);
+    EXPECT_EQ(event_view.entry(2).tid(), 1342);
+    EXPECT_EQ(event_view.entry(3).id(), 464);
+    EXPECT_EQ(event_view.entry(3).idx(), 3);
+    EXPECT_EQ(event_view.entry(3).cpu(), 3);
+    EXPECT_EQ(event_view.entry(3).tid(), 1342);
+    EXPECT_EQ(event_view.entry(4).id(), 465);
+    EXPECT_EQ(event_view.entry(4).idx(), 4);
+    EXPECT_EQ(event_view.entry(4).cpu(), 4);
+    EXPECT_EQ(event_view.entry(4).tid(), 1342);
+    EXPECT_EQ(event_view.entry(5).id(), 466);
+    EXPECT_EQ(event_view.entry(5).idx(), 5);
+    EXPECT_EQ(event_view.entry(5).cpu(), 5);
+    EXPECT_EQ(event_view.entry(5).tid(), 1342);
+    EXPECT_EQ(event_view.entry(6).id(), 467);
+    EXPECT_EQ(event_view.entry(6).idx(), 6);
+    EXPECT_EQ(event_view.entry(6).cpu(), 6);
+    EXPECT_EQ(event_view.entry(6).tid(), 1342);
+    EXPECT_EQ(event_view.entry(7).id(), 468);
+    EXPECT_EQ(event_view.entry(7).idx(), 7);
+    EXPECT_EQ(event_view.entry(7).cpu(), 7);
+    EXPECT_EQ(event_view.entry(7).tid(), 1342);
 }
 
 TEST(PerfDataParser, PerfThreadMapEvent)
 {
-    const std::array<std::uint8_t, 32> buffer = {
+    const std::array<std::uint8_t, 40> buffer = {
+        0x49, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x00,
         0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3e, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-    const auto attributes = perf_data::parser::event_attributes{
-        // in the following, only sample_format is used.
-        .type          = {},
-        .sample_format = perf_data::parser::sample_format_flags(295),
-        .read_format   = {},
-        .flags         = {},
-        .precise_ip    = {},
-        .name          = {}};
+    const auto event_view = perf_data::parser::thread_map_event_view(std::as_bytes(std::span(buffer)), std::endian::little);
 
-    const auto event_view = perf_data::parser::thread_map_event_view(attributes, std::as_bytes(std::span(buffer)), std::endian::little);
+    EXPECT_EQ(event_view.header().type(), perf_data::parser::thread_map_event_view::event_type);
+    EXPECT_EQ(event_view.header().misc(), 0);
+    EXPECT_EQ(event_view.header().size(), 32);
 
     EXPECT_EQ(event_view.nr(), 1);
     EXPECT_EQ(event_view.entry(0).pid(), 1342);
-    // EXPECT_EQ(event_view.entry(0).comm(), "");
 }
 
 TEST(PerfDataParser, PerfCpuMapEvent)
 {
-    const std::array<std::uint8_t, 32> buffer = {
+    const std::array<std::uint8_t, 40> buffer = {
+        0x4a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x00,
         0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3e, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-    const auto attributes = perf_data::parser::event_attributes{
-        // in the following, only sample_format is used.
-        .type          = {},
-        .sample_format = perf_data::parser::sample_format_flags(295),
-        .read_format   = {},
-        .flags         = {},
-        .precise_ip    = {},
-        .name          = {}};
+    const auto event_view = perf_data::parser::cpu_map_event_view(std::as_bytes(std::span(buffer)), std::endian::little);
 
-    const auto event_view = perf_data::parser::cpu_map_event_view(attributes, std::as_bytes(std::span(buffer)), std::endian::little);
+    EXPECT_EQ(event_view.header().type(), perf_data::parser::cpu_map_event_view::event_type);
+    EXPECT_EQ(event_view.header().misc(), 0);
+    EXPECT_EQ(event_view.header().size(), 32);
 
     EXPECT_EQ(event_view.type(), perf_data::parser::cpu_map_type::mask);
     EXPECT_EQ(event_view.mask_data().nr(), 0);
     EXPECT_EQ(event_view.mask_data().long_size(), 0);
+}
+
+TEST(PerfDataParser, PerfHeaderBuildIdEvent)
+{
+    const std::array<std::uint8_t, 100> buffer = {
+        0x00, 0x00, 0x00, 0x00, 0x02, 0x80, 0x64, 0x00, 0xff, 0xff, 0xff, 0xff, 0xeb, 0xc2, 0x58, 0x8d,
+        0xf8, 0x7c, 0xb9, 0x5d, 0x0f, 0x91, 0x29, 0x20, 0x3b, 0xeb, 0xe6, 0x46, 0xed, 0xcd, 0x79, 0x30,
+        0x14, 0x00, 0x00, 0x00, 0x2f, 0x74, 0x6d, 0x70, 0x2f, 0x62, 0x75, 0x69, 0x6c, 0x64, 0x2f, 0x69,
+        0x6e, 0x6e, 0x65, 0x72, 0x2f, 0x44, 0x65, 0x62, 0x75, 0x67, 0x2f, 0x62, 0x75, 0x69, 0x6c, 0x64,
+        0x2f, 0x69, 0x6e, 0x6e, 0x65, 0x72, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00};
+
+    const auto event_view = perf_data::parser::header_build_id_event_view(std::as_bytes(std::span(buffer)), std::endian::little);
+
+    EXPECT_EQ((int)event_view.header().type(), 0);
+    EXPECT_EQ(event_view.header().misc(), 32770);
+    EXPECT_EQ(event_view.header().size(), 100);
+
+    EXPECT_EQ(event_view.pid(), 0xffffffff);
+    EXPECT_EQ(event_view.build_id().size(), 20);
+    EXPECT_EQ(event_view.filename(), "/tmp/build/inner/Debug/build/inner");
 }

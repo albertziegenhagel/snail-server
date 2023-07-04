@@ -12,14 +12,18 @@ struct finished_round_event_view : private parser::event_view_base
 {
     static inline constexpr parser::event_type event_type = parser::event_type::finished_round;
 
+    using event_view_base::buffer;
     using event_view_base::event_view_base;
+    using event_view_base::header;
 };
 
 struct finished_init_event_view : private parser::event_view_base
 {
     static inline constexpr parser::event_type event_type = parser::event_type::finished_init;
 
+    using event_view_base::buffer;
     using event_view_base::event_view_base;
+    using event_view_base::header;
 };
 
 struct id_index_entry_view : private common::parser::extract_view_base
@@ -38,7 +42,9 @@ struct id_index_event_view : private parser::event_view_base
 {
     static inline constexpr parser::event_type event_type = parser::event_type::id_index;
 
+    using event_view_base::buffer;
     using event_view_base::event_view_base;
+    using event_view_base::header;
 
     inline auto nr() const { return extract<std::uint64_t>(0); }
     inline auto entry(std::size_t index) const { return id_index_entry_view(buffer().subspan(8 + index * id_index_entry_view::static_size), byte_order()); }
@@ -58,7 +64,9 @@ struct thread_map_event_view : private parser::event_view_base
 {
     static inline constexpr parser::event_type event_type = parser::event_type::thread_map;
 
+    using event_view_base::buffer;
     using event_view_base::event_view_base;
+    using event_view_base::header;
 
     inline auto nr() const { return extract<std::uint64_t>(0); }
     inline auto entry(std::size_t index) const { return thread_map_entry_view(buffer().subspan(8 + index * thread_map_entry_view::static_size), byte_order()); }
@@ -116,7 +124,9 @@ struct cpu_map_event_view : private parser::event_view_base
 {
     static inline constexpr parser::event_type event_type = parser::event_type::cpu_map;
 
+    using event_view_base::buffer;
     using event_view_base::event_view_base;
+    using event_view_base::header;
 
     inline auto type() const { return extract<cpu_map_type>(0); }
 
@@ -135,6 +145,33 @@ struct cpu_map_event_view : private parser::event_view_base
         assert(type() == cpu_map_type::range_cpus);
         return range_cpu_map_view(buffer().subspan(2), byte_order());
     }
+};
+
+struct header_build_id_event_view : private parser::event_view_base
+{
+    static inline constexpr parser::event_type event_type = parser::event_type::header_build_id;
+
+    using event_view_base::buffer;
+    using event_view_base::event_view_base;
+    using event_view_base::header;
+
+    inline auto pid() const { return extract<std::uint32_t>(0); }
+
+    inline auto build_id() const
+    {
+        constexpr auto         perf_record_misc_build_id_size_mask = (1 << 15);
+        constexpr std::uint8_t default_build_id_size               = 20; // size of SHA
+
+        const auto has_build_id_size = (header().misc() & perf_record_misc_build_id_size_mask) != 0;
+
+        const auto build_id_size = has_build_id_size ? extract<std::uint8_t>(24) : default_build_id_size;
+        return buffer().subspan(4, build_id_size);
+    }
+
+    inline auto filename() const { return extract_string(28, filename_length); }
+
+private:
+    mutable std::optional<std::size_t> filename_length;
 };
 
 } // namespace snail::perf_data::parser

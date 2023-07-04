@@ -34,9 +34,11 @@ sample_id parse_sample_id_back(const sample_format_flags& sample_format,
                                std::span<const std::byte> buffer,
                                std::endian                byte_order);
 
-struct kernel_event_view : protected parser::event_view_base
+struct kernel_event_view : protected parser::attribute_event_view_base
 {
-    using event_view_base::event_view_base;
+    using attribute_event_view_base::attribute_event_view_base;
+    using attribute_event_view_base::buffer;
+    using attribute_event_view_base::header;
 
     inline auto sample_id() const
     {
@@ -48,6 +50,8 @@ struct comm_event_view : private kernel_event_view
 {
     static inline constexpr parser::event_type event_type = parser::event_type::comm;
 
+    using kernel_event_view::buffer;
+    using kernel_event_view::header;
     using kernel_event_view::kernel_event_view;
 
     inline auto pid() const { return extract<std::uint32_t>(0); }
@@ -65,6 +69,8 @@ struct exit_event_view : private kernel_event_view
 {
     static inline constexpr parser::event_type event_type = parser::event_type::exit;
 
+    using kernel_event_view::buffer;
+    using kernel_event_view::header;
     using kernel_event_view::kernel_event_view;
 
     inline auto pid() const { return extract<std::uint32_t>(0); }
@@ -84,6 +90,8 @@ struct fork_event_view : private kernel_event_view
 {
     static inline constexpr parser::event_type event_type = parser::event_type::fork;
 
+    using kernel_event_view::buffer;
+    using kernel_event_view::header;
     using kernel_event_view::kernel_event_view;
 
     inline auto pid() const { return extract<std::uint32_t>(0); }
@@ -103,6 +111,8 @@ struct mmap2_event_view : private kernel_event_view
 {
     static inline constexpr parser::event_type event_type = parser::event_type::mmap2;
 
+    using kernel_event_view::buffer;
+    using kernel_event_view::header;
     using kernel_event_view::kernel_event_view;
 
     inline auto pid() const { return extract<std::uint32_t>(0); }
@@ -112,20 +122,39 @@ struct mmap2_event_view : private kernel_event_view
     inline auto len() const { return extract<std::uint64_t>(16); }
     inline auto pgoff() const { return extract<std::uint64_t>(24); }
 
-    //  *	union {
-    //  *		struct {
-    //  *			u32		maj;
-    //  *			u32		min;
-    //  *			u64		ino;
-    //  *			u64		ino_generation;
-    //  *		};
-    //  *		struct {
-    //  *			u8		build_id_size;
-    //  *			u8		__reserved_1;
-    //  *			u16		__reserved_2;
-    //  *			u8		build_id[20];
-    //  *		};
-    //  *	};
+    inline bool has_build_id() const
+    {
+        return (header().misc() & std::to_underlying(perf_data::parser::header_misc_mask::mmap_build_id)) != 0;
+    }
+
+    inline auto maj() const
+    {
+        assert(!has_build_id());
+        return extract<std::uint32_t>(32);
+    }
+    inline auto min() const
+    {
+        assert(!has_build_id());
+        return extract<std::uint32_t>(36);
+    }
+    inline auto ino() const
+    {
+        assert(!has_build_id());
+        return extract<std::uint64_t>(40);
+    }
+    inline auto ino_generation() const
+    {
+        assert(!has_build_id());
+        return extract<std::uint64_t>(48);
+    }
+
+    inline auto build_id() const
+    {
+        assert(has_build_id());
+        const auto build_id_size = extract<std::uint8_t>(32);
+        assert(build_id_size <= 20);
+        return buffer().subspan(36, build_id_size);
+    }
 
     inline auto prot() const { return extract<std::uint32_t>(56); }
     inline auto flags() const { return extract<std::uint32_t>(60); }

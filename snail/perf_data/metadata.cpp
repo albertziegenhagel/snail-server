@@ -1,11 +1,11 @@
 
-#include <snail/perf_data/detail/metadata.hpp>
+#include <snail/perf_data/metadata.hpp>
 
 #include <snail/perf_data/detail/attributes_database.hpp>
 
-using namespace snail::perf_data::detail;
+using namespace snail::perf_data;
 
-void perf_data_metadata::extract_event_attributes_database(event_attributes_database& database)
+void perf_data_metadata::extract_event_attributes_database(detail::event_attributes_database& database)
 {
     database.all_attributes.clear();
     database.id_to_attributes.clear();

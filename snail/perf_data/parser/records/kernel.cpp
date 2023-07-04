@@ -51,7 +51,7 @@ sample_event snail::perf_data::parser::parse_event(const event_attributes&    at
 {
     sample_event result;
 
-    std::size_t offset = 0;
+    std::size_t offset = event_header_view::static_size;
 
     result.id        = extract_move_if<std::uint64_t>(attributes.sample_format.test(parser::sample_format::identifier), buffer, offset, byte_order);
     result.ip        = extract_move_if<std::uint64_t>(attributes.sample_format.test(parser::sample_format::ip), buffer, offset, byte_order);

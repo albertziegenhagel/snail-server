@@ -18,9 +18,10 @@ struct event_attributes;
 namespace detail {
 
 struct perf_data_file_header_data;
-struct perf_data_metadata;
 
 } // namespace detail
+
+struct perf_data_metadata;
 
 class event_observer;
 
@@ -38,13 +39,13 @@ public:
 
     void process(event_observer& callbacks);
 
-    const detail::perf_data_metadata& metadata() const;
+    const perf_data_metadata& metadata() const;
 
 private:
     std::ifstream file_stream_;
 
     std::unique_ptr<detail::perf_data_file_header_data> header_;
-    std::unique_ptr<detail::perf_data_metadata>         metadata_;
+    std::unique_ptr<perf_data_metadata>                 metadata_;
 };
 
 class event_observer

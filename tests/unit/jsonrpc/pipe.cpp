@@ -1,10 +1,13 @@
+
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+
 #include <gtest/gtest.h>
 
 #include <snail/jsonrpc/stream/windows/pipe_iostream.hpp>
 
 #include <fstream>
-
-#include <Windows.h>
 
 using namespace snail::jsonrpc;
 

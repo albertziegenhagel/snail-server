@@ -1,15 +1,17 @@
 
 #include <snail/etl/etl_file.hpp>
 
+#ifdef _WIN32
+#    define NOMINMAX
+#    define WIN32_LEAN_AND_MEAN
+#    include <Windows.h>
+#endif
+
 #include <optional>
 #include <stdexcept>
 #include <string_view>
 
 #include <utf8/cpp17.h>
-
-#ifdef _WIN32
-#    include <Windows.h>
-#endif
 
 #include <snail/etl/dispatching_event_observer.hpp>
 
@@ -237,7 +239,7 @@ options parse_command_line(int argc, char* argv[]) // NOLINT(modernize-avoid-c-a
         }
         else if(etl_file_path != std::nullopt)
         {
-            print_error_and_exit(application_path, std::format("Multiple files not supported: first was '' second is '{}'", etl_file_path->string(), current_arg));
+            print_error_and_exit(application_path, std::format("Multiple files not supported: first was '{}' second is '{}'", etl_file_path->string(), current_arg));
         }
         else
         {
