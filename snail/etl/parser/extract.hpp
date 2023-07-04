@@ -50,6 +50,8 @@ protected:
         return pointer_size_;
     }
 
+    using extract_view_base::buffer;
+
 private:
     std::uint32_t pointer_size_;
 };
