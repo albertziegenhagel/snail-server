@@ -3,8 +3,13 @@
 #include <filesystem>
 #include <memory>
 #include <optional>
+#include <unordered_map>
 
 #include <snail/analysis/data_provider.hpp>
+#include <snail/analysis/options.hpp>
+#include <snail/analysis/path_map.hpp>
+
+#include <snail/perf_data/build_id.hpp>
 
 namespace snail::analysis {
 
@@ -18,6 +23,9 @@ class dwarf_resolver;
 class perf_data_data_provider : public data_provider
 {
 public:
+    perf_data_data_provider(dwarf_symbol_find_options find_options    = {},
+                            path_map                  module_path_map = {});
+
     virtual ~perf_data_data_provider();
 
     virtual void process(const std::filesystem::path& file_path) override;
@@ -38,8 +46,9 @@ private:
     std::unique_ptr<detail::perf_data_file_process_context> process_context_;
     std::unique_ptr<detail::dwarf_resolver>                 symbol_resolver_;
 
-    std::optional<analysis::session_info> session_info_;
-    std::optional<analysis::system_info>  system_info_;
+    std::optional<std::unordered_map<std::string, perf_data::build_id>> build_id_map_;
+    std::optional<analysis::session_info>                               session_info_;
+    std::optional<analysis::system_info>                                system_info_;
 
     common::timestamp_t session_start_time_;
     common::timestamp_t session_end_time_;

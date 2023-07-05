@@ -4,6 +4,7 @@
 #include <optional>
 #include <set>
 
+#include <snail/perf_data/build_id.hpp>
 #include <snail/perf_data/dispatching_event_observer.hpp>
 
 #include <snail/analysis/detail/module_map.hpp>
@@ -58,13 +59,15 @@ public:
 
     struct module_data
     {
-        std::string   filename;
-        std::uint64_t page_offset;
+        std::string                        filename;
+        std::uint64_t                      page_offset;
+        std::optional<perf_data::build_id> build_id;
 
         [[nodiscard]] friend bool operator==(const module_data& lhs, const module_data& rhs)
         {
             return lhs.filename == rhs.filename &&
-                   lhs.page_offset == rhs.page_offset;
+                   lhs.page_offset == rhs.page_offset &&
+                   lhs.build_id == rhs.build_id;
         }
     };
 
