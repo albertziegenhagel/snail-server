@@ -22,6 +22,8 @@ struct system_config_v3_cpu_event_view;
 struct system_config_v2_physical_disk_event_view;
 struct system_config_v2_logical_disk_event_view;
 struct system_config_v5_pnp_event_view;
+struct system_config_ex_v0_system_paths_event_view;
+struct system_config_ex_v0_volume_mapping_event_view;
 struct process_v4_type_group1_event_view;
 struct thread_v3_type_group1_event_view;
 struct image_v3_load_event_view;
@@ -120,6 +122,8 @@ private:
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::system_config_v2_physical_disk_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::system_config_v2_logical_disk_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::system_config_v5_pnp_event_view& event);
+    void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::system_config_ex_v0_system_paths_event_view& event);
+    void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::system_config_ex_v0_volume_mapping_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::process_v4_type_group1_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::thread_v3_type_group1_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::image_v3_load_event_view& event);
@@ -131,6 +135,9 @@ private:
 
     std::map<std::uint32_t, std::uint32_t>         number_of_partitions_per_disk;
     std::unordered_map<std::uint32_t, std::string> nt_partition_to_dos_volume_mapping;
+
+    std::unordered_map<std::string, std::string> nt_to_dos_path_map_;
+    std::optional<std::string>                   system_root_;
 
     process_history processes;
     thread_history  threads;

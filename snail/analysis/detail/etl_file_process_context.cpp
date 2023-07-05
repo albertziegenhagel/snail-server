@@ -13,6 +13,7 @@
 #include <snail/etl/parser/records/kernel/stackwalk.hpp>
 #include <snail/etl/parser/records/kernel/thread.hpp>
 #include <snail/etl/parser/records/kernel_trace_control/image_id.hpp>
+#include <snail/etl/parser/records/kernel_trace_control/system_config_ex.hpp>
 #include <snail/etl/parser/records/visual_studio/diagnostics_hub.hpp>
 
 using namespace snail;
@@ -36,6 +37,8 @@ etl_file_process_context::etl_file_process_context()
     register_event<etl::parser::system_config_v2_physical_disk_event_view>();
     register_event<etl::parser::system_config_v2_logical_disk_event_view>();
     register_event<etl::parser::system_config_v5_pnp_event_view>();
+    register_event<etl::parser::system_config_ex_v0_system_paths_event_view>();
+    register_event<etl::parser::system_config_ex_v0_volume_mapping_event_view>();
     register_event<etl::parser::process_v4_type_group1_event_view>();
     register_event<etl::parser::thread_v3_type_group1_event_view>();
     register_event<etl::parser::image_v3_load_event_view>();
@@ -53,30 +56,54 @@ etl::dispatching_event_observer& etl_file_process_context::observer()
 
 void etl_file_process_context::finish()
 {
-    static constexpr std::string_view nt_drive_name_prefix = "\\Device\\HarddiskVolume";
+    static constexpr std::string_view nt_drive_name_prefix       = "\\Device\\HarddiskVolume";
+    static constexpr std::string_view nt_system_root_name_prefix = "\\SystemRoot\\";
+
+    static constexpr std::string_view default_system_root = "C:\\WINDOWS";
 
     for(auto& [process_id, process_module_map] : modules_per_process)
     {
         for(auto& module : process_module_map.all_modules())
         {
-            if(!module.payload.filename.starts_with(nt_drive_name_prefix)) continue;
+            // First try NT to DOS maps from XPerf events
+            // (we assume that all NT prefixes start with a backslash. Hopefully that is not to restrictive.)
+            if(module.payload.filename.starts_with("\\"))
+            {
+                bool found_in_map = false;
+                for(const auto& [nt_prefix, dos_prefix] : nt_to_dos_path_map_)
+                {
+                    if(!module.payload.filename.starts_with(nt_prefix)) continue;
+                    module.payload.filename.replace(0, nt_prefix.size(), dos_prefix);
+                    found_in_map = true;
+                    break;
+                }
+                if(found_in_map) continue;
+            }
 
-            const auto    path_start        = module.payload.filename.find_first_of('\\', nt_drive_name_prefix.size());
-            const auto    partition_num_str = std::string_view(module.payload.filename).substr(nt_drive_name_prefix.size(), path_start - nt_drive_name_prefix.size());
-            std::uint32_t partition_num;
-            auto          result = std::from_chars(partition_num_str.data(), partition_num_str.data() + partition_num_str.size(), partition_num);
-            if(result.ec != std::errc{} || result.ptr != partition_num_str.data() + partition_num_str.size()) continue;
+            // Now try drive information that we extracted from system config events
+            if(module.payload.filename.starts_with(nt_drive_name_prefix))
+            {
+                // First extract the partition number
+                const auto    path_start        = module.payload.filename.find_first_of('\\', nt_drive_name_prefix.size());
+                const auto    partition_num_str = std::string_view(module.payload.filename).substr(nt_drive_name_prefix.size(), path_start - nt_drive_name_prefix.size());
+                std::uint32_t partition_num;
+                auto          result = std::from_chars(partition_num_str.data(), partition_num_str.data() + partition_num_str.size(), partition_num);
 
-            auto partition_iter = nt_partition_to_dos_volume_mapping.find(partition_num);
-            if(partition_iter == nt_partition_to_dos_volume_mapping.end()) continue;
-            std::string new_file_name;
-            const auto  remaining_file_name = std::string_view(module.payload.filename).substr(path_start);
-            new_file_name.reserve(partition_iter->second.size() + remaining_file_name.size());
+                // The following check should never be true but we just want to be fault tolerant
+                if(result.ec != std::errc{} || result.ptr != partition_num_str.data() + partition_num_str.size()) continue;
 
-            std::copy(partition_iter->second.begin(), partition_iter->second.end(), std::back_inserter(new_file_name));
-            std::copy(remaining_file_name.begin(), remaining_file_name.end(), std::back_inserter(new_file_name));
+                // Look up the partition to DOS volume. If we don't have one, there is nothing we can do...
+                auto partition_iter = nt_partition_to_dos_volume_mapping.find(partition_num);
+                if(partition_iter == nt_partition_to_dos_volume_mapping.end()) continue;
 
-            module.payload.filename = new_file_name;
+                module.payload.filename.replace(0, path_start, partition_iter->second);
+            }
+            else if(module.payload.filename.starts_with(nt_system_root_name_prefix))
+            {
+                // Try to use the system root from an XPerf event if available. Otherwise fall back to the default.
+                const auto system_root = system_root_ ? std::string_view(*system_root_) : default_system_root;
+                module.payload.filename.replace(0, nt_system_root_name_prefix.size(), system_root);
+            }
         }
     }
 }
@@ -162,6 +189,22 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
     {
         processor_name_ = event.friendly_name();
     }
+}
+
+void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
+                                            const etl::common_trace_header& /*header*/,
+                                            const etl::parser::system_config_ex_v0_system_paths_event_view& event)
+{
+    if(system_root_) return;
+
+    system_root_ = utf8::utf16to8(event.system_windows_directory());
+}
+
+void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
+                                            const etl::common_trace_header& /*header*/,
+                                            const etl::parser::system_config_ex_v0_volume_mapping_event_view& event)
+{
+    nt_to_dos_path_map_[utf8::utf16to8(event.nt_path())] = utf8::utf16to8(event.dos_path());
 }
 
 void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
