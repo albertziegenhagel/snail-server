@@ -13,6 +13,7 @@
 #include <snail/common/types.hpp>
 
 #include <snail/analysis/detail/module_map.hpp>
+#include <snail/analysis/detail/pdb_info.hpp>
 #include <snail/analysis/detail/process_history.hpp>
 #include <snail/analysis/detail/stack_cache.hpp>
 
@@ -30,6 +31,7 @@ struct thread_v3_type_group1_event_view;
 struct image_v3_load_event_view;
 struct perfinfo_v2_sampled_profile_event_view;
 struct stackwalk_v2_stack_event_view;
+struct image_id_v2_dbg_id_pdb_info_event_view;
 struct vs_diagnostics_hub_target_profiling_started_event_view;
 struct vs_diagnostics_hub_target_profiling_stopped_event_view;
 
@@ -75,11 +77,15 @@ public:
 
     struct module_data
     {
-        std::string filename;
+        std::string                     filename;
+        std::uint32_t                   checksum;
+        std::optional<detail::pdb_info> pdb_info;
 
         [[nodiscard]] friend bool operator==(const module_data& lhs, const module_data& rhs)
         {
-            return lhs.filename == rhs.filename;
+            return lhs.filename == rhs.filename &&
+                   lhs.checksum == rhs.checksum &&
+                   lhs.pdb_info == rhs.pdb_info;
         }
     };
 
@@ -132,6 +138,7 @@ private:
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::image_v3_load_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::perfinfo_v2_sampled_profile_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::stackwalk_v2_stack_event_view& event);
+    void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::image_id_v2_dbg_id_pdb_info_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::vs_diagnostics_hub_target_profiling_started_event_view& event);
 
     etl::dispatching_event_observer observer_;
@@ -149,7 +156,15 @@ private:
 
     std::unordered_map<process_id_t, profiler_process_info> profiler_processes_;
 
-    std::unordered_map<process_id_t, module_map<module_data>> modules_per_process;
+    struct pdb_info_storage
+    {
+        timestamp_t   event_timestamp;
+        std::uint64_t image_base;
+        pdb_info      info;
+    };
+
+    std::unordered_map<process_id_t, std::vector<pdb_info_storage>> modules_pdb_info_per_process;
+    std::unordered_map<process_id_t, module_map<module_data>>       modules_per_process;
 
     std::unordered_map<process_id_t, std::vector<sample_info>> samples_per_process;
 
