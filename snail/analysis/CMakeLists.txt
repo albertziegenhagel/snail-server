@@ -11,6 +11,7 @@ target_sources(analysis
 
     detail/download.cpp
 
+    options.cpp
     path_map.cpp
 
     data_provider.cpp

@@ -1,6 +1,7 @@
 #include <snail/analysis/detail/dwarf_resolver.hpp>
 
 #include <cassert>
+#include <filesystem>
 #include <format>
 #include <iostream>
 #include <optional>
@@ -14,10 +15,74 @@
 #include <snail/common/cast.hpp>
 #include <snail/common/hash_combine.hpp>
 
+#include <snail/analysis/detail/download.hpp>
+
 using namespace snail;
+using namespace snail::analysis;
 using namespace snail::analysis::detail;
 
-dwarf_resolver::dwarf_resolver()  = default;
+namespace {
+
+std::optional<std::filesystem::path> find_or_retrieve_binary(const std::filesystem::path&              input_binary_path,
+                                                             const std::optional<perf_data::build_id>& build_id,
+                                                             const dwarf_symbol_find_options&          options)
+{
+    // First check the given input path
+    if(std::filesystem::is_regular_file(input_binary_path)) return input_binary_path;
+
+    const auto binary_name = input_binary_path.filename();
+
+    // Check in explicitly given search directories
+    for(const auto& search_dir : options.search_dirs_)
+    {
+        const auto binary_path = search_dir / binary_name;
+        if(std::filesystem::is_regular_file(binary_path)) return binary_path;
+    }
+
+    // If we do not have a build ID, this was all we can do
+    if(!build_id) return std::nullopt;
+
+    const auto build_id_str = build_id->to_string();
+
+    // Look up the debuginfod cache
+    const auto binary_cache_path = options.debuginfod_cache_dir_ / build_id_str / "executable";
+    if(std::filesystem::is_regular_file(binary_cache_path)) return binary_cache_path;
+
+    // Make sure the cache directory exists
+    if(!std::filesystem::exists(binary_cache_path.parent_path()))
+    {
+        std::filesystem::create_directories(binary_cache_path.parent_path());
+    }
+
+    // Try to download the file from the given debuginfod servers (if any)
+    for(const auto& server_url : options.debuginfod_urls_)
+    {
+        const auto url = std::format("{}/buildid/{}/executable", server_url, build_id_str);
+
+        try
+        {
+            if(try_download_file(url, binary_cache_path))
+            {
+                return binary_cache_path;
+            }
+        }
+        catch(const std::exception& e)
+        {
+            std::cerr << e.what() << '\n';
+        }
+    }
+
+    return std::nullopt;
+}
+
+} // namespace
+
+dwarf_resolver::dwarf_resolver(dwarf_symbol_find_options find_options,
+                               path_map                  module_path_map) :
+    find_options_(std::move(find_options)),
+    module_path_map_(std::move(module_path_map))
+{}
+
 dwarf_resolver::~dwarf_resolver() = default;
 
 const dwarf_resolver::symbol_info& dwarf_resolver::make_generic_symbol(instruction_pointer_t address)
@@ -77,12 +142,13 @@ struct dwarf_resolver::context_storage
 {
     std::unique_ptr<llvm::object::Binary> binary;
     std::unique_ptr<llvm::MemoryBuffer>   memory;
-    llvm::object::ObjectFile*             object;
+    const llvm::object::ObjectFile*       object_file;
     std::unique_ptr<llvm::DWARFContext>   context;
 };
 #endif // SNAIL_HAS_LLVM
 
-const dwarf_resolver::symbol_info& dwarf_resolver::resolve_symbol(const module_info& module, instruction_pointer_t address)
+const dwarf_resolver::symbol_info& dwarf_resolver::resolve_symbol(const module_info&    module,
+                                                                  instruction_pointer_t address)
 {
     const auto key = symbol_key{
         .module_key = module_key{
@@ -101,10 +167,10 @@ const dwarf_resolver::symbol_info& dwarf_resolver::resolve_symbol(const module_i
 
     llvm::object::SectionedAddress sectioned_address;
 
-    auto* const elf_object = llvm::dyn_cast<llvm::object::ELFObjectFileBase>(dwarf_context->object);
-    if(elf_object != nullptr)
+    const auto* const elf_object_file = llvm::dyn_cast<llvm::object::ELFObjectFileBase>(dwarf_context->object_file);
+    if(elf_object_file != nullptr)
     {
-        for(auto section : dwarf_context->object->sections())
+        for(auto section : elf_object_file->sections())
         {
             if(!section.isText() || section.isVirtual())
                 continue;
@@ -169,50 +235,53 @@ dwarf_resolver::context_storage* dwarf_resolver::get_dwarf_context(const module_
     auto iter = dwarf_context_cache_.find(key);
     if(iter != dwarf_context_cache_.end()) return iter->second.get();
 
-    const auto* const pmsc   = R"(C:\Users\aziegenhagel\data\pmsc.cpython-311-x86_64-linux-gnu.so)";
-    const auto* const python = R"(C:\Users\aziegenhagel\data\libpython3.11.so)";
-
-    std::string_view filename = module.image_filename;
-    if(filename == "/home/aziegenhagel/build/pmsc/ex-6/pmsc.cpython-311-x86_64-linux-gnu.so")
-    {
-        filename = pmsc;
-    }
-    if(filename == "/usr/lib64/libpython3.11.so.1.0")
-    {
-        filename = python;
-    }
-
     auto& new_context_storage = dwarf_context_cache_[key];
 
-    auto binary = llvm::object::createBinary(llvm::StringRef(filename.data(), filename.size()));
-    if(!binary)
+    auto input_binary_path = std::string(module.image_filename);
+    module_path_map_.try_apply(input_binary_path);
+
+    const auto binary_path = find_or_retrieve_binary(input_binary_path, module.build_id, find_options_);
+
+    if(!binary_path)
     {
-        llvm::consumeError(binary.takeError());
+        std::cout << "Failed to load DWARF debug info for " << module.image_filename << std::endl;
         return nullptr;
     }
 
-    if(!binary->getBinary()->isObject())
+    auto binary_file = llvm::object::createBinary(binary_path->string());
+    if(!binary_file)
     {
+        llvm::consumeError(binary_file.takeError());
+        std::cout << "Failed to load DWARF debug info for " << module.image_filename << std::endl;
         return nullptr;
     }
 
-    auto* const object = llvm::cast<llvm::object::ObjectFile>(binary->getBinary());
+    if(!binary_file->getBinary()->isObject())
+    {
+        std::cout << "Failed to load DWARF debug info for " << module.image_filename << std::endl;
+        return nullptr;
+    }
 
-    auto context = llvm::DWARFContext::create(*object);
+    const auto* const object_file = llvm::cast<llvm::object::ObjectFile>(binary_file->getBinary());
+
+    auto context = llvm::DWARFContext::create(*object_file);
 
     if(context == nullptr)
     {
+        std::cout << "Failed to load DWARF debug info for " << module.image_filename << std::endl;
         return nullptr;
     }
 
     new_context_storage = std::make_unique<context_storage>();
 
-    auto binary_pair            = binary->takeBinary();
+    auto binary_pair            = binary_file->takeBinary();
     new_context_storage->binary = std::move(binary_pair.first);
     new_context_storage->memory = std::move(binary_pair.second);
 
-    new_context_storage->object  = object;
-    new_context_storage->context = std::move(context);
+    new_context_storage->object_file = object_file;
+    new_context_storage->context     = std::move(context);
+
+    std::cout << "Loaded DWARF debug info for " << module.image_filename << " from " << binary_path->string() << "\n";
 
     return new_context_storage.get();
 }

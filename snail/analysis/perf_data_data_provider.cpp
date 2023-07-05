@@ -44,6 +44,7 @@ struct perf_data_sample_data : public sample_data
                                      resolver->make_generic_symbol(instruction_pointer) :
                                      resolver->resolve_symbol(detail::dwarf_resolver::module_info{
                                                                   .image_filename = module->payload.filename,
+                                                                  .build_id       = {},
                                                                   .image_base     = module->base,
                                                                   .page_offset    = module->payload.page_offset,
                                                                   .process_id     = process_id,
