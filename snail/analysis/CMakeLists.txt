@@ -3,8 +3,6 @@ add_library(analysis)
 
 target_sources(analysis
   PRIVATE
-    detail/module_map.cpp
-
     detail/etl_file_process_context.cpp
     detail/perf_data_file_process_context.cpp
 

@@ -118,11 +118,13 @@ void perf_data_file_process_context::handle_event(const perf_data::parser::mmap2
     auto& process_modules = modules_per_process[event.pid()];
 
     assert(event.sample_id().time);
-    process_modules.insert(detail::module_info{
-                               .base        = event.addr(),
-                               .size        = event.len(),
-                               .file_name   = std::string(event.filename()),
-                               .page_offset = event.pgoff()},
+    process_modules.insert(detail::module_info<module_data>{
+                               .base    = event.addr(),
+                               .size    = event.len(),
+                               .payload = {
+                                           .filename    = std::string(event.filename()),
+                                           .page_offset = event.pgoff()}
+    },
                            *event.sample_id().time);
 }
 
@@ -167,7 +169,7 @@ const std::set<std::pair<perf_data_file_process_context::thread_id_t, perf_data_
     return threads_per_process_.at(process_id);
 }
 
-const module_map& perf_data_file_process_context::get_modules(process_id_t process_id) const
+const module_map<perf_data_file_process_context::module_data>& perf_data_file_process_context::get_modules(process_id_t process_id) const
 {
     return modules_per_process.at(process_id);
 }

@@ -73,7 +73,7 @@ struct etl_sample_data : public sample_data
                 const auto& symbol = (module == nullptr) ?
                                          resolver->make_generic_symbol(instruction_pointer) :
                                          resolver->resolve_symbol(detail::pdb_resolver::module_info{
-                                                                      .image_filename = module->file_name,
+                                                                      .image_filename = module->payload.filename,
                                                                       .image_base     = module->base,
                                                                       .process_id     = process_id,
                                                                       .load_timestamp = load_timestamp},
@@ -81,7 +81,7 @@ struct etl_sample_data : public sample_data
 
                 co_yield stack_frame{
                     .symbol_name             = symbol.name,
-                    .module_name             = module == nullptr ? unkown_module_name : module->file_name,
+                    .module_name             = module == nullptr ? unkown_module_name : module->payload.filename,
                     .file_path               = symbol.file_path,
                     .function_line_number    = symbol.function_line_number,
                     .instruction_line_number = symbol.instruction_line_number};
@@ -96,7 +96,7 @@ struct etl_sample_data : public sample_data
                 const auto& symbol = (module == nullptr) ?
                                          resolver->make_generic_symbol(instruction_pointer) :
                                          resolver->resolve_symbol(detail::pdb_resolver::module_info{
-                                                                      .image_filename = module->file_name,
+                                                                      .image_filename = module->payload.filename,
                                                                       .image_base     = module->base,
                                                                       .process_id     = process_id,
                                                                       .load_timestamp = load_timestamp,
@@ -105,7 +105,7 @@ struct etl_sample_data : public sample_data
 
                 co_yield stack_frame{
                     .symbol_name             = symbol.name,
-                    .module_name             = module == nullptr ? unkown_module_name : module->file_name,
+                    .module_name             = module == nullptr ? unkown_module_name : module->payload.filename,
                     .file_path               = symbol.file_path,
                     .function_line_number    = symbol.function_line_number,
                     .instruction_line_number = symbol.instruction_line_number};

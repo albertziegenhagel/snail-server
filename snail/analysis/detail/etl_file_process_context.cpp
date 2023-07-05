@@ -59,10 +59,10 @@ void etl_file_process_context::finish()
     {
         for(auto& module : process_module_map.all_modules())
         {
-            if(!module.file_name.starts_with(nt_drive_name_prefix)) continue;
+            if(!module.payload.filename.starts_with(nt_drive_name_prefix)) continue;
 
-            const auto    path_start        = module.file_name.find_first_of('\\', nt_drive_name_prefix.size());
-            const auto    partition_num_str = std::string_view(module.file_name).substr(nt_drive_name_prefix.size(), path_start - nt_drive_name_prefix.size());
+            const auto    path_start        = module.payload.filename.find_first_of('\\', nt_drive_name_prefix.size());
+            const auto    partition_num_str = std::string_view(module.payload.filename).substr(nt_drive_name_prefix.size(), path_start - nt_drive_name_prefix.size());
             std::uint32_t partition_num;
             auto          result = std::from_chars(partition_num_str.data(), partition_num_str.data() + partition_num_str.size(), partition_num);
             if(result.ec != std::errc{} || result.ptr != partition_num_str.data() + partition_num_str.size()) continue;
@@ -70,13 +70,13 @@ void etl_file_process_context::finish()
             auto partition_iter = nt_partition_to_dos_volume_mapping.find(partition_num);
             if(partition_iter == nt_partition_to_dos_volume_mapping.end()) continue;
             std::string new_file_name;
-            const auto  remaining_file_name = std::string_view(module.file_name).substr(path_start);
+            const auto  remaining_file_name = std::string_view(module.payload.filename).substr(path_start);
             new_file_name.reserve(partition_iter->second.size() + remaining_file_name.size());
 
             std::copy(partition_iter->second.begin(), partition_iter->second.end(), std::back_inserter(new_file_name));
             std::copy(remaining_file_name.begin(), remaining_file_name.end(), std::back_inserter(new_file_name));
 
-            module.file_name = new_file_name;
+            module.payload.filename = new_file_name;
         }
     }
 }
@@ -101,7 +101,7 @@ const std::set<std::pair<etl_file_process_context::thread_id_t, etl_file_process
     return threads_per_process_.at(process_id);
 }
 
-const module_map& etl_file_process_context::get_modules(process_id_t process_id) const
+const module_map<etl_file_process_context::module_data>& etl_file_process_context::get_modules(process_id_t process_id) const
 {
     return modules_per_process.at(process_id);
 }
@@ -217,11 +217,11 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
 
     auto& modules = modules_per_process[event.process_id()];
 
-    modules.insert(module_info{
-                       .base        = event.image_base(),
-                       .size        = event.image_size(),
-                       .file_name   = utf8::utf16to8(event.file_name()),
-                       .page_offset = 0},
+    modules.insert(module_info<module_data>{
+                       .base    = event.image_base(),
+                       .size    = event.image_size(),
+                       .payload = {
+                           .filename = utf8::utf16to8(event.file_name())}},
                    header.timestamp);
 }
 
