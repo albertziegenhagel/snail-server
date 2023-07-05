@@ -21,6 +21,17 @@ namespace {
 
 struct perf_data_sample_data : public sample_data
 {
+    std::optional<perf_data::build_id> try_get_module_build_id(const detail::perf_data_file_process_context::module_data& module) const
+    {
+        if(module.build_id) return module.build_id;
+        if(build_id_map == nullptr) return std::nullopt;
+
+        auto iter = build_id_map->find(module.filename);
+        if(iter == build_id_map->end()) return std::nullopt;
+
+        return iter->second;
+    }
+
     [[nodiscard]] bool has_stack() const override
     {
         return true;
@@ -44,7 +55,7 @@ struct perf_data_sample_data : public sample_data
                                      resolver->make_generic_symbol(instruction_pointer) :
                                      resolver->resolve_symbol(detail::dwarf_resolver::module_info{
                                                                   .image_filename = module->payload.filename,
-                                                                  .build_id       = {},
+                                                                  .build_id       = try_get_module_build_id(module->payload),
                                                                   .image_base     = module->base,
                                                                   .page_offset    = module->payload.page_offset,
                                                                   .process_id     = process_id,
@@ -60,11 +71,12 @@ struct perf_data_sample_data : public sample_data
         }
     }
 
-    const detail::perf_data_file_process_context*     context;
-    detail::dwarf_resolver*                           resolver;
-    common::process_id_t                              process_id;
-    const std::vector<common::instruction_pointer_t>* stack;
-    common::timestamp_t                               timestamp;
+    const detail::perf_data_file_process_context*               context;
+    detail::dwarf_resolver*                                     resolver;
+    const std::unordered_map<std::string, perf_data::build_id>* build_id_map;
+    common::process_id_t                                        process_id;
+    const std::vector<common::instruction_pointer_t>*           stack;
+    common::timestamp_t                                         timestamp;
 };
 
 template<typename Duration>
@@ -80,12 +92,17 @@ Duration from_relative_timestamps(common::timestamp_t timestamp, common::timesta
 
 } // namespace
 
+perf_data_data_provider::perf_data_data_provider(dwarf_symbol_find_options find_options,
+                                                 path_map                  module_path_map)
+{
+    symbol_resolver_ = std::make_unique<detail::dwarf_resolver>(std::move(find_options), std::move(module_path_map));
+}
+
 perf_data_data_provider::~perf_data_data_provider() = default;
 
 void perf_data_data_provider::process(const std::filesystem::path& file_path)
 {
     process_context_ = std::make_unique<detail::perf_data_file_process_context>();
-    symbol_resolver_ = std::make_unique<detail::dwarf_resolver>();
 
     perf_data::perf_data_file file(file_path);
     file.process(process_context_->observer());
@@ -138,6 +155,11 @@ void perf_data_data_provider::process(const std::filesystem::path& file_path)
 #else
     const auto date = time_point_cast<seconds>(file_clock::to_sys(file_modified_time));
 #endif
+
+    if(file.metadata().build_ids)
+    {
+        build_id_map_ = file.metadata().build_ids;
+    }
 
     session_info_ = analysis::session_info{
         .command_line          = file.metadata().cmdline ? join(*file.metadata().cmdline) : "[unknown]",
@@ -233,9 +255,10 @@ common::generator<const sample_data&> perf_data_data_provider::samples(common::p
     const auto& sample_storage = process_context.get_samples_per_process().at(process_id);
 
     perf_data_sample_data current_sample_data;
-    current_sample_data.process_id = process_id;
-    current_sample_data.context    = process_context_.get();
-    current_sample_data.resolver   = symbol_resolver_.get();
+    current_sample_data.process_id   = process_id;
+    current_sample_data.context      = process_context_.get();
+    current_sample_data.resolver     = symbol_resolver_.get();
+    current_sample_data.build_id_map = build_id_map_ ? &build_id_map_.value() : nullptr;
 
     for(const auto& sample : sample_storage.samples)
     {

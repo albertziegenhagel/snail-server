@@ -117,13 +117,22 @@ void perf_data_file_process_context::handle_event(const perf_data::parser::mmap2
 {
     auto& process_modules = modules_per_process[event.pid()];
 
+    std::optional<perf_data::build_id> build_id;
+    if(event.has_build_id())
+    {
+        build_id.emplace();
+        build_id->size_ = event.build_id().size();
+        std::ranges::copy(event.build_id(), build_id->buffer_.begin());
+    }
+
     assert(event.sample_id().time);
     process_modules.insert(detail::module_info<module_data>{
                                .base    = event.addr(),
                                .size    = event.len(),
                                .payload = {
                                            .filename    = std::string(event.filename()),
-                                           .page_offset = event.pgoff()}
+                                           .page_offset = event.pgoff(),
+                                           .build_id    = build_id}
     },
                            *event.sample_id().time);
 }
