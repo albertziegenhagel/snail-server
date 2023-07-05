@@ -37,6 +37,7 @@ etl_file_process_context::etl_file_process_context()
     register_event<etl::parser::system_config_v2_physical_disk_event_view>();
     register_event<etl::parser::system_config_v2_logical_disk_event_view>();
     register_event<etl::parser::system_config_v5_pnp_event_view>();
+    register_event<etl::parser::system_config_ex_v0_build_info_event_view>();
     register_event<etl::parser::system_config_ex_v0_system_paths_event_view>();
     register_event<etl::parser::system_config_ex_v0_volume_mapping_event_view>();
     register_event<etl::parser::process_v4_type_group1_event_view>();
@@ -189,6 +190,15 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
     {
         processor_name_ = event.friendly_name();
     }
+}
+
+void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
+                                            const etl::common_trace_header& /*header*/,
+                                            const etl::parser::system_config_ex_v0_build_info_event_view& event)
+{
+    if(os_name_) return;
+
+    os_name_ = event.product_name();
 }
 
 void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
@@ -369,4 +379,10 @@ std::optional<std::u16string_view> etl_file_process_context::processor_name() co
 {
     if(!processor_name_) return std::nullopt;
     return *processor_name_;
+}
+
+std::optional<std::u16string_view> etl_file_process_context::os_name() const
+{
+    if(!os_name_) return std::nullopt;
+    return *os_name_;
 }

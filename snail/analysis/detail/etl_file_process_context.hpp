@@ -22,6 +22,7 @@ struct system_config_v3_cpu_event_view;
 struct system_config_v2_physical_disk_event_view;
 struct system_config_v2_logical_disk_event_view;
 struct system_config_v5_pnp_event_view;
+struct system_config_ex_v0_build_info_event_view;
 struct system_config_ex_v0_system_paths_event_view;
 struct system_config_ex_v0_volume_mapping_event_view;
 struct process_v4_type_group1_event_view;
@@ -113,6 +114,7 @@ public:
     std::optional<std::u16string_view> computer_name() const;
     std::optional<std::uint16_t>       processor_architecture() const;
     std::optional<std::u16string_view> processor_name() const;
+    std::optional<std::u16string_view> os_name() const;
 
 private:
     template<typename T>
@@ -122,6 +124,7 @@ private:
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::system_config_v2_physical_disk_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::system_config_v2_logical_disk_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::system_config_v5_pnp_event_view& event);
+    void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::system_config_ex_v0_build_info_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::system_config_ex_v0_system_paths_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::system_config_ex_v0_volume_mapping_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::process_v4_type_group1_event_view& event);
@@ -155,6 +158,7 @@ private:
     std::optional<std::u16string> computer_name_;
     std::optional<std::uint16_t>  processor_architecture_;
     std::optional<std::u16string> processor_name_;
+    std::optional<std::u16string> os_name_;
 };
 
 struct etl_file_process_context::profiler_process_info

@@ -197,7 +197,7 @@ void etl_data_provider::process(const std::filesystem::path& file_path)
 
     system_info_ = analysis::system_info{
         .hostname             = process_context_->computer_name() ? utf8::utf16to8(*process_context_->computer_name()) : "[unknown]",
-        .platform             = "Windows",
+        .platform             = process_context_->os_name() ? utf8::utf16to8(*process_context_->os_name()) : "Windows",
         .architecture         = process_context_->processor_architecture() ? win_architecture_to_str(*process_context_->processor_architecture()) : "[unknown]",
         .cpu_name             = process_context_->processor_name() ? utf8::utf16to8(*process_context_->processor_name()) : "[unknown]",
         .number_of_processors = file.header().number_of_processors,
