@@ -10,8 +10,10 @@
 #    include <llvm/DebugInfo/PDB/IPDBSourceFile.h>
 #    include <llvm/DebugInfo/PDB/PDB.h>
 #    include <llvm/DebugInfo/PDB/PDBSymbolFunc.h>
+#    include <llvm/DebugInfo/PDB/PDBSymbolPublicSymbol.h>
 #    include <llvm/DebugInfo/PDB/PDBSymbolTypeFunctionSig.h>
 #    include <llvm/DebugInfo/PDB/PDBTypes.h>
+#    include <llvm/Demangle/Demangle.h>
 #endif
 
 #include <snail/common/cast.hpp>
@@ -19,6 +21,26 @@
 
 using namespace snail;
 using namespace snail::analysis::detail;
+
+namespace {
+
+#ifdef SNAIL_HAS_LLVM
+std::string extract_symbol_function_name(const llvm::pdb::PDBSymbolFunc*         pdb_function_symbol,
+                                         const llvm::pdb::PDBSymbolPublicSymbol* pdb_public_symbol)
+{
+    if(pdb_public_symbol != nullptr &&
+       (pdb_function_symbol == nullptr || (pdb_public_symbol->getVirtualAddress() == pdb_function_symbol->getVirtualAddress())))
+    {
+        return llvm::demangle(pdb_public_symbol->getName());
+    }
+
+    // We could not find a public symbol. Fall-back to the regular function name
+    return pdb_function_symbol->getName();
+}
+
+#endif // SNAIL_HAS_LLVM
+
+} // namespace
 
 pdb_resolver::pdb_resolver()  = default;
 pdb_resolver::~pdb_resolver() = default;
@@ -90,48 +112,54 @@ const pdb_resolver::symbol_info& pdb_resolver::resolve_symbol(const module_info&
     auto* const pdb_session = get_pdb_session(module);
     if(pdb_session == nullptr) return make_generic_symbol(module, address);
 
-    const auto relative_address = address - module.image_base;
-    const auto pdb_symbol       = pdb_session->findSymbolByRVA(common::narrow_cast<std::uint32_t>(relative_address), llvm::pdb::PDB_SymType::Function);
+    const auto relative_address        = common::narrow_cast<std::uint32_t>(address - module.image_base);
+    const auto pdb_function_symbol_ptr = pdb_session->findSymbolByRVA(relative_address, llvm::pdb::PDB_SymType::Function);
+    const auto pdb_public_symbol_ptr   = pdb_session->findSymbolByRVA(relative_address, llvm::pdb::PDB_SymType::PublicSymbol);
 
-    if(pdb_symbol == nullptr) return make_generic_symbol(module, address);
+    const auto* const pdb_function_symbol = llvm::dyn_cast_if_present<llvm::pdb::PDBSymbolFunc>(pdb_function_symbol_ptr.get());
+    const auto* const pdb_public_symbol   = llvm::dyn_cast_if_present<llvm::pdb::PDBSymbolPublicSymbol>(pdb_public_symbol_ptr.get());
 
-    const auto* const pdb_function_symbol = llvm::dyn_cast_or_null<llvm::pdb::PDBSymbolFunc>(pdb_symbol.get());
-
-    if(pdb_function_symbol == nullptr) return make_generic_symbol(module, address);
+    if(pdb_function_symbol == nullptr && pdb_public_symbol == nullptr)
+    {
+        return make_generic_symbol(module, address);
+    }
 
     auto new_symbol = symbol_info{
-        .name                    = pdb_function_symbol->getUndecoratedName(),
+        .name                    = extract_symbol_function_name(pdb_function_symbol, pdb_public_symbol),
         .is_generic              = false,
         .file_path               = {},
         .function_line_number    = {},
         .instruction_line_number = {},
     };
 
-    const auto function_line_numbers = pdb_function_symbol->getLineNumbers();
-    if(function_line_numbers != nullptr && function_line_numbers->getChildCount() > 0)
+    if(pdb_function_symbol != nullptr)
     {
-        auto line_info = function_line_numbers->getNext();
-        assert(line_info != nullptr);
+        const auto function_line_numbers = pdb_function_symbol->getLineNumbers();
+        if(function_line_numbers != nullptr && function_line_numbers->getChildCount() > 0)
+        {
+            auto line_info = function_line_numbers->getNext();
+            assert(line_info != nullptr);
 
-        auto source_file = pdb_session->getSourceFileById(line_info->getSourceFileId());
+            auto source_file = pdb_session->getSourceFileById(line_info->getSourceFileId());
 
-        new_symbol.file_path            = source_file->getFileName();
-        new_symbol.function_line_number = line_info->getLineNumber() - 1; // we want line numbers to be zero based
-    }
+            new_symbol.file_path            = source_file->getFileName();
+            new_symbol.function_line_number = line_info->getLineNumber() - 1; // we want line numbers to be zero based
+        }
 
-    const auto length       = pdb_function_symbol->getLength();
-    const auto line_numbers = pdb_session->findLineNumbersByRVA(common::narrow_cast<std::uint32_t>(relative_address), common::narrow_cast<std::uint32_t>(length));
+        const auto length       = pdb_function_symbol->getLength();
+        const auto line_numbers = pdb_session->findLineNumbersByRVA(common::narrow_cast<std::uint32_t>(relative_address), common::narrow_cast<std::uint32_t>(length));
 
-    if(line_numbers != nullptr && line_numbers->getChildCount() > 0)
-    {
-        auto line_info = line_numbers->getNext();
-        assert(line_info != nullptr);
+        if(line_numbers != nullptr && line_numbers->getChildCount() > 0)
+        {
+            auto line_info = line_numbers->getNext();
+            assert(line_info != nullptr);
 
-        auto source_file = pdb_session->getSourceFileById(line_info->getSourceFileId());
+            auto source_file = pdb_session->getSourceFileById(line_info->getSourceFileId());
 
-        assert(new_symbol.file_path.empty() || new_symbol.file_path == source_file->getFileName());
-        new_symbol.file_path               = source_file->getFileName();
-        new_symbol.instruction_line_number = line_info->getLineNumber() - 1; // we want line numbers to be zero based
+            assert(new_symbol.file_path.empty() || new_symbol.file_path == source_file->getFileName());
+            new_symbol.file_path               = source_file->getFileName();
+            new_symbol.instruction_line_number = line_info->getLineNumber() - 1; // we want line numbers to be zero based
+        }
     }
 
     const auto [new_iter, inserted] = symbol_cache_.emplace(key, std::move(new_symbol));
