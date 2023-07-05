@@ -56,6 +56,18 @@ public:
         }
     };
 
+    struct module_data
+    {
+        std::string   filename;
+        std::uint64_t page_offset;
+
+        [[nodiscard]] friend bool operator==(const module_data& lhs, const module_data& rhs)
+        {
+            return lhs.filename == rhs.filename &&
+                   lhs.page_offset == rhs.page_offset;
+        }
+    };
+
     using process_history = detail::history<process_id_t, timestamp_t, process_data>;
     using thread_history  = detail::history<thread_id_t, timestamp_t, thread_data>;
 
@@ -85,7 +97,7 @@ public:
 
     const std::set<std::pair<thread_id_t, timestamp_t>>& get_process_threads(process_id_t process_id) const;
 
-    const module_map& get_modules(process_id_t process_id) const;
+    const module_map<module_data>& get_modules(process_id_t process_id) const;
 
     const std::vector<instruction_pointer_t>& stack(std::size_t stack_index) const;
 
@@ -108,7 +120,7 @@ private:
 
     std::unordered_map<process_id_t, std::set<std::pair<thread_id_t, timestamp_t>>> threads_per_process_;
 
-    std::unordered_map<process_id_t, module_map> modules_per_process;
+    std::unordered_map<process_id_t, module_map<module_data>> modules_per_process;
 
     std::unordered_map<process_id_t, process_samples_storage> samples_per_process;
 
