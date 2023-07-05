@@ -3,8 +3,14 @@
 #include <cstdint>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
+
+#include <snail/perf_data/build_id.hpp>
+
+#include <snail/analysis/options.hpp>
+#include <snail/analysis/path_map.hpp>
 
 namespace snail::analysis::detail {
 
@@ -15,7 +21,7 @@ public:
     using timestamp_t           = std::uint64_t;
     using instruction_pointer_t = std::uint64_t;
 
-    dwarf_resolver();
+    dwarf_resolver(dwarf_symbol_find_options find_options = {}, path_map module_path_map = {});
     ~dwarf_resolver();
 
     struct symbol_info;
@@ -62,6 +68,9 @@ private:
         std::hash<instruction_pointer_t>  address_hasher;
     };
 
+    dwarf_symbol_find_options find_options_;
+    path_map                  module_path_map_;
+
 #ifdef SNAIL_HAS_LLVM
     struct context_storage;
 
@@ -86,7 +95,9 @@ struct dwarf_resolver::symbol_info
 
 struct dwarf_resolver::module_info
 {
-    std::string_view      image_filename;
+    std::string_view                   image_filename;
+    std::optional<perf_data::build_id> build_id;
+
     instruction_pointer_t image_base;
     instruction_pointer_t page_offset;
 
