@@ -155,12 +155,21 @@ jobs:
         run: |
           cmake --install ${{ github.workspace }}/build/ci --component server --prefix ${{ github.workspace }}/install
 
+      - name: Add build info
+        shell: pwsh
+        run: |
+          "ref:    ${{ github.ref_name }}`n" + `
+          "commit: ${{ github.sha }}`n"  + `
+          "date:   $(Get-Date -UFormat '%FT%T%Z' -AsUTC)" | Out-File -Path "${{ github.workspace }}/install/bin/info.txt"
+
       - name: Upload binaries
         uses: actions/upload-artifact@v3
         if: runner.os != 'Linux' || matrix.compiler == 'gcc'
         with:
           name: snail-server-${{ matrix.arch }}-${{ matrix.platform }}
-          path: ${{ github.workspace }}/install/bin/snail-server*
+          path: |
+            ${{ github.workspace }}/install/bin/snail-server*
+            ${{ github.workspace }}/install/bin/info.txt
 
   deploy-head:
     name: "Deploy head"
