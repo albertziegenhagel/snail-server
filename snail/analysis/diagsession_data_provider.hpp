@@ -9,6 +9,9 @@ namespace snail::analysis {
 class diagsession_data_provider : public etl_data_provider
 {
 public:
+    diagsession_data_provider(pdb_symbol_find_options find_options    = {},
+                              path_map                module_path_map = {});
+
     virtual ~diagsession_data_provider();
 
     virtual void process(const std::filesystem::path& file_path) override;

@@ -3,8 +3,14 @@
 #include <cstdint>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
+
+#include <snail/analysis/options.hpp>
+#include <snail/analysis/path_map.hpp>
+
+#include <snail/analysis/detail/pdb_info.hpp>
 
 #ifdef SNAIL_HAS_LLVM
 
@@ -18,6 +24,18 @@ class IPDBSession;
 
 namespace snail::analysis::detail {
 
+// The Microsoft DiaSDK is only available on Windows
+inline constexpr auto platform_supports_dia_sdk =
+#ifdef _WIN32
+    true
+#else
+    false
+#endif
+    ;
+
+// Use the DiaSDK by default where it is supported (Windows only) since it is faster than the LLVM Native reader
+inline constexpr auto default_use_dia_sdk = platform_supports_dia_sdk;
+
 class pdb_resolver
 {
 public:
@@ -25,7 +43,9 @@ public:
     using timestamp_t           = std::uint64_t;
     using instruction_pointer_t = std::uint64_t;
 
-    pdb_resolver();
+    explicit pdb_resolver(pdb_symbol_find_options find_options    = {},
+                          path_map                module_path_map = {},
+                          bool                    use_dia_sdk     = default_use_dia_sdk);
     ~pdb_resolver();
 
     struct symbol_info;
@@ -72,6 +92,10 @@ private:
         std::hash<instruction_pointer_t> address_hasher;
     };
 
+    pdb_symbol_find_options find_options_;
+    path_map                module_path_map_;
+    bool                    use_dia_sdk_;
+
 #ifdef SNAIL_HAS_LLVM
     llvm::pdb::IPDBSession* get_pdb_session(const module_info& module);
 
@@ -94,8 +118,10 @@ struct pdb_resolver::symbol_info
 
 struct pdb_resolver::module_info
 {
-    std::string_view      image_filename;
-    instruction_pointer_t image_base;
+    std::string_view                image_filename;
+    instruction_pointer_t           image_base;
+    std::uint32_t                   checksum;
+    std::optional<detail::pdb_info> pdb_info;
 
     process_id_t process_id;
     timestamp_t  load_timestamp;

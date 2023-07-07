@@ -5,6 +5,8 @@
 #include <optional>
 
 #include <snail/analysis/data_provider.hpp>
+#include <snail/analysis/options.hpp>
+#include <snail/analysis/path_map.hpp>
 
 namespace snail::analysis {
 
@@ -18,6 +20,9 @@ class pdb_resolver;
 class etl_data_provider : public data_provider
 {
 public:
+    etl_data_provider(pdb_symbol_find_options find_options    = {},
+                      path_map                module_path_map = {});
+
     virtual ~etl_data_provider();
 
     virtual void process(const std::filesystem::path& file_path) override;
