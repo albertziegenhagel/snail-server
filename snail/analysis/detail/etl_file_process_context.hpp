@@ -13,6 +13,7 @@
 #include <snail/common/types.hpp>
 
 #include <snail/analysis/detail/module_map.hpp>
+#include <snail/analysis/detail/pdb_info.hpp>
 #include <snail/analysis/detail/process_history.hpp>
 #include <snail/analysis/detail/stack_cache.hpp>
 
@@ -22,11 +23,15 @@ struct system_config_v3_cpu_event_view;
 struct system_config_v2_physical_disk_event_view;
 struct system_config_v2_logical_disk_event_view;
 struct system_config_v5_pnp_event_view;
+struct system_config_ex_v0_build_info_event_view;
+struct system_config_ex_v0_system_paths_event_view;
+struct system_config_ex_v0_volume_mapping_event_view;
 struct process_v4_type_group1_event_view;
 struct thread_v3_type_group1_event_view;
 struct image_v3_load_event_view;
 struct perfinfo_v2_sampled_profile_event_view;
 struct stackwalk_v2_stack_event_view;
+struct image_id_v2_dbg_id_pdb_info_event_view;
 struct vs_diagnostics_hub_target_profiling_started_event_view;
 struct vs_diagnostics_hub_target_profiling_stopped_event_view;
 
@@ -72,11 +77,15 @@ public:
 
     struct module_data
     {
-        std::string filename;
+        std::string                     filename;
+        std::uint32_t                   checksum;
+        std::optional<detail::pdb_info> pdb_info;
 
         [[nodiscard]] friend bool operator==(const module_data& lhs, const module_data& rhs)
         {
-            return lhs.filename == rhs.filename;
+            return lhs.filename == rhs.filename &&
+                   lhs.checksum == rhs.checksum &&
+                   lhs.pdb_info == rhs.pdb_info;
         }
     };
 
@@ -111,6 +120,7 @@ public:
     std::optional<std::u16string_view> computer_name() const;
     std::optional<std::uint16_t>       processor_architecture() const;
     std::optional<std::u16string_view> processor_name() const;
+    std::optional<std::u16string_view> os_name() const;
 
 private:
     template<typename T>
@@ -120,17 +130,24 @@ private:
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::system_config_v2_physical_disk_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::system_config_v2_logical_disk_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::system_config_v5_pnp_event_view& event);
+    void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::system_config_ex_v0_build_info_event_view& event);
+    void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::system_config_ex_v0_system_paths_event_view& event);
+    void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::system_config_ex_v0_volume_mapping_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::process_v4_type_group1_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::thread_v3_type_group1_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::image_v3_load_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::perfinfo_v2_sampled_profile_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::stackwalk_v2_stack_event_view& event);
+    void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::image_id_v2_dbg_id_pdb_info_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::vs_diagnostics_hub_target_profiling_started_event_view& event);
 
     etl::dispatching_event_observer observer_;
 
     std::map<std::uint32_t, std::uint32_t>         number_of_partitions_per_disk;
     std::unordered_map<std::uint32_t, std::string> nt_partition_to_dos_volume_mapping;
+
+    std::unordered_map<std::string, std::string> nt_to_dos_path_map_;
+    std::optional<std::string>                   system_root_;
 
     process_history processes;
     thread_history  threads;
@@ -139,7 +156,15 @@ private:
 
     std::unordered_map<process_id_t, profiler_process_info> profiler_processes_;
 
-    std::unordered_map<process_id_t, module_map<module_data>> modules_per_process;
+    struct pdb_info_storage
+    {
+        timestamp_t   event_timestamp;
+        std::uint64_t image_base;
+        pdb_info      info;
+    };
+
+    std::unordered_map<process_id_t, std::vector<pdb_info_storage>> modules_pdb_info_per_process;
+    std::unordered_map<process_id_t, module_map<module_data>>       modules_per_process;
 
     std::unordered_map<process_id_t, std::vector<sample_info>> samples_per_process;
 
@@ -148,6 +173,7 @@ private:
     std::optional<std::u16string> computer_name_;
     std::optional<std::uint16_t>  processor_architecture_;
     std::optional<std::u16string> processor_name_;
+    std::optional<std::u16string> os_name_;
 };
 
 struct etl_file_process_context::profiler_process_info
