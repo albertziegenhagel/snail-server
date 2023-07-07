@@ -55,6 +55,9 @@ if(SNAIL_WITH_LLVM)
     set_source_files_properties(detail/pdb_resolver.cpp PROPERTIES COMPILE_OPTIONS ${CMAKE_CXX20_STANDARD_COMPILE_OPTION})
     set_source_files_properties(detail/dwarf_resolver.cpp PROPERTIES COMPILE_OPTIONS ${CMAKE_CXX20_STANDARD_COMPILE_OPTION})
   endif()
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    set_source_files_properties(detail/pdb_resolver.cpp PROPERTIES COMPILE_OPTIONS "/wd4702")
+  endif()
 endif()
 
 target_include_directories(analysis SYSTEM PRIVATE
