@@ -10,6 +10,14 @@
 
 namespace snail::jsonrpc::detail {
 
+template<typename T, template<typename...> typename Template>
+struct is_instantiation : std::false_type
+{};
+
+template<template<typename...> typename Template, typename... Args>
+struct is_instantiation<Template<Args...>, Template> : std::true_type
+{};
+
 template<typename T>
 struct request_parameter
 {
@@ -52,13 +60,35 @@ RequestType unpack_request(const nlohmann::json& raw_data)
             auto iter = raw_data.find(parameter.name);
             if(iter == raw_data.end()) throw invalid_parameters_error(std::format("Missing parameter: {}", parameter.name).c_str());
 
-            try
+            if constexpr(is_instantiation<T, std::optional>{})
             {
-                iter->get_to(std::get<I>(result.data_));
+                if(iter->is_null())
+                {
+                    std::get<I>(result.data_) = std::nullopt;
+                }
+                else
+                {
+                    try
+                    {
+                        std::get<I>(result.data_).emplace();
+                        iter->get_to(*std::get<I>(result.data_));
+                    }
+                    catch(const nlohmann::json::type_error& e)
+                    {
+                        throw invalid_parameters_error(std::format("Invalid parameter type: {}", e.what()).c_str());
+                    }
+                }
             }
-            catch(const nlohmann::json::type_error& e)
+            else
             {
-                throw invalid_parameters_error(std::format("Invalid parameter type: {}", e.what()).c_str());
+                try
+                {
+                    iter->get_to(std::get<I>(result.data_));
+                }
+                catch(const nlohmann::json::type_error& e)
+                {
+                    throw invalid_parameters_error(std::format("Invalid parameter type: {}", e.what()).c_str());
+                }
             }
         },
         make_index_sequence(RequestType::parameters));

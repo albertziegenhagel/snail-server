@@ -14,6 +14,9 @@
 #include <snail/analysis/data/system.hpp>
 #include <snail/analysis/data/thread.hpp>
 
+#include <snail/analysis/options.hpp>
+#include <snail/analysis/path_map.hpp>
+
 namespace snail::analysis {
 
 struct sample_data
@@ -44,6 +47,8 @@ public:
     virtual common::generator<const sample_data&> samples(common::process_id_t process_id) const = 0;
 };
 
-std::unique_ptr<data_provider> make_data_provider(const std::filesystem::path& extension);
+std::unique_ptr<data_provider> make_data_provider(const std::filesystem::path& extension,
+                                                  analysis::options            options         = {},
+                                                  path_map                     module_path_map = {});
 
 } // namespace snail::analysis
