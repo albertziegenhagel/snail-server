@@ -8,6 +8,7 @@ target_sources(common
     guid.cpp
     system.cpp
     trim.cpp
+    path.cpp
 )
 
 target_link_libraries(common 

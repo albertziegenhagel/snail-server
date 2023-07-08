@@ -9,6 +9,7 @@
 #include <libzippp.h>
 
 #include <snail/common/filename.hpp>
+#include <snail/common/path.hpp>
 #include <snail/common/trim.hpp>
 
 using namespace snail;
@@ -103,7 +104,7 @@ void diagsession_data_provider::process(const std::filesystem::path& file_path)
     // Clean-up any previously created temporary files.
     try_cleanup();
 
-    temp_etl_file_path_ = temp_dir / std::filesystem::path(*archive_etl_file_path).filename();
+    temp_etl_file_path_ = temp_dir / common::path_from_utf8(*archive_etl_file_path).filename();
 
     {
         const auto etl_file_entry = archive.getEntry(*archive_etl_file_path);
