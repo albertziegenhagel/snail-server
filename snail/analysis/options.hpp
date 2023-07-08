@@ -26,4 +26,10 @@ struct dwarf_symbol_find_options
     std::vector<std::string> debuginfod_urls_;
 };
 
+struct options
+{
+    pdb_symbol_find_options   pdb_find_options;
+    dwarf_symbol_find_options dwarf_find_options;
+};
+
 } // namespace snail::analysis
