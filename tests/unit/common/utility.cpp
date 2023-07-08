@@ -4,6 +4,7 @@
 #include <snail/common/date_time.hpp>
 #include <snail/common/filename.hpp>
 #include <snail/common/guid.hpp>
+#include <snail/common/path.hpp>
 #include <snail/common/string_compare.hpp>
 #include <snail/common/trim.hpp>
 
@@ -202,4 +203,9 @@ TEST(Guid, Hash)
     EXPECT_EQ(std::hash<guid>{}(guid_a), std::hash<guid>{}(guid_a));
     EXPECT_EQ(std::hash<guid>{}(guid_b), std::hash<guid>{}(guid_b));
     EXPECT_NE(std::hash<guid>{}(guid_a), std::hash<guid>{}(guid_b));
+}
+
+TEST(Path, FromUtf8)
+{
+    EXPECT_EQ(path_from_utf8("my-file👻"sv), std::filesystem::path(u8"my-file👻"));
 }

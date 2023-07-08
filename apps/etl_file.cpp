@@ -626,7 +626,7 @@ int main(int argc, char* argv[])
                 const auto event_name = "XPerf:ImageIdV2-DbgIdPdbInfo";
                 if(should_ignore(options, event_name)) return;
 
-                std::cout << std::format("@{} {:30}: pid {} image-base {} guid {} age {} pdb '{}'\n", header.timestamp, event_name, process_id, event.image_base(), event.guid().instantiate().to_string(), event.age(), event.pdb_file_name());
+                std::cout << std::format("@{} {:30}: pid {} image-base {:#0x} guid {} age {} pdb '{}'\n", header.timestamp, event_name, process_id, event.image_base(), event.guid().instantiate().to_string(), event.age(), event.pdb_file_name());
 
                 if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
             });

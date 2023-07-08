@@ -24,6 +24,7 @@
 
 #include <snail/common/cast.hpp>
 #include <snail/common/hash_combine.hpp>
+#include <snail/common/path.hpp>
 #include <snail/common/system.hpp>
 
 #include <snail/etl/parser/utility.hpp>
@@ -170,7 +171,7 @@ std::optional<std::filesystem::path> find_or_retrieve_pdb(const std::filesystem:
         auto pdb_ref_path_str = pdb_info->pdb_name;
         module_path_map.try_apply(pdb_ref_path_str);
 
-        const auto pdb_ref_path = std::filesystem::path(pdb_ref_path_str);
+        const auto pdb_ref_path = common::path_from_utf8(pdb_ref_path_str);
 
         // First check the reference path given in the module, if it is an absolute path
         if(pdb_ref_path.is_absolute())

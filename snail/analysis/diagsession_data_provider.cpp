@@ -9,6 +9,7 @@
 #include <libzippp.h>
 
 #include <snail/common/filename.hpp>
+#include <snail/common/path.hpp>
 #include <snail/common/trim.hpp>
 
 using namespace snail;
@@ -60,7 +61,7 @@ void diagsession_data_provider::process(const std::filesystem::path& file_path)
             throw std::runtime_error(std::format("Could not find metadata.xml in '{}'", file_path.string()));
         }
 
-        std::stringstream metadata_stream;
+        std::stringstream metadata_stream(std::ios::in | std::ios::out | std::ios::binary);
         metadata_entry.readContent(metadata_stream);
 
         // NOTE: We want to spare ourselves from a dependency to a real XML parser library and hence
@@ -103,7 +104,7 @@ void diagsession_data_provider::process(const std::filesystem::path& file_path)
     // Clean-up any previously created temporary files.
     try_cleanup();
 
-    temp_etl_file_path_ = temp_dir / std::filesystem::path(*archive_etl_file_path).filename();
+    temp_etl_file_path_ = temp_dir / common::path_from_utf8(*archive_etl_file_path).filename();
 
     {
         const auto etl_file_entry = archive.getEntry(*archive_etl_file_path);

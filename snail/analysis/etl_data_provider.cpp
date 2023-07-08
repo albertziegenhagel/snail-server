@@ -91,9 +91,10 @@ struct etl_sample_data : public sample_data
         }
         if(kernel_stack != nullptr)
         {
+            static constexpr detail::etl_file_process_context::process_id_t kernel_process_id = 0;
             for(const auto instruction_pointer : std::views::reverse(*kernel_stack))
             {
-                const auto [module, load_timestamp] = context->get_modules(process_id).find(instruction_pointer, kernel_timestamp);
+                auto [module, load_timestamp] = context->get_modules(kernel_process_id).find(instruction_pointer, kernel_timestamp);
 
                 const auto& symbol = (module == nullptr) ?
                                          resolver->make_generic_symbol(instruction_pointer) :
@@ -102,7 +103,7 @@ struct etl_sample_data : public sample_data
                                                                       .image_base     = module->base,
                                                                       .checksum       = module->payload.checksum,
                                                                       .pdb_info       = module->payload.pdb_info,
-                                                                      .process_id     = process_id,
+                                                                      .process_id     = kernel_process_id,
                                                                       .load_timestamp = load_timestamp,
                                                                   },
                                                                   instruction_pointer);
