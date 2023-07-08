@@ -180,6 +180,22 @@ std::optional<std::filesystem::path> find_or_retrieve_pdb(const std::filesystem:
         }
 
         pdb_name = pdb_ref_path.filename();
+
+#    ifndef _WIN32
+        // If we are on any Unix based system but the PDB did include an absolute Windows path
+        // the `.filename()` call above would not extract the filename correctly.
+        // To workaround this, we apply heuristics to detect that case. If the filename is the same
+        // as the complete path and the path includes a colon, we consider the path an
+        // absolute Windows path and extract the filename es everything after the final `\`.
+        if(pdb_name == pdb_ref_path && pdb_ref_path_str.find(':') != std::string::npos)
+        {
+            const auto last_sep_pos = pdb_ref_path_str.find_last_of('\\');
+            if(last_sep_pos != std::string::npos)
+            {
+                pdb_name = common::path_from_utf8(pdb_ref_path_str.substr(last_sep_pos + 1));
+            }
+        }
+#    endif
     }
 
     // Check next to the module
