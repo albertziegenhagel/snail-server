@@ -14,11 +14,30 @@
 
 #include <snail/analysis/analysis.hpp>
 #include <snail/analysis/data_provider.hpp>
+#include <snail/analysis/options.hpp>
 
 using namespace snail;
 using namespace snail::server;
 
 SNAIL_JSONRPC_REQUEST_0(initialize);
+
+SNAIL_JSONRPC_REQUEST_4(set_pdb_symbol_find_options,
+                        std::vector<std::string>, search_dirs,
+                        std::optional<std::string>, symbol_cache_dir,
+                        bool, no_default_urls,
+                        std::vector<std::string>, symbol_server_urls);
+
+SNAIL_JSONRPC_REQUEST_4(set_dwarf_symbol_find_options,
+                        std::vector<std::string>, search_dirs,
+                        std::optional<std::string>, debuginfod_cache_dir,
+                        bool, no_default_urls,
+                        std::vector<std::string>, debuginfod_urls);
+
+// FIXME: fix the request macros and get rid of this
+using string_pair = std::pair<std::string, std::string>;
+
+SNAIL_JSONRPC_REQUEST_1(set_module_path_maps,
+                        std::vector<string_pair>, simple_maps);
 
 SNAIL_JSONRPC_REQUEST_1(read_document,
                         std::string_view, file_path);
@@ -180,6 +199,61 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
             return {
                 {"success", true}
             };
+        });
+
+    server.register_notification<set_pdb_symbol_find_options_request>(
+        [&](const set_pdb_symbol_find_options_request& request)
+        {
+            auto& find_options = storage.get_options().pdb_find_options;
+
+            find_options = analysis::pdb_symbol_find_options();
+
+            if(request.symbol_cache_dir()) find_options.symbol_cache_dir_ = *request.symbol_cache_dir();
+
+            for(const auto& seach_dir : request.search_dirs())
+            {
+                find_options.search_dirs_.push_back(seach_dir);
+            }
+
+            if(request.no_default_urls()) find_options.symbol_server_urls_.clear();
+            for(const auto& url : request.symbol_server_urls())
+            {
+                find_options.symbol_server_urls_.push_back(url);
+            }
+        });
+
+    server.register_notification<set_dwarf_symbol_find_options_request>(
+        [&](const set_dwarf_symbol_find_options_request& request)
+        {
+            auto& find_options = storage.get_options().dwarf_find_options;
+
+            find_options = analysis::dwarf_symbol_find_options();
+
+            if(request.debuginfod_cache_dir()) find_options.debuginfod_cache_dir_ = *request.debuginfod_cache_dir();
+
+            for(const auto& seach_dir : request.search_dirs())
+            {
+                find_options.search_dirs_.push_back(seach_dir);
+            }
+
+            if(request.no_default_urls()) find_options.debuginfod_urls_.clear();
+            for(const auto& url : request.debuginfod_urls())
+            {
+                find_options.debuginfod_urls_.push_back(url);
+            }
+        });
+
+    server.register_notification<set_module_path_maps_request>(
+        [&](const set_module_path_maps_request& request)
+        {
+            auto& module_path_map = storage.get_module_path_map();
+
+            module_path_map = analysis::path_map();
+            for(const auto& [source, target] : request.simple_maps())
+            {
+                module_path_map.add_rule(std::make_unique<analysis::simple_path_mapper>(
+                    source, target));
+            }
         });
 
     server.register_request<read_document_request>(

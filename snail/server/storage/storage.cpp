@@ -7,6 +7,8 @@
 
 #include <snail/analysis/analysis.hpp>
 #include <snail/analysis/data_provider.hpp>
+#include <snail/analysis/options.hpp>
+#include <snail/analysis/path_map.hpp>
 
 using namespace snail;
 using namespace snail::server;
@@ -93,6 +95,8 @@ struct document_storage
 
 struct storage::impl
 {
+    analysis::options                                 options;
+    analysis::path_map                                module_path_map;
     std::unordered_map<std::size_t, document_storage> open_documents;
 
     document_storage& get_document_storage(const document_id& id)
@@ -118,9 +122,21 @@ storage::storage() :
 
 storage::~storage() = default;
 
+analysis::options& storage::get_options()
+{
+    return impl_->options;
+}
+
+analysis::path_map& storage::get_module_path_map()
+{
+    return impl_->module_path_map;
+}
+
 document_id storage::read_document(const std::filesystem::path& path)
 {
-    auto data_provider = analysis::make_data_provider(path.extension());
+    auto data_provider = analysis::make_data_provider(path.extension(),
+                                                      impl_->options,
+                                                      impl_->module_path_map);
 
     data_provider->process(path);
 

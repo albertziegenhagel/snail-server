@@ -11,6 +11,8 @@
 namespace snail::analysis {
 
 struct stacks_analysis;
+struct options;
+class path_map;
 class data_provider;
 
 } // namespace snail::analysis
@@ -40,6 +42,10 @@ class storage
 public:
     storage();
     ~storage();
+
+    analysis::options& get_options();
+
+    analysis::path_map& get_module_path_map();
 
     document_id read_document(const std::filesystem::path& path);
     void        close_document(const document_id& id);
