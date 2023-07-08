@@ -73,6 +73,8 @@ add_unit_test_executable(analysis
     analysis/module_map.cpp
     analysis/process_history.cpp
     analysis/path_map.cpp
+    analysis/pdb_resolver.cpp
+    analysis/dwarf_resolver.cpp
   DEPENDENCIES
     analysis
 )
