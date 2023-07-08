@@ -6,6 +6,12 @@
 
 using namespace snail::analysis;
 
+pdb_symbol_find_options::pdb_symbol_find_options() :
+    symbol_cache_dir_(common::get_temp_dir() / "SymbolCache")
+{
+    symbol_server_urls_.push_back("https://msdl.microsoft.com/download/symbols");
+}
+
 dwarf_symbol_find_options::dwarf_symbol_find_options()
 {
     const auto cache_path_env = common::get_env_var("DEBUGINFOD_CACHE_PATH");

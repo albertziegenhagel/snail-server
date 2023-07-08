@@ -26,7 +26,16 @@ T extract(std::span<const std::byte> data, std::size_t bytes_offset, [[maybe_unu
     {
         if(data_byte_order != std::endian::native)
         {
+#ifdef __cpp_lib_byteswap
             return std::byteswap(value);
+#elif defined(__has_builtin) && __has_builtin(__builtin_bswap16) && __has_builtin(__builtin_bswap32) && __has_builtin(__builtin_bswap64)
+            static_assert(sizeof(T) <= 8);
+            if constexpr(sizeof(T) == 2) return __builtin_bswap16(value);
+            else if constexpr(sizeof(T) == 4) return __builtin_bswap32(value);
+            else return __builtin_bswap64(value);
+#else
+#    error "Missing byteswap operation"
+#endif
         }
         else
         {

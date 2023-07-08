@@ -1,25 +1,39 @@
 #include <snail/analysis/detail/pdb_resolver.hpp>
 
 #include <cassert>
+#include <filesystem>
 #include <format>
 #include <iostream>
+#include <span>
 
 #ifdef SNAIL_HAS_LLVM
 #    include <llvm/DebugInfo/PDB/IPDBLineNumber.h>
 #    include <llvm/DebugInfo/PDB/IPDBSession.h>
 #    include <llvm/DebugInfo/PDB/IPDBSourceFile.h>
+#    include <llvm/DebugInfo/PDB/Native/InfoStream.h>
+#    include <llvm/DebugInfo/PDB/Native/PDBFile.h>
 #    include <llvm/DebugInfo/PDB/PDB.h>
 #    include <llvm/DebugInfo/PDB/PDBSymbolFunc.h>
 #    include <llvm/DebugInfo/PDB/PDBSymbolPublicSymbol.h>
 #    include <llvm/DebugInfo/PDB/PDBSymbolTypeFunctionSig.h>
 #    include <llvm/DebugInfo/PDB/PDBTypes.h>
 #    include <llvm/Demangle/Demangle.h>
+#    include <llvm/Object/Binary.h>
+#    include <llvm/Object/COFF.h>
 #endif
 
 #include <snail/common/cast.hpp>
 #include <snail/common/hash_combine.hpp>
+#include <snail/common/system.hpp>
+
+#include <snail/etl/parser/utility.hpp>
+
+#include <snail/analysis/path_map.hpp>
+
+#include <snail/analysis/detail/download.hpp>
 
 using namespace snail;
+using namespace snail::analysis;
 using namespace snail::analysis::detail;
 
 namespace {
@@ -38,11 +52,201 @@ std::string extract_symbol_function_name(const llvm::pdb::PDBSymbolFunc*        
     return pdb_function_symbol->getName();
 }
 
+enum class check_pdb_result
+{
+    valid,
+    not_a_pdb,
+    invalid_pdb,
+    incorrect_guid
+};
+
+check_pdb_result check_pdb(const std::filesystem::path&           pdb_path,
+                           const std::optional<detail::pdb_info>& expected_pdb_info)
+{
+    // First, check whether the file exists at all
+    if(!std::filesystem::is_regular_file(pdb_path)) return check_pdb_result::not_a_pdb;
+
+    const auto pdb_path_str = pdb_path.string(); // FIXME: needs to be UTF-8
+
+    // Then, check whether the file magic says it's a PDB file
+    llvm::file_magic magic;
+    const auto       magic_error = llvm::identify_magic(pdb_path_str, magic);
+    if(magic_error || magic != llvm::file_magic::pdb) return check_pdb_result::not_a_pdb;
+
+    // If we do not have a valid expected signature, this is all we could do
+    if(expected_pdb_info == std::nullopt) return check_pdb_result::valid;
+
+    // Now, extract the GUID from the PDB and check whether it matches the the expected GUID.
+
+    auto buffer = llvm::MemoryBuffer::getFile(pdb_path_str, false, false);
+    if(!buffer) return check_pdb_result::invalid_pdb;
+
+    auto stream = std::make_unique<llvm::MemoryBufferByteStream>(std::move(buffer.get()),
+                                                                 llvm::support::little);
+
+    llvm::BumpPtrAllocator              allocator;
+    std::unique_ptr<llvm::pdb::PDBFile> file;
+    try
+    {
+        file = std::make_unique<llvm::pdb::PDBFile>(pdb_path_str, std::move(stream), allocator);
+    }
+    catch(const std::exception&)
+    {
+        return check_pdb_result::invalid_pdb;
+    }
+    if(file->parseFileHeaders()) return check_pdb_result::invalid_pdb;
+    if(file->parseStreamData()) return check_pdb_result::invalid_pdb;
+
+    auto info_stream = file->getPDBInfoStream();
+    if(!info_stream)
+    {
+        llvm::consumeError(info_stream.takeError());
+        return check_pdb_result::invalid_pdb;
+    }
+
+    const auto llvm_guid  = info_stream->getGuid();
+    const auto guid_bytes = std::as_bytes(std::span(llvm_guid.Guid));
+    const auto guid       = etl::parser::guid_view(guid_bytes).instantiate(); // Assumes the signature is stored in little endian byte order!
+
+    if(guid != expected_pdb_info->guid) return check_pdb_result::incorrect_guid;
+
+    return check_pdb_result::valid;
+}
+
+std::optional<detail::pdb_info> try_get_pdb_info_from_module(const std::string& module_path,
+                                                             std::uint32_t      checksum)
+{
+    auto binary_file = llvm::object::createBinary(module_path);
+    if(!binary_file)
+    {
+        llvm::consumeError(binary_file.takeError());
+        return std::nullopt;
+    }
+
+    const auto* coeff_file = llvm::dyn_cast<llvm::object::COFFObjectFile>(binary_file->getBinary());
+    if(!coeff_file) return std::nullopt;
+
+    const auto* header_plus = coeff_file->getPE32PlusHeader();
+    const auto* header      = coeff_file->getPE32Header();
+
+    const std::uint32_t image_checksum = header_plus ? header_plus->CheckSum : (header ? header->CheckSum : 0);
+
+    // If the checksum does not match, this binary is not the one we expect and hence the PDB
+    // info we would extract, would probably not match either.
+    if(image_checksum != checksum) return std::nullopt;
+
+    llvm::StringRef                  pdb_path_ref;
+    const llvm::codeview::DebugInfo* llvm_pdb_info = nullptr;
+    if(auto error = coeff_file->getDebugPDBInfo(llvm_pdb_info, pdb_path_ref))
+    {
+        llvm::consumeError(std::move(error));
+        return std::nullopt;
+    }
+
+    if(llvm_pdb_info->Signature.CVSignature != llvm::OMF::Signature::PDB70) return std::nullopt;
+
+    const auto signature_bytes = std::as_bytes(std::span(llvm_pdb_info->PDB70.Signature));
+    return detail::pdb_info{
+        .pdb_name = std::string(pdb_path_ref),
+        .guid     = etl::parser::guid_view(signature_bytes).instantiate(),
+        .age      = llvm_pdb_info->PDB70.Age};
+}
+
+std::optional<std::filesystem::path> find_or_retrieve_pdb(const std::filesystem::path&           module_path,
+                                                          const std::optional<detail::pdb_info>& pdb_info,
+                                                          const pdb_symbol_find_options&         options,
+                                                          const path_map&                        module_path_map)
+{
+    std::filesystem::path pdb_name;
+
+    if(pdb_info == std::nullopt)
+    {
+        // If we have do not have any pdb-info, we guess the PDB name by the module name.
+        pdb_name = module_path.filename();
+        pdb_name.replace_extension(".pdb");
+    }
+    else
+    {
+        auto pdb_ref_path_str = pdb_info->pdb_name;
+        module_path_map.try_apply(pdb_ref_path_str);
+
+        const auto pdb_ref_path = std::filesystem::path(pdb_ref_path_str);
+
+        // First check the reference path given in the module, if it is an absolute path
+        if(pdb_ref_path.is_absolute())
+        {
+            if(check_pdb(pdb_ref_path, pdb_info) == check_pdb_result::valid) return pdb_ref_path;
+        }
+
+        pdb_name = pdb_ref_path.filename();
+    }
+
+    // Check next to the module
+    const auto pdb_next_to_module = module_path.parent_path() / pdb_name;
+    if(check_pdb(pdb_next_to_module, pdb_info) == check_pdb_result::valid) return pdb_next_to_module;
+
+    // Check in explicitly given search directories
+    for(const auto& search_dir : options.search_dirs_)
+    {
+        const auto pdb_path = search_dir / pdb_name;
+        if(check_pdb(pdb_path, pdb_info) == check_pdb_result::valid) return pdb_path;
+    }
+
+    // If we couldn't find it locally and we don't have PDB info, this is all we could do.
+    if(pdb_info == std::nullopt) return std::nullopt;
+
+    // If we have PDB info, check if the PDB is already in the cache directory or
+    // try to retrieve it from symbol servers
+
+    const auto guid_str = pdb_info->guid.to_string();
+
+    const auto pdb_cache_path = options.symbol_cache_dir_ / pdb_name / (guid_str + std::to_string(pdb_info->age)) / pdb_name;
+
+    // Check for cache hit
+    if(check_pdb(pdb_cache_path, pdb_info) == check_pdb_result::valid) return pdb_cache_path;
+    else std::filesystem::remove(pdb_cache_path);
+
+    // Make sure cache directory exists
+    if(!std::filesystem::exists(pdb_cache_path.parent_path()))
+    {
+        std::filesystem::create_directories(pdb_cache_path.parent_path());
+    }
+
+    // Try all symbol servers
+    // FIXME: needs to be UTF-8
+    const auto pdb_url_suffix = std::format("{0}/{1}{2}/{0}", pdb_name.string(), guid_str, (int)pdb_info->age);
+    for(const auto& server_url : options.symbol_server_urls_)
+    {
+        const auto url = std::format("{0}/{1}", server_url, pdb_url_suffix);
+
+        try
+        {
+            if(try_download_file(url, pdb_cache_path))
+            {
+                if(check_pdb(pdb_cache_path, pdb_info) == check_pdb_result::valid) return pdb_cache_path;
+                else std::filesystem::remove(pdb_cache_path);
+            }
+        }
+        catch(const std::exception& e)
+        {
+            std::cerr << e.what() << '\n';
+        }
+    }
+
+    // We failed to find or retrieve the PDB file.
+    return std::nullopt;
+}
+
 #endif // SNAIL_HAS_LLVM
 
 } // namespace
 
-pdb_resolver::pdb_resolver()  = default;
+pdb_resolver::pdb_resolver(pdb_symbol_find_options find_options, path_map module_path_map, bool use_dia_sdk) :
+    find_options_(std::move(find_options)),
+    module_path_map_(std::move(module_path_map)),
+    use_dia_sdk_(use_dia_sdk)
+{}
+
 pdb_resolver::~pdb_resolver() = default;
 
 const pdb_resolver::symbol_info& pdb_resolver::make_generic_symbol(instruction_pointer_t address)
@@ -182,17 +386,35 @@ llvm::pdb::IPDBSession* pdb_resolver::get_pdb_session(const module_info& module)
 
     auto& new_pdb_session = pdb_session_cache_[key];
 
-    const auto filename = std::string(module.image_filename);
+    auto module_path = std::string(module.image_filename);
+    module_path_map_.try_apply(module_path);
 
-    auto error = llvm::pdb::loadDataForEXE(llvm::pdb::PDB_ReaderType::DIA, filename, new_pdb_session);
-    if(error)
+    const auto pdb_info = module.pdb_info ?
+                              module.pdb_info :
+                              try_get_pdb_info_from_module(module_path, module.checksum);
+
+    const auto pdb_path = find_or_retrieve_pdb(module_path,
+                                               pdb_info,
+                                               find_options_,
+                                               module_path_map_);
+
+    if(pdb_path == std::nullopt)
+    {
+        std::cout << "Failed to load PDB for " << module.image_filename << std::endl;
+        return new_pdb_session.get();
+    }
+
+    const auto reader_type = use_dia_sdk_ && platform_supports_dia_sdk ? llvm::pdb::PDB_ReaderType::DIA : llvm::pdb::PDB_ReaderType::Native;
+
+    if(auto error = llvm::pdb::loadDataForPDB(reader_type, pdb_path->string(), new_pdb_session))
     {
         llvm::consumeError(std::move(error));
-        std::cout << "Failed to load PDB for " << filename << std::endl;
+        std::cout << "Failed to load PDB for " << module.image_filename << std::endl;
+        return new_pdb_session.get();
     }
     else
     {
-        std::cout << "Loaded PDB for " << filename << "\n";
+        std::cout << "Loaded PDB for " << module.image_filename << " from " << pdb_path->string() << "\n";
     }
 
     return new_pdb_session.get();

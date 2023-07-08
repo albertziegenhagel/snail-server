@@ -75,6 +75,8 @@ struct etl_sample_data : public sample_data
                                          resolver->resolve_symbol(detail::pdb_resolver::module_info{
                                                                       .image_filename = module->payload.filename,
                                                                       .image_base     = module->base,
+                                                                      .checksum       = module->payload.checksum,
+                                                                      .pdb_info       = module->payload.pdb_info,
                                                                       .process_id     = process_id,
                                                                       .load_timestamp = load_timestamp},
                                                                   instruction_pointer);
@@ -98,6 +100,8 @@ struct etl_sample_data : public sample_data
                                          resolver->resolve_symbol(detail::pdb_resolver::module_info{
                                                                       .image_filename = module->payload.filename,
                                                                       .image_base     = module->base,
+                                                                      .checksum       = module->payload.checksum,
+                                                                      .pdb_info       = module->payload.pdb_info,
                                                                       .process_id     = process_id,
                                                                       .load_timestamp = load_timestamp,
                                                                   },
@@ -142,12 +146,17 @@ std::string win_architecture_to_str(std::uint16_t arch)
 
 } // namespace
 
+etl_data_provider::etl_data_provider(pdb_symbol_find_options find_options,
+                                     path_map                module_path_map)
+{
+    symbol_resolver_ = std::make_unique<detail::pdb_resolver>(std::move(find_options), std::move(module_path_map));
+}
+
 etl_data_provider::~etl_data_provider() = default;
 
 void etl_data_provider::process(const std::filesystem::path& file_path)
 {
     process_context_ = std::make_unique<detail::etl_file_process_context>();
-    symbol_resolver_ = std::make_unique<detail::pdb_resolver>();
 
     etl::etl_file file(file_path);
     file.process(process_context_->observer());
