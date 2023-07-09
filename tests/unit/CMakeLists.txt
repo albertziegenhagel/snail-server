@@ -81,7 +81,10 @@ add_unit_test_executable(analysis
 
 add_unit_test_executable(jsonrpc
   SOURCES
+    jsonrpc/message.cpp
+    jsonrpc/protocol.cpp
     jsonrpc/request.cpp
+    jsonrpc/server.cpp
   DEPENDENCIES
     jsonrpc
 )

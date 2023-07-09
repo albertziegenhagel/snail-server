@@ -199,7 +199,7 @@ int main(int argc, char* argv[])
 
     server::register_all(server, storage);
 
-    server.serve();
+    server.serve_forever();
 
     return EXIT_SUCCESS;
 }

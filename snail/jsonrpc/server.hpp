@@ -27,7 +27,9 @@ public:
 
     ~server();
 
-    void serve();
+    [[noreturn]] void serve_forever();
+
+    void serve_next();
 
     template<typename RequestType, typename HandlerType>
         requires detail::is_request_v<RequestType> &&

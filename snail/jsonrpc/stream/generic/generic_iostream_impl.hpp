@@ -11,7 +11,12 @@ generic_iostream<StreamBufType>::generic_iostream() :
 template<typename StreamBufType>
 generic_iostream<StreamBufType>::generic_iostream(const std::filesystem::path& path, std::ios_base::openmode mode) :
     std::iostream(new StreamBufType(path, mode))
-{}
+{
+    if(!static_cast<StreamBufType*>(rdbuf())->is_open())
+    {
+        this->setstate(std::ios_base::failbit);
+    }
+}
 
 template<typename StreamBufType>
 generic_iostream<StreamBufType>::generic_iostream(generic_iostream&& other) :

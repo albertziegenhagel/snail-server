@@ -17,7 +17,9 @@ public:
 
     ~message_connection();
 
-    void serve(message_handler& handler);
+    [[noreturn]] void serve_forever(message_handler& handler);
+
+    void serve_next(message_handler& handler);
 
 private:
     std::unique_ptr<message_reader> reader_;

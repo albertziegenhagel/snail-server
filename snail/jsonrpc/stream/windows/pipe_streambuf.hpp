@@ -10,12 +10,12 @@ public:
     pipe_streambuf();
     explicit pipe_streambuf(const std::filesystem::path& path, std::ios_base::openmode mode);
 
-    pipe_streambuf(pipe_streambuf&& other) noexcept;
+    pipe_streambuf(pipe_streambuf&& other)      = delete;
     pipe_streambuf(const pipe_streambuf& other) = delete;
 
     ~pipe_streambuf();
 
-    pipe_streambuf& operator=(pipe_streambuf&& other) noexcept;
+    pipe_streambuf& operator=(pipe_streambuf&& other)      = delete;
     pipe_streambuf& operator=(const pipe_streambuf& other) = delete;
 
     virtual void open(const std::filesystem::path& path, std::ios_base::openmode mode) override;

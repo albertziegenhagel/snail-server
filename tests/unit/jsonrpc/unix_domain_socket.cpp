@@ -50,25 +50,96 @@ struct unix_domain_socket
 
 TEST(UnixDomainSocketIoStream, DefaultConstructOpen)
 {
-    const auto socket_path = R"(./snail-test-socket-1)";
+    const auto socket_path = R"(./snail-test-socket-def-con-open)";
     const auto socket      = unix_domain_socket(socket_path);
 
     unix_domain_socket_iostream stream;
 
     EXPECT_FALSE(stream.is_open());
+    EXPECT_TRUE(stream.good());
 
     stream.open(socket_path);
 
     EXPECT_TRUE(stream.is_open());
+    EXPECT_TRUE(stream.good());
 }
 
 TEST(UnixDomainSocketIoStream, ConstructOpen)
 {
-    const auto socket_path = R"(./snail-test-socket-2)";
+    const auto socket_path = R"(./snail-test-socket-con-open)";
     const auto socket      = unix_domain_socket(socket_path);
 
     unix_domain_socket_iostream stream(socket_path);
     EXPECT_TRUE(stream.is_open());
+    EXPECT_TRUE(stream.good());
+}
+
+TEST(PipeIoStream, ConstructOpenAndClose)
+{
+    const auto socket_path = R"(./snail-test-socket-con-open)";
+    const auto socket      = unix_domain_socket(socket_path);
+
+    unix_domain_socket_iostream stream(socket_path);
+    EXPECT_TRUE(stream.is_open());
+    EXPECT_TRUE(stream.good());
+
+    stream.close();
+    EXPECT_FALSE(stream.is_open());
+}
+
+TEST(UnixDomainSocketIoStream, ConstructOpenMove)
+{
+    const auto socket_path = R"(./snail-test-socket-con-open)";
+    const auto socket      = unix_domain_socket(socket_path);
+
+    unix_domain_socket_iostream stream(socket_path);
+    EXPECT_TRUE(stream.is_open());
+    EXPECT_TRUE(stream.good());
+
+    unix_domain_socket_iostream stream_2(std::move(stream));
+    EXPECT_FALSE(stream.is_open());
+    EXPECT_TRUE(stream_2.is_open());
+    EXPECT_TRUE(stream_2.good());
+}
+
+TEST(UnixDomainSocketIoStream, ConstructOpenMoveAssign)
+{
+    const auto socket_path = R"(./snail-test-socket-con-open-move-assign)";
+    const auto socket      = unix_domain_socket(socket_path);
+
+    unix_domain_socket_iostream stream(socket_path);
+    EXPECT_TRUE(stream.is_open());
+    EXPECT_TRUE(stream.good());
+
+    unix_domain_socket_iostream stream_2;
+    EXPECT_FALSE(stream_2.is_open());
+    EXPECT_TRUE(stream_2.good());
+
+    stream_2 = std::move(stream);
+    EXPECT_FALSE(stream.is_open());
+    EXPECT_TRUE(stream_2.is_open());
+    EXPECT_TRUE(stream_2.good());
+}
+
+TEST(UnixDomainSocketIoStream, ConstructOpenMoveAssignOpen)
+{
+    const auto socket_path_1 = R"(./snail-test-socket-con-open-move-assign-open-1)";
+    const auto socket_path_2 = R"(./snail-test-socket-con-open-move-assign-open-2)";
+    const auto socket_1      = unix_domain_socket(socket_path_1);
+    const auto socket_2      = unix_domain_socket(socket_path_2);
+
+    unix_domain_socket_iostream stream_1(socket_path_1);
+    EXPECT_TRUE(stream_1.is_open());
+    EXPECT_TRUE(stream_1.good());
+
+    unix_domain_socket_iostream stream_2(socket_path_2);
+    EXPECT_TRUE(stream_2.is_open());
+    EXPECT_TRUE(stream_2.good());
+
+    stream_2 = std::move(stream_1);
+    EXPECT_FALSE(stream_1.is_open());
+    EXPECT_TRUE(stream_2.is_open());
+    EXPECT_TRUE(stream_2.good());
 }
 
 TEST(UnixDomainSocketIoStream, ConstructOpenInvalid)
@@ -76,13 +147,45 @@ TEST(UnixDomainSocketIoStream, ConstructOpenInvalid)
     const auto                  socket_path = R"(./snail-non-existing-socket)";
     unix_domain_socket_iostream stream(socket_path);
     EXPECT_FALSE(stream.is_open());
+    EXPECT_FALSE(stream.good());
+}
+
+TEST(UnixDomainSocketIoStream, OpenInvalid)
+{
+    const auto                  socket_path = R"(./snail-non-existing-socket)";
+    unix_domain_socket_iostream stream;
+    stream.open(socket_path);
+    EXPECT_FALSE(stream.is_open());
+    EXPECT_FALSE(stream.good());
+}
+
+TEST(UnixDomainSocketIoStream, ReadNonOpen)
+{
+    unix_domain_socket_iostream stream;
+    EXPECT_FALSE(stream.is_open());
+    EXPECT_TRUE(stream.good());
+
+    char c = '\0';
+    stream.read(&c, 1);
+    EXPECT_FALSE(stream.good());
+}
+
+TEST(UnixDomainSocketIoStream, WriteNonOpen)
+{
+    unix_domain_socket_iostream stream;
+    EXPECT_FALSE(stream.is_open());
+    EXPECT_TRUE(stream.good());
+
+    char c = '\0';
+    stream.write(&c, 1);
+    EXPECT_FALSE(stream.good());
 }
 
 TEST(UnixDomainSocketIoStream, ReadWrite)
 {
     using namespace std::literals;
 
-    const auto socket_path = R"(./snail-test-socket-3)";
+    const auto socket_path = R"(./snail-test-socket-read-write)";
     const auto socket      = unix_domain_socket(socket_path);
 
     unix_domain_socket_iostream stream(socket_path);

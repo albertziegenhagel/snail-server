@@ -15,16 +15,21 @@ message_connection::message_connection(std::unique_ptr<message_reader> reader,
 
 message_connection::~message_connection() = default;
 
-void message_connection::serve(message_handler& handler)
+[[noreturn]] void message_connection::serve_forever(message_handler& handler)
 {
     while(true)
     {
-        auto message = reader_->read();
+        serve_next(handler);
+    }
+}
 
-        const auto result = handler.handle(message);
-        if(result)
-        {
-            writer_->write(*result);
-        }
+void message_connection::serve_next(message_handler& handler)
+{
+    auto message = reader_->read();
+
+    const auto result = handler.handle(message);
+    if(result)
+    {
+        writer_->write(*result);
     }
 }

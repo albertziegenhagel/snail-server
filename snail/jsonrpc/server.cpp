@@ -16,9 +16,14 @@ server::server(std::unique_ptr<message_connection> connection,
 
 server::~server() = default;
 
-void server::serve()
+[[noreturn]] void server::serve_forever()
 {
-    connection_->serve(*this);
+    connection_->serve_forever(*this);
+}
+
+void server::serve_next()
+{
+    connection_->serve_next(*this);
 }
 
 void server::register_method(std::string name, std::function<std::optional<nlohmann::json>(const nlohmann::json&)> handler)
