@@ -5,32 +5,6 @@
 
 using namespace snail::jsonrpc;
 
-streambuf_base::streambuf_base(streambuf_base&& other) noexcept :
-    mode_(other.mode_),
-    get_area_size_(other.get_area_size_),
-    put_area_size_(other.put_area_size_)
-{
-    this->swap(other);
-    buffer_ = std::move(other.buffer_); // NOLINT(cppcoreguidelines-prefer-member-initializer)
-                                        // We want this to happen after the base class swap, so that
-                                        // in case that the swap throws an exception, we did not modify
-                                        // `other.buffer`.
-}
-
-streambuf_base& streambuf_base::operator=(streambuf_base&& other) noexcept
-{
-    this->swap(other);
-    other.setg(nullptr, nullptr, nullptr);
-    other.setp(nullptr, nullptr);
-
-    mode_          = other.mode_;
-    get_area_size_ = other.get_area_size_;
-    put_area_size_ = other.put_area_size_;
-    buffer_        = std::move(other.buffer_);
-
-    return *this;
-}
-
 void streambuf_base::open(const std::filesystem::path& /*path*/, std::ios_base::openmode mode)
 {
     mode_ = mode;

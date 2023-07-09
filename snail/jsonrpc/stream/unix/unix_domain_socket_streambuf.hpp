@@ -10,12 +10,12 @@ public:
     unix_domain_socket_streambuf();
     explicit unix_domain_socket_streambuf(const std::filesystem::path& path, std::ios_base::openmode mode);
 
-    unix_domain_socket_streambuf(unix_domain_socket_streambuf&& other);
+    unix_domain_socket_streambuf(unix_domain_socket_streambuf&& other)      = delete;
     unix_domain_socket_streambuf(const unix_domain_socket_streambuf& other) = delete;
 
     ~unix_domain_socket_streambuf();
 
-    unix_domain_socket_streambuf& operator=(unix_domain_socket_streambuf&& other);
+    unix_domain_socket_streambuf& operator=(unix_domain_socket_streambuf&& other)      = delete;
     unix_domain_socket_streambuf& operator=(const unix_domain_socket_streambuf& other) = delete;
 
     virtual void open(const std::filesystem::path& path, std::ios_base::openmode mode) override;

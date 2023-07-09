@@ -12,10 +12,10 @@ class streambuf_base : public std::streambuf
 public:
     streambuf_base() = default;
 
-    streambuf_base(streambuf_base&& other) noexcept;
+    streambuf_base(streambuf_base&& other)      = delete;
     streambuf_base(const streambuf_base& other) = delete;
 
-    streambuf_base& operator=(streambuf_base&& other) noexcept;
+    streambuf_base& operator=(streambuf_base&& other)      = delete;
     streambuf_base& operator=(const streambuf_base& other) = delete;
 
     virtual void open(const std::filesystem::path& path, std::ios_base::openmode mode) = 0;
