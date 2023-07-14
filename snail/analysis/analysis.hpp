@@ -12,12 +12,12 @@
 
 namespace snail::analysis {
 
-class data_provider;
+class samples_provider;
 
 struct stacks_analysis;
 
-stacks_analysis analyze_stacks(const data_provider& provider,
-                               common::process_id_t process_id);
+stacks_analysis analyze_stacks(const samples_provider& provider,
+                               process_info            process);
 
 struct stacks_analysis
 {
@@ -36,8 +36,8 @@ struct stacks_analysis
     const file_info& get_file(file_info::id_t id) const;
 
 private:
-    friend stacks_analysis analyze_stacks(const data_provider& provider,
-                                          common::process_id_t process_id);
+    friend stacks_analysis analyze_stacks(const samples_provider& provider,
+                                          process_info            process);
 
     // FIXME: This is a workaround: we would like to use the max of std::size_t, but since we will
     //        serialize those values to JSON and eventually handle them in JavaScript which cannot

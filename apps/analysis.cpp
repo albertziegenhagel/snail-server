@@ -90,7 +90,7 @@ int main(int argc, char* argv[])
 
     for(const auto process_id : provider->sampling_processes())
     {
-        const auto result = snail::analysis::analyze_stacks(*provider, process_id);
+        const auto result = snail::analysis::analyze_stacks(*provider, provider->process_info(process_id));
         std::cout << result.process.name << " (" << result.process.id << "):\n";
     }
 
