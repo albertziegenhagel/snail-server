@@ -31,9 +31,11 @@ struct stacks_analysis
     const call_tree_node& get_call_tree_root() const;
     const call_tree_node& get_call_tree_node(call_tree_node::id_t id) const;
 
-    const std::vector<function_info>& all_functions() const;
-
     const file_info& get_file(file_info::id_t id) const;
+
+    const std::vector<module_info>&   all_modules() const;
+    const std::vector<function_info>& all_functions() const;
+    const std::vector<file_info>&     all_files() const;
 
 private:
     friend stacks_analysis analyze_stacks(const samples_provider& provider,

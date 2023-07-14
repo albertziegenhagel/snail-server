@@ -149,6 +149,16 @@ const std::vector<function_info>& stacks_analysis::all_functions() const
     return functions;
 }
 
+const std::vector<module_info>& stacks_analysis::all_modules() const
+{
+    return modules;
+}
+
+const std::vector<file_info>& stacks_analysis::all_files() const
+{
+    return files;
+}
+
 const file_info& stacks_analysis::get_file(file_info::id_t id) const
 {
     return files.at(id);

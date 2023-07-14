@@ -76,6 +76,7 @@ add_unit_test_executable(analysis
     analysis/pdb_resolver.cpp
     analysis/process_history.cpp
     analysis/stack_cache.cpp
+    analysis/stacks_analysis.cpp
   DEPENDENCIES
     analysis
 )
