@@ -61,7 +61,7 @@ void etl_file_process_context::finish()
     static constexpr std::string_view nt_drive_name_prefix       = "\\Device\\HarddiskVolume";
     static constexpr std::string_view nt_system_root_name_prefix = "\\SystemRoot\\";
 
-    static constexpr std::string_view default_system_root = "C:\\WINDOWS";
+    static constexpr std::string_view default_system_root = "C:\\WINDOWS\\";
 
     for(auto& [process_id, process_module_map] : modules_per_process)
     {
