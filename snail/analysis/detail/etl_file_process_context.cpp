@@ -61,7 +61,7 @@ void etl_file_process_context::finish()
     static constexpr std::string_view nt_drive_name_prefix       = "\\Device\\HarddiskVolume";
     static constexpr std::string_view nt_system_root_name_prefix = "\\SystemRoot\\";
 
-    static constexpr std::string_view default_system_root = "C:\\WINDOWS";
+    static constexpr std::string_view default_system_root = "C:\\WINDOWS\\";
 
     for(auto& [process_id, process_module_map] : modules_per_process)
     {
@@ -320,15 +320,11 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
                                             const etl::common_trace_header&                            header,
                                             const etl::parser::perfinfo_v2_sampled_profile_event_view& event)
 {
-    const auto* const thread = threads.find_at(event.thread_id(), header.timestamp);
-    if(thread == nullptr) return;
+    const auto thread_id      = event.thread_id();
+    auto&      thread_samples = samples_per_thread[thread_id];
 
-    const auto process_id = thread->payload.process_id;
-
-    auto& process_samples = samples_per_process[process_id];
-
-    process_samples.push_back(sample_info{
-        .thread_id           = thread->id,
+    thread_samples.push_back(sample_info{
+        .thread_id           = thread_id,
         .timestamp           = header.timestamp,
         .instruction_pointer = event.instruction_pointer(),
         .user_mode_stack     = {},
@@ -340,14 +336,14 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data&   
                                             [[maybe_unused]] const etl::common_trace_header&  header,
                                             const etl::parser::stackwalk_v2_stack_event_view& event)
 {
-    const auto process_id = event.process_id();
-    auto       iter       = samples_per_process.find(process_id);
-    if(iter == samples_per_process.end()) return;
+    const auto thread_id = event.thread_id();
 
-    const auto thread_id        = event.thread_id();
+    auto iter = samples_per_thread.find(thread_id);
+    if(iter == samples_per_thread.end()) return;
+
     const auto sample_timestamp = event.event_timestamp();
 
-    auto& process_samples = iter->second;
+    auto& thread_samples = iter->second;
 
     // We expect the samples to arrive before their stacks.
     assert(sample_timestamp <= header.timestamp);
@@ -355,14 +351,12 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data&   
     // Try to find the sample for this stack by walking the last samples
     // backwards. We expect that we there shouldn't be to many events
     // between the sample and its corresponding stacks.
-    for(auto& sample : std::views::reverse(process_samples))
+    for(auto& sample : std::views::reverse(thread_samples))
     {
         if(sample.timestamp < sample_timestamp) break;
         if(sample.timestamp > sample_timestamp) continue;
 
         assert(sample.timestamp == sample_timestamp);
-
-        if(sample.thread_id != thread_id) continue;
 
         const auto starts_in_kernel   = is_kernel_address(event.stack().back(), file_header.pointer_size);
         auto&      sample_stack_index = starts_in_kernel ? sample.kernel_mode_stack : sample.user_mode_stack;
@@ -375,6 +369,8 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data&   
         assert(sample_stack_index == std::nullopt || starts_in_kernel);
 
         sample_stack_index = stacks.insert(event.stack());
+
+        break;
     }
 }
 
@@ -388,13 +384,21 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
         .start_timestamp = header.timestamp};
 }
 
-const std::vector<etl_file_process_context::sample_info>& etl_file_process_context::process_samples(process_id_t process_id) const
+std::span<const etl_file_process_context::sample_info> etl_file_process_context::thread_samples(thread_id_t thread_id, timestamp_t start_time, std::optional<timestamp_t> end_time) const
 {
-    auto iter = samples_per_process.find(process_id);
-    if(iter != samples_per_process.end()) return iter->second;
+    auto iter = samples_per_thread.find(thread_id);
+    if(iter == samples_per_thread.end()) return {};
 
-    static const std::vector<etl_file_process_context::sample_info> empty;
-    return empty;
+    const auto& thread_samples = iter->second;
+
+    const auto range_first_iter = std::ranges::lower_bound(thread_samples, start_time, std::less<>(), &sample_info::timestamp);
+    if(range_first_iter == thread_samples.end()) return {};
+
+    const auto range_end_iter = end_time != std::nullopt ?
+                                    std::ranges::upper_bound(thread_samples, *end_time, std::less<>(), &sample_info::timestamp) :
+                                    thread_samples.end();
+
+    return std::span(thread_samples).subspan(range_first_iter - thread_samples.begin(), range_end_iter - range_first_iter);
 }
 
 const std::vector<etl_file_process_context::instruction_pointer_t>& etl_file_process_context::stack(std::size_t stack_index) const

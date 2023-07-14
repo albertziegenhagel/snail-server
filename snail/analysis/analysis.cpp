@@ -149,6 +149,16 @@ const std::vector<function_info>& stacks_analysis::all_functions() const
     return functions;
 }
 
+const std::vector<module_info>& stacks_analysis::all_modules() const
+{
+    return modules;
+}
+
+const std::vector<file_info>& stacks_analysis::all_files() const
+{
+    return files;
+}
+
 const file_info& stacks_analysis::get_file(file_info::id_t id) const
 {
     return files.at(id);
@@ -164,22 +174,15 @@ const call_tree_node& stacks_analysis::get_call_tree_node(call_tree_node::id_t i
     return id == call_tree_root.id ? call_tree_root : call_tree_nodes.at(id);
 }
 
-stacks_analysis snail::analysis::analyze_stacks(const analysis::data_provider& provider,
-                                                common::process_id_t           process_id)
+stacks_analysis snail::analysis::analyze_stacks(const samples_provider& provider,
+                                                process_info            process)
 {
     std::unordered_map<std::string, module_info::id_t>                               modules_by_name;
     std::unordered_map<std::pair<module_info::id_t, std::string>, module_info::id_t> functions_by_name;
     std::unordered_map<std::string, file_info::id_t>                                 files_by_path;
 
-    const auto& process = provider.process_info(process_id);
-
     stacks_analysis result;
-    result.process = process_info{
-        .id         = process_id,
-        .name       = process.name,
-        .start_time = {},
-        .end_time   = {},
-    };
+    result.process = std::move(process);
 
     result.function_root = function_info{
         .id           = stacks_analysis::root_function_id,
@@ -200,7 +203,7 @@ stacks_analysis snail::analysis::analyze_stacks(const analysis::data_provider& p
         .children    = {},
     };
 
-    for(const auto& sample : provider.samples(process_id))
+    for(const auto& sample : provider.samples(result.process.id))
     {
         ++result.call_tree_root.hits.total;
         ++result.function_root.hits.total;
@@ -271,6 +274,10 @@ stacks_analysis snail::analysis::analyze_stacks(const analysis::data_provider& p
                 assert(*previous_file_id == result.functions[*previous_function_id].file_id);
                 ++result.functions[*previous_function_id].hits_by_line[*previous_line_number].self;
             }
+        }
+        else
+        {
+            ++result.function_root.hits.self;
         }
     }
 

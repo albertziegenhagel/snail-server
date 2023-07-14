@@ -201,7 +201,7 @@ void module_map<Data>::insert(module_info<Data> module, common::timestamp_t load
     if(first_overlapping_range == last_overlapping_range &&
        first_overlapping_range->begin_address == modules.back().base &&
        first_overlapping_range->end_address == (modules.back().base + modules.back().size) &&
-       first_overlapping_range->active_modules.back().load_timestamp < load_timestamp &&
+       first_overlapping_range->active_modules.back().load_timestamp <= load_timestamp &&
        modules[first_overlapping_range->active_modules.back().module_index].payload == modules.back().payload)
     {
         assert(!inserted_before && !inserted_after);

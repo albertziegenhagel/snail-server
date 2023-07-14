@@ -27,7 +27,7 @@ struct document_storage
         if(data.stacks_analysis == std::nullopt)
         {
             data = analysis_data{
-                .stacks_analysis            = snail::analysis::analyze_stacks(*data_provider, process_id),
+                .stacks_analysis            = snail::analysis::analyze_stacks(*data_provider, data_provider->process_info(process_id)),
                 .functions_by_self_samples  = {},
                 .functions_by_total_samples = {},
                 .functions_by_name          = {},
