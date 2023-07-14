@@ -30,6 +30,11 @@ public:
         return entries_by_id;
     }
 
+    [[nodiscard]] std::size_t size() const
+    {
+        return entries_by_id.size();
+    }
+
 private:
     std::unordered_map<Id, std::vector<entry>> entries_by_id;
 };
