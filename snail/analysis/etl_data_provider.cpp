@@ -165,9 +165,17 @@ void etl_data_provider::process(const std::filesystem::path& file_path)
     std::size_t total_thread_count = 0;
     for(const auto& [process_id, profiler_process_info] : process_context_->profiler_processes())
     {
-        const auto& samples = process_context_->process_samples(process_id);
-        total_sample_count += samples.size();
-        total_thread_count += std::ranges::size(process_context_->get_process_threads(process_id));
+        const auto& threads = process_context_->get_process_threads(process_id);
+        total_thread_count += std::ranges::size(threads);
+
+        for(const auto& [thread_id, thread_start_timestamp] : threads)
+        {
+            const auto* const thread = process_context_->get_threads().find_at(thread_id, thread_start_timestamp);
+            if(thread == nullptr) continue;
+
+            const auto samples = process_context_->thread_samples(thread_id, thread->timestamp, thread->payload.end_time);
+            total_sample_count += std::ranges::size(samples);
+        }
     }
 
     const auto runtime = file.header().end_time - file.header().start_time;
@@ -296,80 +304,88 @@ common::generator<const sample_data&> etl_data_provider::samples(common::process
     // FIXME: retrieve this!
     const uint32_t pointer_size = 8;
 
-    for(const auto& sample : process_context.process_samples(process_id))
+    const auto& threads = process_context.get_process_threads(process_id);
+
+    for(const auto& [thread_id, thread_start_timestamp] : threads)
     {
-        if(sample.user_mode_stack)
+        const auto* const thread = process_context.get_threads().find_at(thread_id, thread_start_timestamp);
+        if(thread == nullptr) continue;
+
+        for(const auto& sample : process_context.thread_samples(thread_id, thread->timestamp, thread->payload.end_time))
         {
-            const auto&                 user_stack       = process_context.stack(*sample.user_mode_stack);
-            [[maybe_unused]] const auto starts_in_kernel = is_kernel_address(user_stack.back(), pointer_size);
-            const auto                  ends_in_kernel   = is_kernel_address(user_stack.front(), pointer_size);
-            assert(!starts_in_kernel);
-
-            if(ends_in_kernel)
+            if(sample.user_mode_stack)
             {
-                current_sample_data.user_stack     = &user_stack;
-                current_sample_data.user_timestamp = sample.timestamp;
-                current_sample_data.kernel_stack   = nullptr;
-                co_yield current_sample_data;
-            }
-            else
-            {
-                auto& remembered_samples = remembered_kernel_samples[sample.thread_id];
-                for(const auto* const remembered_sample : remembered_samples)
-                {
-                    assert(remembered_sample->kernel_mode_stack);
-                    const auto& kernel_stack = process_context.stack(*remembered_sample->kernel_mode_stack);
+                const auto&                 user_stack       = process_context.stack(*sample.user_mode_stack);
+                [[maybe_unused]] const auto starts_in_kernel = is_kernel_address(user_stack.back(), pointer_size);
+                const auto                  ends_in_kernel   = is_kernel_address(user_stack.front(), pointer_size);
+                assert(!starts_in_kernel);
 
-                    current_sample_data.user_stack       = &user_stack;
-                    current_sample_data.user_timestamp   = sample.timestamp;
-                    current_sample_data.kernel_stack     = &kernel_stack;
-                    current_sample_data.kernel_timestamp = remembered_sample->timestamp;
-                    co_yield current_sample_data;
-                }
-                remembered_samples.clear();
-
-                if(sample.kernel_mode_stack)
-                {
-                    const auto& kernel_stack = process_context.stack(*sample.kernel_mode_stack);
-
-                    current_sample_data.user_stack       = &user_stack;
-                    current_sample_data.user_timestamp   = sample.timestamp;
-                    current_sample_data.kernel_stack     = &kernel_stack;
-                    current_sample_data.kernel_timestamp = sample.timestamp;
-                    co_yield current_sample_data;
-                }
-                else
+                if(ends_in_kernel)
                 {
                     current_sample_data.user_stack     = &user_stack;
                     current_sample_data.user_timestamp = sample.timestamp;
                     current_sample_data.kernel_stack   = nullptr;
                     co_yield current_sample_data;
                 }
+                else
+                {
+                    auto& remembered_samples = remembered_kernel_samples[sample.thread_id];
+                    for(const auto* const remembered_sample : remembered_samples)
+                    {
+                        assert(remembered_sample->kernel_mode_stack);
+                        const auto& kernel_stack = process_context.stack(*remembered_sample->kernel_mode_stack);
+
+                        current_sample_data.user_stack       = &user_stack;
+                        current_sample_data.user_timestamp   = sample.timestamp;
+                        current_sample_data.kernel_stack     = &kernel_stack;
+                        current_sample_data.kernel_timestamp = remembered_sample->timestamp;
+                        co_yield current_sample_data;
+                    }
+                    remembered_samples.clear();
+
+                    if(sample.kernel_mode_stack)
+                    {
+                        const auto& kernel_stack = process_context.stack(*sample.kernel_mode_stack);
+
+                        current_sample_data.user_stack       = &user_stack;
+                        current_sample_data.user_timestamp   = sample.timestamp;
+                        current_sample_data.kernel_stack     = &kernel_stack;
+                        current_sample_data.kernel_timestamp = sample.timestamp;
+                        co_yield current_sample_data;
+                    }
+                    else
+                    {
+                        current_sample_data.user_stack     = &user_stack;
+                        current_sample_data.user_timestamp = sample.timestamp;
+                        current_sample_data.kernel_stack   = nullptr;
+                        co_yield current_sample_data;
+                    }
+                }
+            }
+            else if(sample.kernel_mode_stack)
+            {
+                remembered_kernel_samples[sample.thread_id].push_back(&sample);
+            }
+            else
+            {
+                current_sample_data.user_stack   = nullptr;
+                current_sample_data.kernel_stack = nullptr;
+                co_yield current_sample_data;
             }
         }
-        else if(sample.kernel_mode_stack)
-        {
-            remembered_kernel_samples[sample.thread_id].push_back(&sample);
-        }
-        else
-        {
-            current_sample_data.user_stack   = nullptr;
-            current_sample_data.kernel_stack = nullptr;
-            co_yield current_sample_data;
-        }
-    }
 
-    for(const auto& [thread_id, remembered_samples] : remembered_kernel_samples)
-    {
-        for(const auto* const remembered_sample : remembered_samples)
+        for(const auto& [remembered_thread_id, remembered_samples] : remembered_kernel_samples)
         {
-            assert(remembered_sample->kernel_mode_stack);
-            const auto& kernel_stack = process_context.stack(*remembered_sample->kernel_mode_stack);
+            for(const auto* const remembered_sample : remembered_samples)
+            {
+                assert(remembered_sample->kernel_mode_stack);
+                const auto& kernel_stack = process_context.stack(*remembered_sample->kernel_mode_stack);
 
-            current_sample_data.user_stack       = nullptr;
-            current_sample_data.kernel_stack     = &kernel_stack;
-            current_sample_data.kernel_timestamp = remembered_sample->timestamp;
-            co_yield current_sample_data;
+                current_sample_data.user_stack       = nullptr;
+                current_sample_data.kernel_stack     = &kernel_stack;
+                current_sample_data.kernel_timestamp = remembered_sample->timestamp;
+                co_yield current_sample_data;
+            }
         }
     }
 }

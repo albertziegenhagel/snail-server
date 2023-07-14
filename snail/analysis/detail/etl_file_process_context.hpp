@@ -4,6 +4,7 @@
 #include <map>
 #include <optional>
 #include <set>
+#include <span>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -113,7 +114,7 @@ public:
 
     const module_map<module_data>& get_modules(process_id_t process_id) const;
 
-    const std::vector<sample_info>& process_samples(process_id_t process_id) const;
+    std::span<const sample_info> thread_samples(thread_id_t thread_id, timestamp_t start_time, std::optional<timestamp_t> end_time) const;
 
     const std::vector<instruction_pointer_t>& stack(std::size_t stack_index) const;
 
@@ -166,7 +167,7 @@ private:
     std::unordered_map<process_id_t, std::vector<pdb_info_storage>> modules_pdb_info_per_process;
     std::unordered_map<process_id_t, module_map<module_data>>       modules_per_process;
 
-    std::unordered_map<process_id_t, std::vector<sample_info>> samples_per_process;
+    std::unordered_map<thread_id_t, std::vector<sample_info>> samples_per_thread;
 
     stack_cache stacks;
 
