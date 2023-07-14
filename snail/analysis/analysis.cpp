@@ -275,6 +275,10 @@ stacks_analysis snail::analysis::analyze_stacks(const samples_provider& provider
                 ++result.functions[*previous_function_id].hits_by_line[*previous_line_number].self;
             }
         }
+        else
+        {
+            ++result.function_root.hits.self;
+        }
     }
 
     return result;
