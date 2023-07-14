@@ -87,7 +87,7 @@ void perf_data_file_process_context::handle_event(const perf_data::parser::comm_
                                         });
     }
 
-    thread_names.insert(pid, time, thread_data{
+    thread_names.insert(tid, time, thread_data{
                                        .process_id = pid,
                                        .name       = std::string(event.comm()),
                                        .end_time   = {},
