@@ -55,11 +55,6 @@ Duration from_relative_qpc_ticks(std::uint64_t ticks, std::uint64_t start, std::
 
 struct etl_sample_data : public sample_data
 {
-    [[nodiscard]] bool has_stack() const override
-    {
-        return user_stack != nullptr || kernel_stack != nullptr;
-    }
-
     common::generator<stack_frame> reversed_stack() const override
     {
         static const std::string unkown_module_name = "[unknown]";

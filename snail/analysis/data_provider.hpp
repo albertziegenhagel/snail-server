@@ -23,7 +23,6 @@ struct sample_data
 {
     virtual ~sample_data() = default;
 
-    virtual bool                           has_stack() const      = 0;
     virtual common::generator<stack_frame> reversed_stack() const = 0;
 };
 

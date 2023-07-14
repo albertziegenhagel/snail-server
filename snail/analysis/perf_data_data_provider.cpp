@@ -32,11 +32,6 @@ struct perf_data_sample_data : public sample_data
         return iter->second;
     }
 
-    [[nodiscard]] bool has_stack() const override
-    {
-        return true;
-    }
-
     common::generator<stack_frame> reversed_stack() const override
     {
         static const std::string unkown_module_name = "[unknown]";
