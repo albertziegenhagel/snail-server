@@ -5,6 +5,7 @@
 #include <snail/common/filename.hpp>
 #include <snail/common/guid.hpp>
 #include <snail/common/path.hpp>
+#include <snail/common/stream_position.hpp>
 #include <snail/common/string_compare.hpp>
 #include <snail/common/trim.hpp>
 
@@ -208,4 +209,24 @@ TEST(Guid, Hash)
 TEST(Path, FromUtf8)
 {
     EXPECT_EQ(path_from_utf8("my-file👻"sv), std::filesystem::path(u8"my-file👻"));
+}
+
+TEST(StreamPositionResetter, Reset)
+{
+    std::stringstream stream(std::ios::in | std::ios::out | std::ios::binary);
+    stream << "DATA DATA DATA DATA DATA";
+
+    EXPECT_EQ(stream.tellg(), 0);
+    stream.seekg(5);
+    EXPECT_EQ(stream.tellg(), 5);
+
+    {
+        auto resetter = stream_position_resetter(stream);
+        EXPECT_EQ(stream.tellg(), 5);
+
+        stream.seekg(10);
+        EXPECT_EQ(stream.tellg(), 10);
+    }
+
+    EXPECT_EQ(stream.tellg(), 5);
 }
