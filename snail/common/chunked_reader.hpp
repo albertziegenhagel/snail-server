@@ -3,7 +3,7 @@
 #include <array>
 #include <bit>
 #include <format>
-#include <fstream>
+#include <istream>
 #include <span>
 #include <stdexcept>
 #include <type_traits>
@@ -14,14 +14,14 @@ template<std::size_t ChunkSize>
 class chunked_reader
 {
 public:
-    chunked_reader(std::ifstream& file, std::size_t offset, std::size_t desired_size) :
-        file_stream_(file),
+    chunked_reader(std::istream& stream, std::size_t offset, std::size_t desired_size) :
+        stream_(stream),
         total_size_(desired_size)
     {
-        file_stream_.seekg(offset);
-        if(!file_stream_.good() || file_stream_.tellg() != std::streampos(offset))
+        stream_.seekg(offset);
+        if(!stream_.good() || stream_.tellg() != std::streampos(offset))
         {
-            throw std::runtime_error("Failed to move to file offset");
+            throw std::runtime_error("Failed to move to offset");
         }
     }
 
@@ -46,9 +46,9 @@ public:
             return false; // there is no more data left. We are done.
         }
 
-        if(!file_stream_.good())
+        if(!stream_.good())
         {
-            throw std::runtime_error("Failed to read chunk from file: file is an invalid state.");
+            throw std::runtime_error("Failed to read chunk from stream: stream is an invalid state.");
         }
 
         const auto remaining_data_bytes_to_read = remaining_data_bytes - last_chunk_remaining_bytes;
@@ -59,14 +59,14 @@ public:
                                              max_remaining_buffer_size :
                                              remaining_data_bytes_to_read;
 
-        const auto initial_file_pos = file_stream_.tellg();
-        file_stream_.read(reinterpret_cast<char*>(chunk_buffer_.data() + last_chunk_remaining_bytes), chunk_bytes_to_read);
-        const auto chunk_read_bytes = file_stream_.tellg() - initial_file_pos;
+        const auto initial_pos = stream_.tellg();
+        stream_.read(reinterpret_cast<char*>(chunk_buffer_.data() + last_chunk_remaining_bytes), chunk_bytes_to_read);
+        const auto chunk_read_bytes = stream_.tellg() - initial_pos;
 
         if(chunk_read_bytes != static_cast<std::streamoff>(chunk_bytes_to_read))
         {
             throw std::runtime_error(std::format(
-                "ERROR: Could not read from file: Expected to read {} bytes but only got {}.",
+                "ERROR: Could not read from stream: Expected to read {} bytes but only got {}.",
                 chunk_bytes_to_read,
                 chunk_read_bytes));
         }
@@ -129,7 +129,7 @@ public:
     }
 
 private:
-    std::ifstream& file_stream_;
+    std::istream& stream_;
 
     std::array<std::byte, ChunkSize> chunk_buffer_;
 

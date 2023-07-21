@@ -45,6 +45,7 @@ endfunction()
 
 add_unit_test_executable(common
   SOURCES
+    common/chunked_reader.cpp
     common/parser.cpp
     common/utility.cpp
   DEPENDENCIES

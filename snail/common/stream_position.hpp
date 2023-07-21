@@ -1,12 +1,12 @@
 #pragma once
 
-#include <fstream>
+#include <istream>
 
 namespace snail::common {
 
 struct stream_position_resetter
 {
-    stream_position_resetter(std::ifstream& stream) :
+    stream_position_resetter(std::istream& stream) :
         stream_(stream),
         pos_(stream.tellg())
     {}
@@ -17,7 +17,7 @@ struct stream_position_resetter
     }
 
 private:
-    std::ifstream& stream_;
+    std::istream&  stream_;
     std::streampos pos_;
 };
 
