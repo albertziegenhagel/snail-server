@@ -1,49 +1,6 @@
 
-include(GoogleTest)
-
-add_library(test_main STATIC
-  main.cpp
-  folders.cpp
-)
-target_link_libraries(test_main compile_options GTest::gtest)
-target_include_directories(test_main
-  PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}"
-)
-
-function(add_unit_test_executable TEST_NAME)
-  cmake_parse_arguments(args "" "" "SOURCES;DEPENDENCIES" ${ARGN} )
-  add_executable(test_${TEST_NAME})
-
-  target_sources(test_${TEST_NAME}
-    PRIVATE
-      ${args_SOURCES}
-  )
-
-  target_link_libraries(test_${TEST_NAME}
-    PRIVATE
-      compile_options
-      test_main
-      GTest::gtest
-      GTest::gmock
-      ${args_DEPENDENCIES}
-  )
-
-  target_include_directories(test_${TEST_NAME}
-    PRIVATE
-      "${CMAKE_CURRENT_SOURCE_DIR}"
-  )
-
-  code_coverage_add_target(test_${TEST_NAME})
-
-  cmake_path(NATIVE_PATH CMAKE_SOURCE_DIR native_source_dir)
-  gtest_discover_tests(test_${TEST_NAME}
-    EXTRA_ARGS "--snail-root-dir=${native_source_dir}"
-  )
-  code_coverage_setup_discovered_tests(test_${TEST_NAME})
-endfunction()
-
-add_unit_test_executable(common
+add_test_executable(common
+  PREFIX "Unit::"
   SOURCES
     common/chunked_reader.cpp
     common/parser.cpp
@@ -52,7 +9,8 @@ add_unit_test_executable(common
     common
 )
 
-add_unit_test_executable(etl
+add_test_executable(etl
+  PREFIX "Unit::"
   SOURCES
     etl/parser.cpp
     etl/event_observer.cpp
@@ -60,7 +18,8 @@ add_unit_test_executable(etl
     etl
 )
 
-add_unit_test_executable(perf_data
+add_test_executable(perf_data
+  PREFIX "Unit::"
   SOURCES
     perf_data/attributes_database.cpp
     perf_data/parser.cpp
@@ -70,7 +29,8 @@ add_unit_test_executable(perf_data
     perf_data
 )
 
-add_unit_test_executable(analysis
+add_test_executable(analysis
+  PREFIX "Unit::"
   SOURCES
     analysis/dwarf_resolver.cpp
     analysis/etl_file_process_context.cpp
@@ -86,7 +46,8 @@ add_unit_test_executable(analysis
     analysis
 )
 
-add_unit_test_executable(jsonrpc
+add_test_executable(jsonrpc
+  PREFIX "Unit::"
   SOURCES
     jsonrpc/message.cpp
     jsonrpc/protocol.cpp
