@@ -120,6 +120,8 @@ void print_usage(std::string_view application_path)
               << "Options:\n"
               << "  --help, -h       Show this help text.\n"
               << "  --unsupported    Print unsupported events summary.\n"
+              << "  --dump-headers   Dump event buffers.\n"
+              << "  --dump-events    Dump event buffers.\n"
               << "  --dump           Dump event buffers.\n"
               << "  --header         Print header event.\n"
               << "  --config         Print kernel config events.\n"
@@ -151,7 +153,8 @@ struct options
 
     bool show_unsupported_summary = false;
 
-    bool dump = false;
+    bool dump_trace_headers = false;
+    bool dump_events        = false;
 
     bool show_header    = false;
     bool show_config    = false;
@@ -184,9 +187,18 @@ options parse_command_line(int argc, char* argv[]) // NOLINT(modernize-avoid-c-a
         {
             result.show_unsupported_summary = true;
         }
+        else if(current_arg == "--dump-headers")
+        {
+            result.dump_trace_headers = true;
+        }
+        else if(current_arg == "--dump-events")
+        {
+            result.dump_events = true;
+        }
         else if(current_arg == "--dump")
         {
-            result.dump = true;
+            result.dump_trace_headers = true;
+            result.dump_events        = true;
         }
         else if(current_arg == "--header")
         {
@@ -416,7 +428,8 @@ int main(int argc, char* argv[])
                 std::cout << std::format("    session_name:          '{}'\n", utf8::utf16to8(event.session_name()));
                 std::cout << std::format("    file_name:             '{}'\n", utf8::utf16to8(event.file_name()));
 
-                if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
     }
 
@@ -433,7 +446,8 @@ int main(int argc, char* argv[])
 
                 std::cout << std::format("@{} {:30}: computer_name '{}' architecture {}...\n", header.timestamp, event_name, utf8::utf16to8(event.computer_name()), event.processor_architecture());
 
-                if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
         observer.register_event<etl::parser::system_config_v2_physical_disk_event_view>(
             [&options]([[maybe_unused]] const etl::etl_file::header_data&            file_header,
@@ -446,7 +460,8 @@ int main(int argc, char* argv[])
 
                 std::cout << std::format("@{} {:30}: disk_number {} partition_count {} ...\n", header.timestamp, event_name, event.disk_number(), event.partition_count());
 
-                if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
         observer.register_event<etl::parser::system_config_v2_logical_disk_event_view>(
             [&options]([[maybe_unused]] const etl::etl_file::header_data&           file_header,
@@ -459,7 +474,8 @@ int main(int argc, char* argv[])
 
                 std::cout << std::format("@{} {:30}: disk_number {} partition_number {} drive_letter {} ...\n", header.timestamp, event_name, event.disk_number(), event.partition_number(), utf8::utf16to8(event.drive_letter()));
 
-                if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
         observer.register_event<etl::parser::system_config_v5_pnp_event_view>(
             [&options]([[maybe_unused]] const etl::etl_file::header_data&  file_header,
@@ -472,7 +488,8 @@ int main(int argc, char* argv[])
 
                 std::cout << std::format("@{} {:30}: device_description '{}' friendly_name '{}' ...\n", header.timestamp, event_name, utf8::utf16to8(event.device_description()), utf8::utf16to8(event.friendly_name()));
 
-                if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
     }
 
@@ -511,7 +528,8 @@ int main(int argc, char* argv[])
 
                 std::cout << std::format("@{} {:30}: source {} new-interval {} old-interval {} source-name '{}'\n", header.timestamp, event_name, event.source(), event.new_interval(), event.old_interval(), utf8::utf16to8(event.source_name()));
 
-                if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
     }
 
@@ -530,7 +548,8 @@ int main(int argc, char* argv[])
 
                 std::cout << std::format("@{} {:30}: pid {} filename '{}' cmd '{}' unique {} flags {} ...\n", header.timestamp, event_name, process_id, event.image_filename(), utf8::utf16to8(event.command_line()), event.unique_process_key(), event.flags());
 
-                if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
         observer.register_event<etl::parser::thread_v3_type_group1_event_view>(
             [&options]([[maybe_unused]] const etl::etl_file::header_data&   file_header,
@@ -545,7 +564,8 @@ int main(int argc, char* argv[])
 
                 std::cout << std::format("@{} {:30}: pid {} tid {} ...\n", header.timestamp, event_name, process_id, event.thread_id());
 
-                if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
         observer.register_event<etl::parser::thread_v4_type_group1_event_view>(
             [&options]([[maybe_unused]] const etl::etl_file::header_data&   file_header,
@@ -560,7 +580,8 @@ int main(int argc, char* argv[])
 
                 std::cout << std::format("@{} {:30}: pid {} tid {} name {}...\n", header.timestamp, event_name, process_id, event.thread_id(), utf8::utf16to8(event.thread_name()));
 
-                if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
         observer.register_event<etl::parser::thread_v2_set_name_event_view>(
             [&options]([[maybe_unused]] const etl::etl_file::header_data& file_header,
@@ -575,7 +596,8 @@ int main(int argc, char* argv[])
 
                 std::cout << std::format("@{} {:30}: pid {} tid {} name '{}'\n", header.timestamp, event_name, process_id, event.thread_id(), utf8::utf16to8(event.thread_name()));
 
-                if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
     }
 
@@ -594,7 +616,8 @@ int main(int argc, char* argv[])
 
                 std::cout << std::format("@{} {:30}: pid {} name '{}' image-base {:#0x} checksum {} time-date-stamp {}\n", header.timestamp, event_name, process_id, utf8::utf16to8(event.file_name()), event.image_base(), event.image_checksum(), event.time_date_stamp());
 
-                if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
     }
 
@@ -613,7 +636,8 @@ int main(int argc, char* argv[])
 
                 std::cout << std::format("@{} {:30}: pid {} name '{}' image_base {:#0x} time_stamp {}\n", header.timestamp, event_name, process_id, utf8::utf16to8(event.original_file_name()), event.image_base(), event.time_date_stamp());
 
-                if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
         observer.register_event<etl::parser::image_id_v2_dbg_id_pdb_info_event_view>(
             [&options]([[maybe_unused]] const etl::etl_file::header_data&         file_header,
@@ -628,7 +652,8 @@ int main(int argc, char* argv[])
 
                 std::cout << std::format("@{} {:30}: pid {} image-base {:#0x} guid {} age {} pdb '{}'\n", header.timestamp, event_name, process_id, event.image_base(), event.guid().instantiate().to_string(), event.age(), event.pdb_file_name());
 
-                if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
     }
 
@@ -645,7 +670,8 @@ int main(int argc, char* argv[])
 
                 std::cout << std::format("@{} {:30}: install-date {} build-lab '{}' product-name '{}'\n", header.timestamp, event_name, event.install_date(), utf8::utf16to8(event.build_lab()), utf8::utf16to8(event.product_name()));
 
-                if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
         observer.register_event<etl::parser::system_config_ex_v0_system_paths_event_view>(
             [&options]([[maybe_unused]] const etl::etl_file::header_data&              file_header,
@@ -658,7 +684,8 @@ int main(int argc, char* argv[])
 
                 std::cout << std::format("@{} {:30}: sys-dir '{}' sys-win-dir '{}'\n", header.timestamp, event_name, utf8::utf16to8(event.system_directory()), utf8::utf16to8(event.system_windows_directory()));
 
-                if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
         observer.register_event<etl::parser::system_config_ex_v0_volume_mapping_event_view>(
             [&options]([[maybe_unused]] const etl::etl_file::header_data&                file_header,
@@ -671,7 +698,8 @@ int main(int argc, char* argv[])
 
                 std::cout << std::format("@{} {:30}: nt-path '{}' dos-path '{}'\n", header.timestamp, event_name, utf8::utf16to8(event.nt_path()), utf8::utf16to8(event.dos_path()));
 
-                if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
     }
 
@@ -688,7 +716,8 @@ int main(int argc, char* argv[])
 
                 std::cout << std::format("@{} {:30}: pid {} timestamp {}\n", header.timestamp, event_name, event.process_id(), event.timestamp());
 
-                if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
         observer.register_event<etl::parser::vs_diagnostics_hub_target_profiling_stopped_event_view>(
             [&options]([[maybe_unused]] const etl::etl_file::header_data&                         file_header,
@@ -701,7 +730,8 @@ int main(int argc, char* argv[])
 
                 std::cout << std::format("@{} {:30}: pid {} timestamp {}\n", header.timestamp, event_name, event.process_id(), event.timestamp());
 
-                if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
         observer.register_event<etl::parser::vs_diagnostics_hub_machine_info_event_view>(
             [&options]([[maybe_unused]] const etl::etl_file::header_data&             file_header,
@@ -714,7 +744,8 @@ int main(int argc, char* argv[])
 
                 std::cout << std::format("@{} {:30}: architecture {} os '{}' name '{}'\n", header.timestamp, event_name, (int)event.architecture(), utf8::utf16to8(event.os_description()), utf8::utf16to8(event.name()));
 
-                if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
         observer.register_event<etl::parser::vs_diagnostics_hub_counter_info_event_view>(
             [&options]([[maybe_unused]] const etl::etl_file::header_data&             file_header,
@@ -727,7 +758,8 @@ int main(int argc, char* argv[])
 
                 std::cout << std::format("@{} {:30}: Count {} timestamp {} value {}\n", header.timestamp, event_name, (int)event.counter(), event.timestamp(), event.value());
 
-                if(options.dump) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size());
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
     }
 
@@ -750,7 +782,7 @@ int main(int argc, char* argv[])
             }
             else
             {
-                std::cout << std::format("  Unknown    : GUID {} ; type {} ; version {} | count {}\n", group_to_string(key.group), (int)key.type, key.version, count);
+                std::cout << std::format("  Unknown    : GROUP {} ; type {} ; version {} | count {}\n", group_to_string(key.group), (int)key.type, key.version, count);
             }
         }
         for(const auto& [key, count] : unprocessed_guid_event_counts)
@@ -761,7 +793,7 @@ int main(int argc, char* argv[])
             }
             else
             {
-                std::cout << std::format("  Unknown    : GROUP {} ; type {} ; version {} | count {}\n", key.guid.to_string(true), key.type, key.version, count);
+                std::cout << std::format("  Unknown    : GUID {} ; type {} ; version {} | count {}\n", key.guid.to_string(true), key.type, key.version, count);
             }
         }
     }

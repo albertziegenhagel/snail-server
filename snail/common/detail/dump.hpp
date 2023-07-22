@@ -10,9 +10,9 @@
 namespace snail::common::detail {
 
 // this can be used to generate tests
-inline void dump_buffer(std::span<const std::byte> buffer, std::size_t offset, std::size_t size)
+inline void dump_buffer(std::span<const std::byte> buffer, std::size_t offset, std::size_t size, std::string_view name = "buffer")
 {
-    std::cout << "    const std::array<std::uint8_t, " << size << "> buffer = {\n";
+    std::cout << "    const std::array<std::uint8_t, " << size << "> " << name << " = {\n";
     std::cout << "        ";
     for(std::size_t i = 0; i < size; ++i)
     {
