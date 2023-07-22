@@ -29,6 +29,7 @@
 #include <snail/perf_data/metadata.hpp>
 
 #include <snail/common/detail/dump.hpp>
+#include <snail/common/parser/read.hpp>
 
 using namespace snail;
 using namespace snail::perf_data;
@@ -36,61 +37,6 @@ using namespace snail::perf_data;
 namespace {
 
 inline constexpr std::size_t max_chunk_size = 0xFFFF + 1;
-
-template<typename T>
-    requires std::is_integral_v<T>
-T read_int(std::ifstream& file_stream, std::endian data_byte_order)
-{
-    T value;
-    file_stream.read(reinterpret_cast<char*>(&value), sizeof(T));
-
-    if constexpr(sizeof(T) > 1)
-    {
-        if(data_byte_order != std::endian::native)
-        {
-            return std::byteswap(value);
-        }
-
-        return value;
-    }
-    else
-    {
-        return value;
-    }
-}
-
-std::string read_string(std::ifstream& file_stream, std::endian data_byte_order)
-{
-    const auto length = read_int<std::uint32_t>(file_stream, data_byte_order);
-
-    std::vector<char> buffer;
-    buffer.resize(length + 1);
-#if defined(__GNUC__) && !defined(__clang__) // workaround for invalid GCC diagnostic
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wstringop-overflow"
-#endif
-    buffer.back() = '\0'; // just to make sure we definitely have a valid string termination
-#if defined(__GNUC__) && !defined(__clang__)
-#    pragma GCC diagnostic pop
-#endif
-
-    file_stream.read(buffer.data(), length);
-
-    return {buffer.data()};
-}
-
-std::vector<std::string> read_string_list(std::ifstream& file_stream, std::endian data_byte_order)
-{
-    const auto num_strings = read_int<std::uint32_t>(file_stream, data_byte_order);
-
-    std::vector<std::string> result;
-    result.reserve(num_strings);
-    for(std::size_t i = 0; i < num_strings; ++i)
-    {
-        result.push_back(read_string(file_stream, data_byte_order));
-    }
-    return result;
-}
 
 void read_attributes_section(std::ifstream&                            file_stream,
                              const detail::perf_data_file_header_data& header,
@@ -268,38 +214,38 @@ void read_metadata(std::ifstream&                            file_stream,
                     });
                 break;
             case parser::header_feature::hostname:
-                metadata.hostname = read_string(file_stream, header.byte_order);
+                metadata.hostname = common::parser::read_string(file_stream, header.byte_order);
                 break;
             case parser::header_feature::osrelease:
-                metadata.os_release = read_string(file_stream, header.byte_order);
+                metadata.os_release = common::parser::read_string(file_stream, header.byte_order);
                 break;
             case parser::header_feature::version:
-                metadata.version = read_string(file_stream, header.byte_order);
+                metadata.version = common::parser::read_string(file_stream, header.byte_order);
                 break;
             case parser::header_feature::arch:
-                metadata.arch = read_string(file_stream, header.byte_order);
+                metadata.arch = common::parser::read_string(file_stream, header.byte_order);
                 break;
             case parser::header_feature::nr_cpus:
                 metadata.nr_cpus = {
-                    .nr_cpus_available = read_int<std::uint32_t>(file_stream, header.byte_order),
-                    .nr_cpus_online    = read_int<std::uint32_t>(file_stream, header.byte_order)};
+                    .nr_cpus_available = common::parser::read_int<std::uint32_t>(file_stream, header.byte_order),
+                    .nr_cpus_online    = common::parser::read_int<std::uint32_t>(file_stream, header.byte_order)};
                 break;
             case parser::header_feature::cpu_desc:
-                metadata.cpu_desc = read_string(file_stream, header.byte_order);
+                metadata.cpu_desc = common::parser::read_string(file_stream, header.byte_order);
                 break;
             case parser::header_feature::cpu_id:
-                metadata.cpu_id = read_string(file_stream, header.byte_order);
+                metadata.cpu_id = common::parser::read_string(file_stream, header.byte_order);
                 break;
             case parser::header_feature::total_mem:
-                metadata.total_mem = read_int<std::uint64_t>(file_stream, header.byte_order);
+                metadata.total_mem = common::parser::read_int<std::uint64_t>(file_stream, header.byte_order);
                 break;
             case parser::header_feature::cmdline:
-                metadata.cmdline = read_string_list(file_stream, header.byte_order);
+                metadata.cmdline = common::parser::read_string_list(file_stream, header.byte_order);
                 break;
             case parser::header_feature::event_desc:
             {
-                const auto                  nr_events = read_int<std::uint32_t>(file_stream, header.byte_order);
-                [[maybe_unused]] const auto attr_size = read_int<std::uint32_t>(file_stream, header.byte_order);
+                const auto                  nr_events = common::parser::read_int<std::uint32_t>(file_stream, header.byte_order);
+                [[maybe_unused]] const auto attr_size = common::parser::read_int<std::uint32_t>(file_stream, header.byte_order);
 
                 std::array<std::byte, parser::event_attributes_view::static_size> attribute_buffer;
 
@@ -311,13 +257,13 @@ void read_metadata(std::ifstream&                            file_stream,
                     if(attr_size > parser::event_attributes_view::static_size) file_stream.seekg(attr_size - parser::event_attributes_view::static_size, std::ios::cur);
 
                     const auto attribute_view = parser::event_attributes_view(std::span(attribute_buffer).subspan(0, max_buffer_size), header.byte_order);
-                    const auto nr_ids         = read_int<std::uint32_t>(file_stream, header.byte_order);
-                    auto       event_string   = read_string(file_stream, header.byte_order);
+                    const auto nr_ids         = common::parser::read_int<std::uint32_t>(file_stream, header.byte_order);
+                    auto       event_string   = common::parser::read_string(file_stream, header.byte_order);
 
                     std::vector<std::uint64_t> ids;
                     for(std::uint32_t id_i = 0; id_i < nr_ids; ++id_i)
                     {
-                        ids.push_back(read_int<std::uint64_t>(file_stream, header.byte_order));
+                        ids.push_back(common::parser::read_int<std::uint64_t>(file_stream, header.byte_order));
                     }
 
                     metadata.event_desc.push_back(perf_data_metadata::event_desc_data{
@@ -337,12 +283,12 @@ void read_metadata(std::ifstream&                            file_stream,
             // case parser::header_feature::cache:
             case parser::header_feature::sample_time:
                 metadata.sample_time = {
-                    .start = std::chrono::nanoseconds(read_int<std::uint64_t>(file_stream, header.byte_order)),
-                    .end   = std::chrono::nanoseconds(read_int<std::uint64_t>(file_stream, header.byte_order))};
+                    .start = std::chrono::nanoseconds(common::parser::read_int<std::uint64_t>(file_stream, header.byte_order)),
+                    .end   = std::chrono::nanoseconds(common::parser::read_int<std::uint64_t>(file_stream, header.byte_order))};
                 break;
             // case parser::header_feature::mem_topology:
             case parser::header_feature::clockid:
-                metadata.clockid = read_int<std::uint64_t>(file_stream, header.byte_order);
+                metadata.clockid = common::parser::read_int<std::uint64_t>(file_stream, header.byte_order);
                 break;
             // case parser::header_feature::dir_format:
             // case parser::header_feature::bpf_prog_info:

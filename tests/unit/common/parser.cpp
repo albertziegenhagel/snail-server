@@ -1,5 +1,6 @@
 
 #include <snail/common/parser/extract.hpp>
+#include <snail/common/parser/read.hpp>
 
 #include <array>
 
@@ -161,4 +162,132 @@ TEST(ParserExtract, U16String)
     size = std::nullopt;
     EXPECT_EQ(extract_string<char16_t>(buffer, 12, size), std::u16string_view(u"👻"));
     EXPECT_THAT(size, testing::Optional(std::size_t(2)));
+}
+
+TEST(ParserRead, Int8)
+{
+    const std::array<std::uint8_t, 2> data = {
+        0x42, 0xAF};
+
+    std::stringstream stream(std::ios::in | std::ios::out | std::ios::binary);
+    stream.write(reinterpret_cast<const char*>(data.data()), data.size());
+
+    stream.seekg(0);
+    EXPECT_EQ(read_int<std::uint8_t>(stream, std::endian::little), 66);
+    EXPECT_EQ(read_int<std::uint8_t>(stream, std::endian::little), 175);
+
+    stream.seekg(0);
+    EXPECT_EQ(read_int<std::int8_t>(stream, std::endian::little), 66);
+    EXPECT_EQ(read_int<std::int8_t>(stream, std::endian::little), -81);
+
+    stream.seekg(0);
+    EXPECT_EQ(read_int<std::uint8_t>(stream, std::endian::big), 66);
+    EXPECT_EQ(read_int<std::uint8_t>(stream, std::endian::big), 175);
+
+    stream.seekg(0);
+    EXPECT_EQ(read_int<std::int8_t>(stream, std::endian::big), 66);
+    EXPECT_EQ(read_int<std::int8_t>(stream, std::endian::big), -81);
+}
+
+TEST(ParserRead, Int16)
+{
+    const std::array<std::uint8_t, 4> data = {
+        0x42, 0xAF, 0xEA, 0x20};
+
+    std::stringstream stream(std::ios::in | std::ios::out | std::ios::binary);
+    stream.write(reinterpret_cast<const char*>(data.data()), data.size());
+
+    stream.seekg(0);
+    EXPECT_EQ(read_int<std::uint16_t>(stream, std::endian::little), 44866);
+    EXPECT_EQ(read_int<std::uint16_t>(stream, std::endian::little), 8426);
+
+    stream.seekg(0);
+    EXPECT_EQ(read_int<std::int16_t>(stream, std::endian::little), -20670);
+    EXPECT_EQ(read_int<std::int16_t>(stream, std::endian::little), 8426);
+
+    stream.seekg(0);
+    EXPECT_EQ(read_int<std::uint16_t>(stream, std::endian::big), 17071);
+    EXPECT_EQ(read_int<std::uint16_t>(stream, std::endian::big), 59936);
+
+    stream.seekg(0);
+    EXPECT_EQ(read_int<std::int16_t>(stream, std::endian::big), 17071);
+    EXPECT_EQ(read_int<std::int16_t>(stream, std::endian::big), -5600);
+}
+
+TEST(ParserRead, Int32)
+{
+    const std::array<std::uint8_t, 8> data = {
+        0xAF, 0x42, 0x00, 0x20, 0x44, 0x7A, 0x77, 0xAE};
+
+    std::stringstream stream(std::ios::in | std::ios::out | std::ios::binary);
+    stream.write(reinterpret_cast<const char*>(data.data()), data.size());
+
+    stream.seekg(0);
+    EXPECT_EQ(read_int<std::uint32_t>(stream, std::endian::little), 536887983);
+    EXPECT_EQ(read_int<std::uint32_t>(stream, std::endian::little), 2927065668);
+
+    stream.seekg(0);
+    EXPECT_EQ(read_int<std::int32_t>(stream, std::endian::little), 536887983);
+    EXPECT_EQ(read_int<std::int32_t>(stream, std::endian::little), -1367901628);
+
+    stream.seekg(0);
+    EXPECT_EQ(read_int<std::uint32_t>(stream, std::endian::big), 2940338208);
+    EXPECT_EQ(read_int<std::uint32_t>(stream, std::endian::big), 1148876718);
+
+    stream.seekg(0);
+    EXPECT_EQ(read_int<std::int32_t>(stream, std::endian::big), -1354629088);
+    EXPECT_EQ(read_int<std::int32_t>(stream, std::endian::big), 1148876718);
+}
+
+TEST(ParserRead, Int64)
+{
+    const std::array<std::uint8_t, 16> data = {
+        0xAF, 0x42, 0x00, 0xAE, 0x44, 0x7A, 0x77, 0x20,
+        0xE0, 0x5B, 0xC6, 0x70, 0x04, 0x00, 0x00, 0xE0};
+
+    std::stringstream stream(std::ios::in | std::ios::out | std::ios::binary);
+    stream.write(reinterpret_cast<const char*>(data.data()), data.size());
+
+    stream.seekg(0);
+    EXPECT_EQ(read_int<std::uint64_t>(stream, std::endian::little), 2339472966837879471ULL);
+    EXPECT_EQ(read_int<std::uint64_t>(stream, std::endian::little), 16140901083567774688ULL);
+
+    stream.seekg(0);
+    EXPECT_EQ(read_int<std::int64_t>(stream, std::endian::little), 2339472966837879471LL);
+    EXPECT_EQ(read_int<std::int64_t>(stream, std::endian::little), -2305842990141776928LL);
+
+    stream.seekg(0);
+    EXPECT_EQ(read_int<std::uint64_t>(stream, std::endian::big), 12628657053573478176ULL);
+    EXPECT_EQ(read_int<std::uint64_t>(stream, std::endian::big), 16166733471782273248ULL);
+
+    stream.seekg(0);
+    EXPECT_EQ(read_int<std::int64_t>(stream, std::endian::big), -5818087020136073440LL);
+    EXPECT_EQ(read_int<std::int64_t>(stream, std::endian::big), -2280010601927278368LL);
+}
+
+TEST(ParserRead, U8String)
+{
+    const std::array<std::uint8_t, 18> data = {
+        0x0A, 0x00, 0x00, 0x00,
+        0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x20, 0xF0, 0x9F, 0x91, 0xBB, 0x00, 0xFF, 0xFF, 0xFF};
+
+    std::stringstream stream(std::ios::in | std::ios::out | std::ios::binary);
+    stream.write(reinterpret_cast<const char*>(data.data()), data.size());
+
+    EXPECT_EQ(read_string(stream, std::endian::little), "Hello 👻");
+}
+
+TEST(ParserRead, U8Strings)
+{
+    const std::array<std::uint8_t, 26> data = {
+        0x02, 0x00, 0x00, 0x00,
+        0x0B, 0x00, 0x00, 0x00,
+        0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x20, 0xF0, 0x9F, 0x91, 0xBB, 0x00,
+        0x03, 0x00, 0x00, 0x00,
+        0x41, 0x42, 0x43};
+
+    std::stringstream stream(std::ios::in | std::ios::out | std::ios::binary);
+    stream.write(reinterpret_cast<const char*>(data.data()), data.size());
+
+    EXPECT_EQ(read_string_list(stream, std::endian::little), (std::vector<std::string>{"Hello 👻", "ABC"}));
 }
