@@ -62,6 +62,7 @@ add_unit_test_executable(etl
 
 add_unit_test_executable(perf_data
   SOURCES
+    perf_data/attributes_database.cpp
     perf_data/parser.cpp
     perf_data/event_observer.cpp
     perf_data/utility.cpp
@@ -74,6 +75,7 @@ add_unit_test_executable(analysis
     analysis/dwarf_resolver.cpp
     analysis/etl_file_process_context.cpp
     analysis/module_map.cpp
+    analysis/options.cpp
     analysis/path_map.cpp
     analysis/pdb_resolver.cpp
     analysis/perf_data_file_process_context.cpp

@@ -26,7 +26,7 @@ dwarf_symbol_find_options::dwarf_symbol_find_options()
         const auto xdg_cache_home_env = common::get_env_var("XDG_CACHE_HOME");
         if(xdg_cache_home_env)
         {
-            debuginfod_cache_dir_ = common::path_from_utf8(*cache_path_env) / "snail";
+            debuginfod_cache_dir_ = common::path_from_utf8(*xdg_cache_home_env) / "snail";
         }
         else
         {

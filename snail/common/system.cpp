@@ -59,6 +59,7 @@ std::optional<std::string> snail::common::get_env_var(const std::string& name) n
         return std::nullopt;
     }
     std::unique_ptr<wchar_t, decltype(free)*> buffer_ptr(buffer, free);
+    if(result_len > 0 && buffer[result_len - 1] == '\0') --result_len; // get rid of the null-termination for the string_view
     return utf8::utf16to8(std::u16string_view(reinterpret_cast<const char16_t*>(buffer_ptr.get()), result_len));
 #else
     const auto* result = std::getenv(name.c_str());

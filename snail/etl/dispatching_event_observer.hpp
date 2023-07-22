@@ -2,7 +2,9 @@
 #pragma once
 
 #include <concepts>
+#include <cstddef>
 #include <functional>
+#include <span>
 #include <unordered_map>
 #include <variant>
 
@@ -91,8 +93,9 @@ using any_guid_trace_header = std::variant<
 
 struct common_trace_header
 {
-    std::uint16_t type;
-    std::uint64_t timestamp;
+    std::uint16_t              type;
+    std::uint64_t              timestamp;
+    std::span<const std::byte> buffer;
 };
 
 template<typename T>

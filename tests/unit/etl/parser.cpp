@@ -277,6 +277,67 @@ TEST(EtlParser, Kernel_StackwalkV2StackEventView)
     EXPECT_EQ(event.stack_address(10), 18446735291273943482ULL);
     EXPECT_EQ(event.stack_address(11), 18446735291273941444ULL);
     EXPECT_EQ(event.stack_address(12), 18446735291275465982ULL);
+
+    const auto stack       = event.stack();
+    const auto stack_begin = stack.begin();
+    const auto stack_end   = stack.end();
+
+    EXPECT_TRUE(stack_begin == stack_begin);
+    EXPECT_TRUE(stack_end == stack_end);
+    EXPECT_FALSE(stack_begin == stack_end);
+
+    EXPECT_FALSE(stack_begin != stack_begin);
+    EXPECT_FALSE(stack_end != stack_end);
+    EXPECT_TRUE(stack_begin != stack_end);
+
+    EXPECT_FALSE(stack_begin < stack_begin);
+    EXPECT_FALSE(stack_end < stack_end);
+    EXPECT_TRUE(stack_begin < stack_end);
+    EXPECT_FALSE(stack_end < stack_begin);
+
+    EXPECT_TRUE(stack_begin <= stack_begin);
+    EXPECT_TRUE(stack_end <= stack_end);
+    EXPECT_TRUE(stack_begin < stack_end);
+    EXPECT_FALSE(stack_end < stack_begin);
+
+    EXPECT_FALSE(stack_begin > stack_begin);
+    EXPECT_FALSE(stack_end > stack_end);
+    EXPECT_FALSE(stack_begin > stack_end);
+    EXPECT_TRUE(stack_end > stack_begin);
+
+    EXPECT_TRUE(stack_begin >= stack_begin);
+    EXPECT_TRUE(stack_end >= stack_end);
+    EXPECT_FALSE(stack_begin > stack_end);
+    EXPECT_TRUE(stack_end > stack_begin);
+
+    auto iter = stack_begin;
+    EXPECT_EQ(*iter, 18446735292148860480ULL);
+    auto iter2 = ++iter;
+    EXPECT_EQ(*iter, 18446735292148861325ULL);
+    EXPECT_EQ(*iter2, 18446735292148861325ULL);
+    auto iter3 = iter++;
+    EXPECT_EQ(*iter, 18446735292148780791ULL);
+    EXPECT_EQ(*iter3, 18446735292148861325ULL);
+
+    auto iter4 = --iter;
+    EXPECT_EQ(*iter, 18446735292148861325ULL);
+    EXPECT_EQ(*iter4, 18446735292148861325ULL);
+    auto iter5 = iter--;
+    EXPECT_EQ(*iter, 18446735292148860480ULL);
+    EXPECT_EQ(*iter5, 18446735292148861325ULL);
+
+    iter += 5;
+    EXPECT_EQ(*iter, 18446735291558407338ULL);
+    iter -= 2;
+    EXPECT_EQ(*iter, 18446735292148805948ULL);
+
+    auto iter6 = iter + 4;
+    EXPECT_EQ(*iter, 18446735292148805948ULL);
+    EXPECT_EQ(*iter6, 18446735292044206785ULL);
+
+    auto iter7 = iter - 2;
+    EXPECT_EQ(*iter, 18446735292148805948ULL);
+    EXPECT_EQ(*iter7, 18446735292148861325ULL);
 }
 
 TEST(EtlParser, Kernel_ImageV2LoadEventView)
@@ -369,6 +430,35 @@ TEST(EtlParser, Kernel_ThreadV3TypeGroup1EventView)
     EXPECT_EQ(event.page_priority(), 5);
     EXPECT_EQ(event.io_priority(), 0);
     EXPECT_EQ(event.flags(), 0);
+}
+
+TEST(EtlParser, Kernel_ThreadV4TypeGroup1EventView)
+{
+    const std::array<std::uint8_t, 96> buffer = {
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xb0, 0x45, 0x30, 0x03, 0xf8, 0xff, 0xff,
+        0x00, 0x40, 0x45, 0x30, 0x03, 0xf8, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x60, 0xd4, 0x22, 0x2e, 0x03, 0xf8, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x49, 0x00, 0x64, 0x00, 0x6c, 0x00, 0x65, 0x00,
+        0x20, 0x00, 0x54, 0x00, 0x68, 0x00, 0x72, 0x00, 0x65, 0x00, 0x61, 0x00, 0x64, 0x00, 0x00, 0x00};
+
+    const auto event = etl::parser::thread_v4_type_group1_event_view(std::as_bytes(std::span(buffer)), 8);
+
+    EXPECT_EQ(event.process_id(), 0);
+    EXPECT_EQ(event.thread_id(), 0);
+    EXPECT_EQ(event.stack_base(), 18446735291311304704ULL);
+    EXPECT_EQ(event.stack_limit(), 18446735291311276032ULL);
+    EXPECT_EQ(event.user_stack_base(), 0);
+    EXPECT_EQ(event.user_stack_limit(), 0);
+    EXPECT_EQ(event.affinity(), 1);
+    EXPECT_EQ(event.win32_start_addr(), 18446735291275465824ULL);
+    EXPECT_EQ(event.teb_base(), 0);
+    EXPECT_EQ(event.sub_process_tag(), 0);
+    EXPECT_EQ(event.base_priority(), 0);
+    EXPECT_EQ(event.page_priority(), 5);
+    EXPECT_EQ(event.io_priority(), 0);
+    EXPECT_EQ(event.flags(), 0);
+    EXPECT_EQ(event.thread_name(), std::u16string(u"Idle Thread"));
 }
 
 TEST(EtlParser, Kernel_ThreadV2SetNameEventView)

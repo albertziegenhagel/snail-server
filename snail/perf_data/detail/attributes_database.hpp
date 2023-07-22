@@ -12,13 +12,14 @@
 
 namespace snail::perf_data::parser {
 
-struct event_header_view;
+enum class event_type : std::uint32_t;
 
 } // namespace snail::perf_data::parser
 
 namespace snail::perf_data::detail {
 
-struct perf_data_file_header_data;
+std::optional<std::size_t> calculate_id_offset(const parser::sample_format_flags& format);
+std::optional<std::size_t> calculate_id_back_offset(const parser::sample_format_flags& format);
 
 struct event_attributes_database
 {
@@ -27,16 +28,13 @@ struct event_attributes_database
 
     void validate();
 
-    const parser::event_attributes& get_event_attributes(const detail::perf_data_file_header_data& file_header,
-                                                         const parser::event_header_view&          event_header,
-                                                         std::span<const std::byte>                event_data) const;
+    const parser::event_attributes& get_event_attributes(std::endian                byte_order,
+                                                         parser::event_type         event_type,
+                                                         std::span<const std::byte> event_data) const;
 
 private:
     std::optional<std::size_t> id_offset;
     std::optional<std::size_t> id_back_offset;
-
-    static std::optional<std::size_t> calculate_id_offset(const parser::sample_format_flags& format);
-    static std::optional<std::size_t> calculate_id_back_offset(const parser::sample_format_flags& format);
 };
 
 } // namespace snail::perf_data::detail
