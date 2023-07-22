@@ -119,11 +119,11 @@ struct stackwalk_v2_stack_event_view : private extract_view_dynamic_base
         }
         friend bool operator<=(const stack_iterator& lhs, const stack_iterator& rhs)
         {
-            return lhs.index < rhs.index;
+            return lhs.index <= rhs.index;
         }
         friend bool operator>=(const stack_iterator& lhs, const stack_iterator& rhs)
         {
-            return lhs.index > rhs.index;
+            return lhs.index >= rhs.index;
         }
 
         friend difference_type operator-(const stack_iterator& lhs, const stack_iterator& rhs)
