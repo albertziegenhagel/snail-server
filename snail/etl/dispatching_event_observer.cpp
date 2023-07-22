@@ -95,7 +95,8 @@ common_trace_header dispatching_event_observer::make_common_trace_header(const a
         {
             return common_trace_header{
                 .type      = trace_header.packet().type(),
-                .timestamp = trace_header.system_time()};
+                .timestamp = trace_header.system_time(),
+                .buffer    = trace_header.buffer().subspan(0, trace_header.static_size)};
         },
         trace_header_variant);
 }
@@ -109,13 +110,15 @@ common_trace_header dispatching_event_observer::make_common_trace_header(const a
             {
                 return common_trace_header{
                     .type      = trace_header.event_descriptor().id(),
-                    .timestamp = trace_header.timestamp()};
+                    .timestamp = trace_header.timestamp(),
+                    .buffer    = trace_header.buffer().subspan(0, trace_header.static_size)};
             }
             else
             {
                 return common_trace_header{
                     .type      = trace_header.trace_class().type(),
-                    .timestamp = trace_header.timestamp()};
+                    .timestamp = trace_header.timestamp(),
+                    .buffer    = trace_header.buffer().subspan(0, trace_header.static_size)};
             }
         },
         trace_header_variant);

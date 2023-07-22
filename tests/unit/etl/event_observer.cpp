@@ -44,6 +44,7 @@ TEST(EtlDispatchEventObserver, Dispatch)
         {
             EXPECT_EQ(header.timestamp, 3072009310573);
             EXPECT_EQ(header.type, 46);
+            EXPECT_EQ(header.buffer.size(), 16);
 
             EXPECT_EQ(event.instruction_pointer(), 18446735291273262474ULL);
 
@@ -76,6 +77,7 @@ TEST(EtlDispatchEventObserver, Dispatch)
         {
             EXPECT_EQ(header.timestamp, 3072009312284);
             EXPECT_EQ(header.type, 0);
+            EXPECT_EQ(header.buffer.size(), 48);
 
             EXPECT_EQ(event.image_size(), 17068032);
 
