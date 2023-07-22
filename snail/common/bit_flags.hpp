@@ -18,6 +18,9 @@ public:
     inline explicit bit_flags(unsigned long long data) :
         data_(data)
     {}
+    inline explicit bit_flags(std::bitset<MaxBits> data) :
+        data_(data)
+    {}
 
     [[nodiscard]] inline bool test(FlagsEnum flag) const
     {

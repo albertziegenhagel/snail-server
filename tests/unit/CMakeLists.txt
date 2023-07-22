@@ -62,6 +62,7 @@ add_unit_test_executable(etl
 
 add_unit_test_executable(perf_data
   SOURCES
+    perf_data/attributes_database.cpp
     perf_data/parser.cpp
     perf_data/event_observer.cpp
     perf_data/utility.cpp

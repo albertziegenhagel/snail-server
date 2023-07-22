@@ -372,7 +372,7 @@ void read_data_section(std::ifstream&                            file_stream,
         [&header, &attributes_database, &callbacks](parser::event_header_view  event_header,
                                                     std::span<const std::byte> event_buffer)
         {
-            const auto& event_attributes = attributes_database.get_event_attributes(header, event_header, event_buffer.subspan(parser::event_header_view::static_size));
+            const auto& event_attributes = attributes_database.get_event_attributes(header.byte_order, event_header.type(), event_buffer.subspan(parser::event_header_view::static_size));
             callbacks.handle(event_header, event_attributes, event_buffer, header.byte_order);
         });
 }
