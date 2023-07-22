@@ -44,11 +44,6 @@ struct stackwalk_v2_stack_event_view : private extract_view_dynamic_base
         return extract_pointer(dynamic_offset(stack_base_offset, index));
     }
 
-    inline std::size_t event_size() const
-    {
-        return stack_base_offset + stack_size() * pointer_size();
-    }
-
     struct stack_iterator
     {
         using iterator_category = std::random_access_iterator_tag;
@@ -101,16 +96,7 @@ struct stackwalk_v2_stack_event_view : private extract_view_dynamic_base
         {
             return {i.event_view, i.index + n};
         }
-        friend constexpr stack_iterator operator+(difference_type n, const stack_iterator& i)
-        {
-            return {i.event_view, i.index + n};
-        }
-
         friend constexpr stack_iterator operator-(const stack_iterator& i, difference_type n)
-        {
-            return {i.event_view, i.index - n};
-        }
-        friend constexpr stack_iterator operator-(difference_type n, const stack_iterator& i)
         {
             return {i.event_view, i.index - n};
         }
