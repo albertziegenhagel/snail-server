@@ -19,6 +19,17 @@ using namespace snail::analysis;
 
 namespace {
 
+template<typename Duration>
+Duration from_relative_timestamps(common::timestamp_t timestamp, common::timestamp_t start_timestamp)
+{
+    if(timestamp < start_timestamp) return Duration::zero();
+
+    // NOTE: timestamps are in nanoseconds
+
+    const auto relative_nanoseconds = timestamp - start_timestamp;
+    return std::chrono::duration_cast<Duration>(std::chrono::nanoseconds(common::narrow_cast<std::chrono::nanoseconds::rep>(relative_nanoseconds)));
+}
+
 struct perf_data_sample_data : public sample_data
 {
     std::optional<perf_data::build_id> try_get_module_build_id(const detail::perf_data_file_process_context::module_data& module) const
@@ -44,7 +55,7 @@ struct perf_data_sample_data : public sample_data
                 continue;
             }
 
-            const auto [module, load_timestamp] = context->get_modules(process_id).find(instruction_pointer, timestamp);
+            const auto [module, load_timestamp] = context->get_modules(process_id).find(instruction_pointer, timestamp_);
 
             const auto& symbol = (module == nullptr) ?
                                      resolver->make_generic_symbol(instruction_pointer) :
@@ -66,24 +77,19 @@ struct perf_data_sample_data : public sample_data
         }
     }
 
+    std::chrono::nanoseconds timestamp() const override
+    {
+        return from_relative_timestamps<std::chrono::nanoseconds>(timestamp_, session_start_time);
+    }
+
     const detail::perf_data_file_process_context*               context;
     detail::dwarf_resolver*                                     resolver;
     const std::unordered_map<std::string, perf_data::build_id>* build_id_map;
     common::process_id_t                                        process_id;
     const std::vector<common::instruction_pointer_t>*           stack;
-    common::timestamp_t                                         timestamp;
+    common::timestamp_t                                         timestamp_;
+    common::timestamp_t                                         session_start_time;
 };
-
-template<typename Duration>
-Duration from_relative_timestamps(common::timestamp_t timestamp, common::timestamp_t start_timestamp)
-{
-    if(timestamp < start_timestamp) return Duration::zero();
-
-    // NOTE: timestamps are in nanoseconds
-
-    const auto relative_nanoseconds = timestamp - start_timestamp;
-    return std::chrono::duration_cast<Duration>(std::chrono::nanoseconds(common::narrow_cast<std::chrono::nanoseconds::rep>(relative_nanoseconds)));
-}
 
 } // namespace
 
@@ -250,15 +256,16 @@ common::generator<const sample_data&> perf_data_data_provider::samples(common::p
     const auto& sample_storage = process_context.get_samples_per_process().at(process_id);
 
     perf_data_sample_data current_sample_data;
-    current_sample_data.process_id   = process_id;
-    current_sample_data.context      = process_context_.get();
-    current_sample_data.resolver     = symbol_resolver_.get();
-    current_sample_data.build_id_map = build_id_map_ ? &build_id_map_.value() : nullptr;
+    current_sample_data.process_id         = process_id;
+    current_sample_data.context            = process_context_.get();
+    current_sample_data.resolver           = symbol_resolver_.get();
+    current_sample_data.build_id_map       = build_id_map_ ? &build_id_map_.value() : nullptr;
+    current_sample_data.session_start_time = session_start_time_;
 
     for(const auto& sample : sample_storage.samples)
     {
-        current_sample_data.stack     = &process_context.stack(sample.stack_index);
-        current_sample_data.timestamp = sample.timestamp;
+        current_sample_data.stack      = &process_context.stack(sample.stack_index);
+        current_sample_data.timestamp_ = sample.timestamp;
         co_yield current_sample_data;
     }
 }

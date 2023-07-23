@@ -61,7 +61,7 @@ if(BUILD_TESTING)
 
   add_subdirectory(third-party/gtest)
 
-  add_subdirectory(tests/unit)
+  add_subdirectory(tests)
 
   # Just for testing/development
   add_subdirectory(apps)

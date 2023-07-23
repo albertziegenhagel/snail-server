@@ -167,12 +167,18 @@ function(code_coverage_report)
       endif()
     endforeach()
 
-    set(_data_dir "${CMAKE_BINARY_DIR}/tests/unit/code_coverage") # TODO: detect these
+    set(_data_dirs
+      "${CMAKE_BINARY_DIR}/tests/unit/code_coverage"
+      "${CMAKE_BINARY_DIR}/tests/integration/code_coverage") # TODO: detect these
 
+    set(_glob_expresions)
+    foreach(_data_dir IN LISTS _data_dirs)
+      list(APPEND _glob_expresions "  \"${_data_dir}/*.profraw\"\n")
+    endforeach()
     file(WRITE "${CMAKE_BINARY_DIR}/find-profdata-files.cmake"
       "file(GLOB_RECURSE profdata_files\n"
       "  LIST_DIRECTORIES FALSE\n"
-      "  \"${_data_dir}/*.profraw\"\n"
+      ${_glob_expresions}
       ")\n"
       "set(_content)\n"
       "foreach(file IN LISTS profdata_files)\n"
