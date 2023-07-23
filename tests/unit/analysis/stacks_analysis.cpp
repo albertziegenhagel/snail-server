@@ -21,6 +21,11 @@ struct test_sample_data : public sample_data
         }
     }
 
+    std::chrono::nanoseconds timestamp() const override
+    {
+        return std::chrono::nanoseconds(0); // not used in this test
+    }
+
     std::vector<stack_frame> frames_;
 };
 

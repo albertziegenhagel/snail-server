@@ -113,6 +113,11 @@ struct etl_sample_data : public sample_data
         }
     }
 
+    std::chrono::nanoseconds timestamp() const override
+    {
+        return from_relative_qpc_ticks<std::chrono::nanoseconds>(sample_timestamp, session_start_qpc_ticks, qpc_frequency);
+    }
+
     const std::vector<detail::etl_file_process_context::instruction_pointer_t>* user_stack;
     const std::vector<detail::etl_file_process_context::instruction_pointer_t>* kernel_stack;
     detail::etl_file_process_context::timestamp_t                               kernel_timestamp;
@@ -121,6 +126,10 @@ struct etl_sample_data : public sample_data
     detail::etl_file_process_context::process_id_t process_id;
     detail::pdb_resolver*                          resolver;
     detail::etl_file_process_context*              context;
+
+    detail::etl_file_process_context::timestamp_t sample_timestamp;
+    std::uint64_t                                 session_start_qpc_ticks;
+    std::uint64_t                                 qpc_frequency;
 };
 
 std::string win_architecture_to_str(std::uint16_t arch)
@@ -297,9 +306,11 @@ common::generator<const sample_data&> etl_data_provider::samples(common::process
 
     etl_sample_data current_sample_data;
 
-    current_sample_data.process_id = process_id;
-    current_sample_data.context    = process_context_.get();
-    current_sample_data.resolver   = symbol_resolver_.get();
+    current_sample_data.process_id              = process_id;
+    current_sample_data.context                 = process_context_.get();
+    current_sample_data.resolver                = symbol_resolver_.get();
+    current_sample_data.session_start_qpc_ticks = session_start_qpc_ticks_;
+    current_sample_data.qpc_frequency           = qpc_frequency_;
 
     // FIXME: retrieve this!
     const uint32_t pointer_size = 8;
@@ -313,6 +324,8 @@ common::generator<const sample_data&> etl_data_provider::samples(common::process
 
         for(const auto& sample : process_context.thread_samples(thread_id, thread->timestamp, thread->payload.end_time))
         {
+            current_sample_data.sample_timestamp = sample.timestamp;
+
             if(sample.user_mode_stack)
             {
                 const auto&                 user_stack       = process_context.stack(*sample.user_mode_stack);

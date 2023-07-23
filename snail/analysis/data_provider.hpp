@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -24,6 +25,9 @@ struct sample_data
     virtual ~sample_data() = default;
 
     virtual common::generator<stack_frame> reversed_stack() const = 0;
+
+    // Time since session start
+    virtual std::chrono::nanoseconds timestamp() const = 0;
 };
 
 class samples_provider
