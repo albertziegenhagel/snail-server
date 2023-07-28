@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <format>
+#include <iostream>
 #include <sstream>
 #include <tuple>
 
@@ -136,6 +137,17 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
             return {
                 {"success", true}
             };
+        });
+    server.register_request<shutdown_request>(
+        [&](const shutdown_request&) -> nlohmann::json
+        {
+            std::cout << "Shutting down...\n";
+            return nullptr;
+        });
+    server.register_notification<exit_request>(
+        [&](const exit_request&)
+        {
+            std::exit(EXIT_SUCCESS);
         });
 
     server.register_notification<set_pdb_symbol_find_options_request>(
