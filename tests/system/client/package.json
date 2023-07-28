@@ -1,0 +1,29 @@
+{
+  "name": "snail-test-client",
+  "version": "0.0.0",
+  "description": "",
+  "scripts": {
+    "test": "ts-mocha tests/**/*.js"
+  },
+  "author": "Albert Ziegenhagel",
+  "license": "MIT",
+  "mocha": {
+    "require": "tests/server.ts",
+    "spec": "tests/**/*.test.ts"
+  },
+  "dependencies": {
+    "vscode-jsonrpc": "^8.0.2"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.3.5",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "^20.4.4",
+    "chai": "^4.3.7",
+    "fs-extra": "^11.1.1",
+    "mocha": "^10.2.0",
+    "ts-mocha": "^10.0.0",
+    "ts-node": "^10.9.1",
+    "ts-node-register": "^1.0.0",
+    "typescript": "^5.1.6"
+  }
+}

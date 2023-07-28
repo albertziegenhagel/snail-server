@@ -20,6 +20,8 @@ target_link_libraries(snailserver
 
 set_target_properties(snailserver PROPERTIES OUTPUT_NAME "snail-server")
 
+code_coverage_add_target(snailserver)
+
 install(
   TARGETS
     snailserver

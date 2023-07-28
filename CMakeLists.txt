@@ -19,6 +19,8 @@ cmake_dependent_option(SNAIL_ENABLE_CODE_COVERAGE "Enable code coverage for test
 
 option(SNAIL_WITH_LLVM "Required to resolve symbols from PDB and DWARF files." ON)
 
+option(SNAIL_ENABLE_SYSTEMTESTS "Whether to enable system testing" ON)
+
 # =======
 # Dependencies
 
@@ -40,6 +42,12 @@ find_package(CURL CONFIG REQUIRED)
 
 if(BUILD_TESTING)
   add_subdirectory(third-party/gtest)
+endif()
+
+if(SNAIL_ENABLE_SYSTEMTESTS)
+  find_package(Node REQUIRED)
+
+  find_package(Npm REQUIRED)
 endif()
 
 # =======
@@ -87,6 +95,12 @@ if(BUILD_TESTING)
   add_subdirectory(tests/common)
   add_subdirectory(tests/unit)
   add_subdirectory(tests/integration)
+endif()
+
+if(SNAIL_ENABLE_SYSTEMTESTS)
+  include(cmake/test_mocha.cmake)
+
+  add_subdirectory(tests/system)
 endif()
 
 set(coverage_exclude_dirs
