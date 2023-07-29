@@ -48,6 +48,9 @@ std::optional<std::filesystem::path> find_or_retrieve_binary(const std::filesyst
     const auto binary_cache_path = options.debuginfod_cache_dir_ / build_id_str / "executable";
     if(std::filesystem::is_regular_file(binary_cache_path)) return binary_cache_path;
 
+    // Give up if we do not have any debuginfod servers, before creating the cache directory
+    if(options.debuginfod_urls_.empty()) return std::nullopt;
+
     // Make sure the cache directory exists
     if(!std::filesystem::exists(binary_cache_path.parent_path()))
     {
