@@ -57,7 +57,7 @@ jobs:
         if: runner.os == 'Linux' && matrix.compiler == 'clang'
         run: |
           wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-          sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy main'
+          sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-17 main'
           sudo apt update
           sudo apt install clang-17 llvm-17-dev
           echo "CC=clang-17" >> $GITHUB_ENV

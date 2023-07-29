@@ -169,7 +169,8 @@ function(code_coverage_report)
 
     set(_data_dirs
       "${CMAKE_BINARY_DIR}/tests/unit/code_coverage"
-      "${CMAKE_BINARY_DIR}/tests/integration/code_coverage") # TODO: detect these
+      "${CMAKE_BINARY_DIR}/tests/integration/code_coverage"
+      "${CMAKE_BINARY_DIR}/tests/system/client/code_coverage") # TODO: detect these
 
     set(_glob_expresions)
     foreach(_data_dir IN LISTS _data_dirs)

@@ -39,6 +39,17 @@ using namespace snail::analysis::detail;
 
 namespace {
 
+struct module_filter_options
+{
+    enum class type
+    {
+        all_but_excluded,
+        none_but_included
+    };
+
+    std::vector<std::string> filter_list;
+};
+
 #ifdef SNAIL_HAS_LLVM
 std::string extract_symbol_function_name(const llvm::pdb::PDBSymbolFunc*         pdb_function_symbol,
                                          const llvm::pdb::PDBSymbolPublicSymbol* pdb_public_symbol)
@@ -222,6 +233,9 @@ std::optional<std::filesystem::path> find_or_retrieve_pdb(const std::filesystem:
     // Check for cache hit
     if(check_pdb(pdb_cache_path, pdb_info) == check_pdb_result::valid) return pdb_cache_path;
     else std::filesystem::remove(pdb_cache_path);
+
+    // Give up if we do not have any symbol servers, before creating the cache directory
+    if(options.symbol_server_urls_.empty()) return std::nullopt;
 
     // Make sure cache directory exists
     if(!std::filesystem::exists(pdb_cache_path.parent_path()))
