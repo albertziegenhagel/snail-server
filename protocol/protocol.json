@@ -1,0 +1,1106 @@
+{
+    "metaData": {
+        "version": "0.1.0"
+    },
+    "requests": [
+        {
+            "method": "initialize",
+            "messageDirection": "clientToServer",
+            "result": {
+                "kind": "reference",
+                "name": "InitializeResult"
+            },
+            "params": {
+                "kind": "reference",
+                "name": "InitializeParams"
+            }
+        },
+        {
+            "method": "shutdown",
+            "messageDirection": "clientToServer",
+            "result": {
+                "kind": "base",
+                "name": "null"
+            }
+        },
+        {
+            "method": "readDocument",
+            "messageDirection": "clientToServer",
+            "result": {
+                "kind": "reference",
+                "name": "ReadDocumentResult"
+            },
+            "params": {
+                "kind": "reference",
+                "name": "ReadDocumentParams"
+            }
+        },
+        {
+            "method": "retrieveSessionInfo",
+            "result": {
+                "kind": "reference",
+                "name": "RetrieveSessionInfoResult"
+            },
+            "messageDirection": "clientToServer",
+            "params": {
+                "kind": "reference",
+                "name": "RetrieveSessionInfoParams"
+            }
+        },
+        {
+            "method": "retrieveSystemInfo",
+            "result": {
+                "kind": "reference",
+                "name": "RetrieveSystemInfoResult"
+            },
+            "messageDirection": "clientToServer",
+            "params": {
+                "kind": "reference",
+                "name": "RetrieveSystemInfoParams"
+            }
+        },
+        {
+            "method": "retrieveProcesses",
+            "result": {
+                "kind": "reference",
+                "name": "RetrieveProcessesResult"
+            },
+            "messageDirection": "clientToServer",
+            "params": {
+                "kind": "reference",
+                "name": "RetrieveProcessesParams"
+            }
+        },
+        {
+            "method": "retrieveHottestFunctions",
+            "result": {
+                "kind": "reference",
+                "name": "RetrieveHottestFunctionsResult"
+            },
+            "messageDirection": "clientToServer",
+            "params": {
+                "kind": "reference",
+                "name": "RetrieveHottestFunctionsParams"
+            }
+        },
+        {
+            "method": "retrieveCallTreeHotPath",
+            "result": {
+                "kind": "reference",
+                "name": "RetrieveCallTreeHotPathResult"
+            },
+            "messageDirection": "clientToServer",
+            "params": {
+                "kind": "reference",
+                "name": "RetrieveCallTreeHotPathParams"
+            }
+        },
+        {
+            "method": "retrieveFunctionsPage",
+            "result": {
+                "kind": "reference",
+                "name": "RetrieveFunctionsPageResult"
+            },
+            "messageDirection": "clientToServer",
+            "params": {
+                "kind": "reference",
+                "name": "RetrieveFunctionsPageParams"
+            }
+        },
+        {
+            "method": "expandCallTreeNode",
+            "result": {
+                "kind": "reference",
+                "name": "ExpandCallTreeNodeResult"
+            },
+            "messageDirection": "clientToServer",
+            "params": {
+                "kind": "reference",
+                "name": "ExpandCallTreeNodeParams"
+            }
+        },
+        {
+            "method": "retrieveCallersCallees",
+            "result": {
+                "kind": "reference",
+                "name": "RetrieveCallersCalleesResult"
+            },
+            "messageDirection": "clientToServer",
+            "params": {
+                "kind": "reference",
+                "name": "RetrieveCallersCalleesParams"
+            }
+        },
+        {
+            "method": "retrieveLineInfo",
+            "result": {
+                "kind": "or",
+                "items": [
+                    {
+                        "kind": "reference",
+                        "name": "RetrieveLineInfoResult"
+                    },
+                    {
+                        "kind": "base",
+                        "name": "null"
+                    }
+                ]
+            },
+            "messageDirection": "clientToServer",
+            "params": {
+                "kind": "reference",
+                "name": "RetrieveLineInfoParams"
+            }
+        }
+    ],
+    "notifications": [
+        {
+            "method": "closeDocument",
+            "messageDirection": "clientToServer",
+            "params": {
+                "kind": "reference",
+                "name": "CloseDocumentParams"
+            }
+        },
+        {
+            "method": "setModulePathMaps",
+            "messageDirection": "clientToServer",
+            "params": {
+                "kind": "reference",
+                "name": "SetModulePathMapsParams"
+            }
+        },
+        {
+            "method": "setPdbSymbolFindOptions",
+            "messageDirection": "clientToServer",
+            "params": {
+                "kind": "reference",
+                "name": "SetPdbSymbolFindOptionsParams"
+            }
+        },
+        {
+            "method": "setDwarfSymbolFindOptions",
+            "messageDirection": "clientToServer",
+            "params": {
+                "kind": "reference",
+                "name": "SetDwarfSymbolFindOptionsParams"
+            }
+        },
+        {
+            "method": "exit",
+            "messageDirection": "clientToServer"
+        }
+    ],
+    "structures": [
+        {
+            "name": "ThreadInfo",
+            "properties": [
+                {
+                    "name": "id",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "name",
+                    "type": {
+                        "kind": "base",
+                        "name": "string"
+                    },
+                    "optional": true
+                },
+                {
+                    "name": "startTime",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    },
+                    "documentation": "Time when the thread started (in nanoseconds since the session start)."
+                },
+                {
+                    "name": "endTime",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    },
+                    "documentation": "Time when the thread ended (in nanoseconds since the session start)."
+                }
+            ]
+        },
+        {
+            "name": "ProcessInfo",
+            "properties": [
+                {
+                    "name": "id",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "name",
+                    "type": {
+                        "kind": "base",
+                        "name": "string"
+                    }
+                },
+                {
+                    "name": "startTime",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    },
+                    "documentation": "Time when the process started (in nanoseconds since the session start)."
+                },
+                {
+                    "name": "endTime",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    },
+                    "documentation": "Time when the process ended (in nanoseconds since the session start)."
+                },
+                {
+                    "name": "threads",
+                    "type": {
+                        "kind": "array",
+                        "element": {
+                            "kind": "reference",
+                            "name": "ThreadInfo"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "SessionInfo",
+            "properties": [
+                {
+                    "name": "commandLine",
+                    "type": {
+                        "kind": "base",
+                        "name": "string"
+                    }
+                },
+                {
+                    "name": "date",
+                    "type": {
+                        "kind": "base",
+                        "name": "string"
+                    }
+                },
+                {
+                    "name": "runtime",
+                    "type": {
+                        "kind": "base",
+                        "name": "integer"
+                    },
+                    "documentation": "Time the session was running (in nanoseconds)."
+                },
+                {
+                    "name": "numberOfProcesses",
+                    "type": {
+                        "kind": "base",
+                        "name": "integer"
+                    }
+                },
+                {
+                    "name": "numberOfThreads",
+                    "type": {
+                        "kind": "base",
+                        "name": "integer"
+                    }
+                },
+                {
+                    "name": "numberOfSamples",
+                    "type": {
+                        "kind": "base",
+                        "name": "integer"
+                    }
+                },
+                {
+                    "name": "averageSamplingRate",
+                    "type": {
+                        "kind": "base",
+                        "name": "decimal"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "SystemInfo",
+            "properties": [
+                {
+                    "name": "hostname",
+                    "type": {
+                        "kind": "base",
+                        "name": "string"
+                    }
+                },
+                {
+                    "name": "platform",
+                    "type": {
+                        "kind": "base",
+                        "name": "string"
+                    }
+                },
+                {
+                    "name": "architecture",
+                    "type": {
+                        "kind": "base",
+                        "name": "string"
+                    }
+                },
+                {
+                    "name": "cpuName",
+                    "type": {
+                        "kind": "base",
+                        "name": "string"
+                    }
+                },
+                {
+                    "name": "numberOfProcessors",
+                    "type": {
+                        "kind": "base",
+                        "name": "integer"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "CallTreeNode",
+            "properties": [
+                {
+                    "name": "name",
+                    "type": {
+                        "kind": "base",
+                        "name": "string"
+                    }
+                },
+                {
+                    "name": "id",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "functionId",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "module",
+                    "type": {
+                        "kind": "base",
+                        "name": "string"
+                    }
+                },
+                {
+                    "name": "type",
+                    "type": {
+                        "kind": "base",
+                        "name": "string"
+                    }
+                },
+                {
+                    "name": "totalSamples",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "selfSamples",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "totalPercent",
+                    "type": {
+                        "kind": "base",
+                        "name": "decimal"
+                    }
+                },
+                {
+                    "name": "selfPercent",
+                    "type": {
+                        "kind": "base",
+                        "name": "decimal"
+                    }
+                },
+                {
+                    "name": "children",
+                    "type": {
+                        "kind": "array",
+                        "element": {
+                            "kind": "reference",
+                            "name": "CallTreeNode"
+                        }
+                    },
+                    "optional": true
+                },
+                {
+                    "name": "isHot",
+                    "type": {
+                        "kind": "base",
+                        "name": "boolean"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "FunctionNode",
+            "properties": [
+                {
+                    "name": "name",
+                    "type": {
+                        "kind": "base",
+                        "name": "string"
+                    }
+                },
+                {
+                    "name": "id",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "module",
+                    "type": {
+                        "kind": "base",
+                        "name": "string"
+                    }
+                },
+                {
+                    "name": "type",
+                    "type": {
+                        "kind": "base",
+                        "name": "string"
+                    }
+                },
+                {
+                    "name": "totalSamples",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "selfSamples",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "totalPercent",
+                    "type": {
+                        "kind": "base",
+                        "name": "decimal"
+                    }
+                },
+                {
+                    "name": "selfPercent",
+                    "type": {
+                        "kind": "base",
+                        "name": "decimal"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "ProcessFunction",
+            "properties": [
+                {
+                    "name": "processId",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "function",
+                    "type": {
+                        "kind": "reference",
+                        "name": "FunctionNode"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "LineHits",
+            "properties": [
+                {
+                    "name": "lineNumber",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "totalSamples",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "selfSamples",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "totalPercent",
+                    "type": {
+                        "kind": "base",
+                        "name": "decimal"
+                    }
+                },
+                {
+                    "name": "selfPercent",
+                    "type": {
+                        "kind": "base",
+                        "name": "decimal"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "_DocumentIdParams",
+            "properties": [
+                {
+                    "name": "documentId",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    },
+                    "documentation": "The id of the document to perform the operation on.\nThis should be an id that resulted from a call to `readDocument`."
+                }
+            ]
+        },
+        {
+            "name": "_ProcessParams",
+            "properties": [
+                {
+                    "name": "processId",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                }
+            ],
+            "extends": [
+                {
+                    "kind": "reference",
+                    "name": "_DocumentIdParams"
+                }
+            ]
+        },
+        {
+            "name": "_FunctionParams",
+            "properties": [
+                {
+                    "name": "functionId",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                }
+            ],
+            "extends": [
+                {
+                    "kind": "reference",
+                    "name": "_ProcessParams"
+                }
+            ]
+        },
+        {
+            "name": "InitializeParams",
+            "properties": []
+        },
+        {
+            "name": "InitializeResult",
+            "properties": [
+                {
+                    "name": "success",
+                    "type": {
+                        "kind": "base",
+                        "name": "boolean"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "ReadDocumentParams",
+            "properties": [
+                {
+                    "name": "filePath",
+                    "type": {
+                        "kind": "base",
+                        "name": "DocumentUri"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "ReadDocumentResult",
+            "properties": [
+                {
+                    "name": "documentId",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "RetrieveSessionInfoParams",
+            "properties": [],
+            "extends": [
+                {
+                    "kind": "reference",
+                    "name": "_DocumentIdParams"
+                }
+            ]
+        },
+        {
+            "name": "RetrieveSessionInfoResult",
+            "properties": [
+                {
+                    "name": "sessionInfo",
+                    "type": {
+                        "kind": "reference",
+                        "name": "SessionInfo"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "RetrieveSystemInfoParams",
+            "properties": [],
+            "extends": [
+                {
+                    "kind": "reference",
+                    "name": "_DocumentIdParams"
+                }
+            ]
+        },
+        {
+            "name": "RetrieveSystemInfoResult",
+            "properties": [
+                {
+                    "name": "systemInfo",
+                    "type": {
+                        "kind": "reference",
+                        "name": "SystemInfo"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "RetrieveProcessesParams",
+            "properties": [],
+            "extends": [
+                {
+                    "kind": "reference",
+                    "name": "_DocumentIdParams"
+                }
+            ]
+        },
+        {
+            "name": "RetrieveProcessesResult",
+            "properties": [
+                {
+                    "name": "processes",
+                    "type": {
+                        "kind": "array",
+                        "element": {
+                            "kind": "reference",
+                            "name": "ProcessInfo"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "RetrieveHottestFunctionsParams",
+            "properties": [
+                {
+                    "name": "count",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                }
+            ],
+            "extends": [
+                {
+                    "kind": "reference",
+                    "name": "_DocumentIdParams"
+                }
+            ]
+        },
+        {
+            "name": "RetrieveHottestFunctionsResult",
+            "properties": [
+                {
+                    "name": "functions",
+                    "type": {
+                        "kind": "array",
+                        "element": {
+                            "kind": "reference",
+                            "name": "ProcessFunction"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "RetrieveCallTreeHotPathParams",
+            "properties": [],
+            "extends": [
+                {
+                    "kind": "reference",
+                    "name": "_ProcessParams"
+                }
+            ]
+        },
+        {
+            "name": "RetrieveCallTreeHotPathResult",
+            "properties": [
+                {
+                    "name": "root",
+                    "type": {
+                        "kind": "reference",
+                        "name": "CallTreeNode"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "RetrieveFunctionsPageParams",
+            "properties": [
+                {
+                    "name": "pageSize",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "pageIndex",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                }
+            ],
+            "extends": [
+                {
+                    "kind": "reference",
+                    "name": "_ProcessParams"
+                }
+            ]
+        },
+        {
+            "name": "RetrieveFunctionsPageResult",
+            "properties": [
+                {
+                    "name": "functions",
+                    "type": {
+                        "kind": "array",
+                        "element": {
+                            "kind": "reference",
+                            "name": "FunctionNode"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "ExpandCallTreeNodeParams",
+            "properties": [
+                {
+                    "name": "nodeId",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                }
+            ],
+            "extends": [
+                {
+                    "kind": "reference",
+                    "name": "_ProcessParams"
+                }
+            ]
+        },
+        {
+            "name": "ExpandCallTreeNodeResult",
+            "properties": [
+                {
+                    "name": "children",
+                    "type": {
+                        "kind": "array",
+                        "element": {
+                            "kind": "reference",
+                            "name": "CallTreeNode"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "RetrieveCallersCalleesParams",
+            "properties": [
+                {
+                    "name": "maxEntries",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                }
+            ],
+            "extends": [
+                {
+                    "kind": "reference",
+                    "name": "_FunctionParams"
+                }
+            ]
+        },
+        {
+            "name": "RetrieveCallersCalleesResult",
+            "properties": [
+                {
+                    "name": "function",
+                    "type": {
+                        "kind": "reference",
+                        "name": "FunctionNode"
+                    }
+                },
+                {
+                    "name": "callers",
+                    "type": {
+                        "kind": "array",
+                        "element": {
+                            "kind": "reference",
+                            "name": "FunctionNode"
+                        }
+                    }
+                },
+                {
+                    "name": "callees",
+                    "type": {
+                        "kind": "array",
+                        "element": {
+                            "kind": "reference",
+                            "name": "FunctionNode"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "RetrieveLineInfoParams",
+            "properties": [],
+            "extends": [
+                {
+                    "kind": "reference",
+                    "name": "_FunctionParams"
+                }
+            ]
+        },
+        {
+            "name": "RetrieveLineInfoResult",
+            "properties": [
+                {
+                    "name": "filePath",
+                    "type": {
+                        "kind": "base",
+                        "name": "string"
+                    }
+                },
+                {
+                    "name": "lineNumber",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "totalSamples",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "selfSamples",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "totalPercent",
+                    "type": {
+                        "kind": "base",
+                        "name": "decimal"
+                    }
+                },
+                {
+                    "name": "selfPercent",
+                    "type": {
+                        "kind": "base",
+                        "name": "decimal"
+                    }
+                },
+                {
+                    "name": "lineHits",
+                    "type": {
+                        "kind": "array",
+                        "element": {
+                            "kind": "reference",
+                            "name": "LineHits"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "CloseDocumentParams",
+            "properties": [],
+            "extends": [
+                {
+                    "kind": "reference",
+                    "name": "_DocumentIdParams"
+                }
+            ]
+        },
+        {
+            "name": "SetModulePathMapsParams",
+            "properties": [
+                {
+                    "name": "simpleMaps",
+                    "type": {
+                        "kind": "array",
+                        "element": {
+                            "kind": "tuple",
+                            "items": [
+                                {
+                                    "kind": "base",
+                                    "name": "string"
+                                },
+                                {
+                                    "kind": "base",
+                                    "name": "string"
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "SetPdbSymbolFindOptionsParams",
+            "properties": [
+                {
+                    "name": "searchDirs",
+                    "type": {
+                        "kind": "array",
+                        "element": {
+                            "kind": "base",
+                            "name": "string"
+                        }
+                    }
+                },
+                {
+                    "name": "symbolCacheDir",
+                    "type": {
+                        "kind": "base",
+                        "name": "string"
+                    },
+                    "optional": true
+                },
+                {
+                    "name": "noDefaultUrls",
+                    "type": {
+                        "kind": "base",
+                        "name": "boolean"
+                    }
+                },
+                {
+                    "name": "symbolServerUrls",
+                    "type": {
+                        "kind": "array",
+                        "element": {
+                            "kind": "base",
+                            "name": "string"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "SetDwarfSymbolFindOptionsParams",
+            "properties": [
+                {
+                    "name": "searchDirs",
+                    "type": {
+                        "kind": "array",
+                        "element": {
+                            "kind": "base",
+                            "name": "string"
+                        }
+                    }
+                },
+                {
+                    "name": "debuginfodCacheDir",
+                    "type": {
+                        "kind": "base",
+                        "name": "string"
+                    },
+                    "optional": true
+                },
+                {
+                    "name": "noDefaultUrls",
+                    "type": {
+                        "kind": "base",
+                        "name": "boolean"
+                    }
+                },
+                {
+                    "name": "debuginfodUrls",
+                    "type": {
+                        "kind": "array",
+                        "element": {
+                            "kind": "base",
+                            "name": "string"
+                        }
+                    }
+                }
+            ]
+        }
+    ],
+    "enumerations": [],
+    "typeAliases": [
+        {
+            "name": "LSPObject",
+            "type": {
+                "kind": "base",
+                "name": "null"
+            },
+            "documentation": "Unused"
+        }
+    ]
+}
