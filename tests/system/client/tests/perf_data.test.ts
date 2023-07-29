@@ -344,6 +344,32 @@ describe("InnerPerfData", () => {
         assert.strictEqual(response.callers[0].name, "libc.so.6!0x00007f6062938b4a");
     });
 
+    it("callersCalleesUniformRealDist", async () => {
+
+        const functionsPage = await fixture.connection.sendRequest(snail.retrieveFunctionsPageRequestType, {
+            documentId: documentId,
+            processId: 248,
+            pageSize: 200,
+            pageIndex: 0
+        });
+
+        const func = functionsPage.functions.find(func => func.name == "std::uniform_real_distribution<double>::param_type::a() const");
+        assert.isDefined(func);
+
+        const response = await fixture.connection.sendRequest(snail.retrieveCallersCalleesRequestType, {
+            documentId: documentId,
+            processId: 248,
+            functionId: func!.id,
+            maxEntries: 1
+        });
+
+        assert.strictEqual(response.function.id, func!.id);
+        assert.strictEqual(response.callees.length, 0);
+
+        assert.strictEqual(response.callers.length, 1);
+        assert.strictEqual(response.callers[0].name, "[others]");
+    });
+
     it("lineInfoMain", async () => {
 
         const functionsPage = await fixture.connection.sendRequest(snail.retrieveFunctionsPageRequestType, {
