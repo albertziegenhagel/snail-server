@@ -16,73 +16,10 @@
 #include <snail/analysis/data_provider.hpp>
 #include <snail/analysis/options.hpp>
 
+#include <snail/server/requests/protocol.hpp>
+
 using namespace snail;
 using namespace snail::server;
-
-SNAIL_JSONRPC_REQUEST_0(initialize);
-
-SNAIL_JSONRPC_REQUEST_4(set_pdb_symbol_find_options,
-                        std::vector<std::string>, search_dirs,
-                        std::optional<std::string>, symbol_cache_dir,
-                        bool, no_default_urls,
-                        std::vector<std::string>, symbol_server_urls);
-
-SNAIL_JSONRPC_REQUEST_4(set_dwarf_symbol_find_options,
-                        std::vector<std::string>, search_dirs,
-                        std::optional<std::string>, debuginfod_cache_dir,
-                        bool, no_default_urls,
-                        std::vector<std::string>, debuginfod_urls);
-
-// FIXME: fix the request macros and get rid of this
-using string_pair = std::pair<std::string, std::string>;
-
-SNAIL_JSONRPC_REQUEST_1(set_module_path_maps,
-                        std::vector<string_pair>, simple_maps);
-
-SNAIL_JSONRPC_REQUEST_1(read_document,
-                        std::string_view, file_path);
-
-SNAIL_JSONRPC_REQUEST_1(close_document,
-                        std::size_t, document_id);
-
-SNAIL_JSONRPC_REQUEST_1(retrieve_session_info,
-                        std::size_t, document_id);
-
-SNAIL_JSONRPC_REQUEST_1(retrieve_system_info,
-                        std::size_t, document_id);
-
-SNAIL_JSONRPC_REQUEST_1(retrieve_processes,
-                        std::size_t, document_id);
-
-SNAIL_JSONRPC_REQUEST_2(retrieve_hottest_functions,
-                        std::size_t, document_id,
-                        std::size_t, count);
-
-SNAIL_JSONRPC_REQUEST_2(retrieve_call_tree_hot_path,
-                        std::size_t, document_id,
-                        common::process_id_t, process_id);
-
-SNAIL_JSONRPC_REQUEST_4(retrieve_functions_page,
-                        std::size_t, document_id,
-                        common::process_id_t, process_id,
-                        std::size_t, page_size,
-                        std::size_t, page_index);
-
-SNAIL_JSONRPC_REQUEST_3(expand_call_tree_node,
-                        std::size_t, document_id,
-                        common::process_id_t, process_id,
-                        analysis::call_tree_node::id_t, node_id);
-
-SNAIL_JSONRPC_REQUEST_4(retrieve_callers_callees,
-                        std::size_t, document_id,
-                        common::process_id_t, process_id,
-                        analysis::function_info::id_t, function_id,
-                        std::size_t, max_entries);
-
-SNAIL_JSONRPC_REQUEST_3(retrieve_line_info,
-                        std::size_t, document_id,
-                        common::process_id_t, process_id,
-                        analysis::function_info::id_t, function_id);
 
 namespace {
 
@@ -135,14 +72,14 @@ auto append_call_tree_node_children(const analysis::stacks_analysis& stacks_anal
         children.push_back({
             {"name", child_function.name},
             {"id", child.id},
-            {"function_id", child.function_id},
+            {"functionId", child.function_id},
             {"module", child_module.name},
             {"type", "function"},
-            {"total_samples", child.hits.total},
-            {"self_samples", child.hits.self},
-            {"total_percent", make_percent(child.hits.total, total_hits)},
-            {"self_percent", make_percent(child.hits.self, total_hits)},
-            {"is_hot", expand_top_child && is_top_child}
+            {"totalSamples", child.hits.total},
+            {"selfSamples", child.hits.self},
+            {"totalPercent", make_percent(child.hits.total, total_hits)},
+            {"selfPercent", make_percent(child.hits.self, total_hits)},
+            {"isHot", expand_top_child && is_top_child}
         });
 
         if(is_top_child) top_child_index = child_index;
@@ -182,10 +119,10 @@ auto make_function_json(const analysis::stacks_analysis& stacks_analysis,
         {"id", function.id},
         {"module", std::move(module_name)},
         {"type", type},
-        {"total_samples", hits->total},
-        {"self_samples", hits->self},
-        {"total_percent", make_percent(hits->total, total_hits)},
-        {"self_percent", make_percent(hits->self, total_hits)},
+        {"totalSamples", hits->total},
+        {"selfSamples", hits->self},
+        {"totalPercent", make_percent(hits->total, total_hits)},
+        {"selfPercent", make_percent(hits->self, total_hits)},
     };
 }
 
@@ -261,7 +198,7 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
         {
             const auto document_id = storage.read_document(request.file_path());
             return {
-                {"document_id", document_id.id_}
+                {"documentId", document_id.id_}
             };
         });
 
@@ -290,14 +227,14 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
             };
 
             return {
-                {"session_info",
-                 {{"command_line", session_info.command_line},
+                {"sessionInfo",
+                 {{"commandLine", session_info.command_line},
                   {"date", format_date(session_info.date)},
                   {"runtime", session_info.runtime.count()},
-                  {"number_of_processes", session_info.number_of_processes},
-                  {"number_of_threads", session_info.number_of_threads},
-                  {"number_of_samples", session_info.number_of_samples},
-                  {"average_sampling_rate", session_info.average_sampling_rate}}}
+                  {"numberOfProcesses", session_info.number_of_processes},
+                  {"numberOfThreads", session_info.number_of_threads},
+                  {"numberOfSamples", session_info.number_of_samples},
+                  {"averageSamplingRate", session_info.average_sampling_rate}}}
             };
         });
     server.register_request<retrieve_system_info_request>(
@@ -306,12 +243,12 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
             const auto& system_info = storage.get_data({request.document_id()}).system_info();
 
             return {
-                {"system_info",
+                {"systemInfo",
                  {{"hostname", system_info.hostname},
                   {"platform", system_info.platform},
                   {"architecture", system_info.architecture},
-                  {"cpu_name", system_info.cpu_name},
-                  {"number_of_processors", system_info.number_of_processors}}}
+                  {"cpuName", system_info.cpu_name},
+                  {"numberOfProcessors", system_info.number_of_processors}}}
             };
         });
     server.register_request<retrieve_processes_request>(
@@ -326,20 +263,20 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
                 for(const auto& thread_info : data_provider.threads_info(process_id))
                 {
                     json_threads.push_back({
-                        {"id",         thread_info.id                                                                },
-                        {"name",       thread_info.name ? nlohmann::json(*thread_info.name) : nlohmann::json(nullptr)},
-                        {"start_time", thread_info.start_time.count()                                                },
-                        {"end_time",   thread_info.end_time.count()                                                  }
+                        {"id",        thread_info.id                                                                },
+                        {"name",      thread_info.name ? nlohmann::json(*thread_info.name) : nlohmann::json(nullptr)},
+                        {"startTime", thread_info.start_time.count()                                                },
+                        {"endTime",   thread_info.end_time.count()                                                  }
                     });
                 }
 
                 const auto& process_info = data_provider.process_info(process_id);
                 json_processes.push_back({
-                    {"id",         process_id                     },
-                    {"name",       process_info.name              },
-                    {"start_time", process_info.start_time.count()},
-                    {"end_time",   process_info.end_time.count()  },
-                    {"threads",    std::move(json_threads)        }
+                    {"id",        process_id                     },
+                    {"name",      process_info.name              },
+                    {"startTime", process_info.start_time.count()},
+                    {"endTime",   process_info.end_time.count()  },
+                    {"threads",   std::move(json_threads)        }
                 });
             }
             return {
@@ -387,7 +324,7 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
             {
                 const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, entry.process_id);
                 json_functions.push_back({
-                    {"process_id", entry.process_id},
+                    {"processId", entry.process_id},
                     {"function", make_function_json(stacks_analysis, *entry.function, total_hits)}
                 });
             }
@@ -446,14 +383,14 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
             auto result = nlohmann::json{
                 {"name", root_name},
                 {"id", current_node->id},
-                {"function_id", current_node->function_id},
+                {"functionId", current_node->function_id},
                 {"module", "[multiple]"},
                 {"type", "process"},
-                {"total_samples", current_node->hits.total},
-                {"self_samples", current_node->hits.self},
-                {"total_percent", make_percent(current_node->hits.total, total_hits)},
-                {"self_percent", make_percent(current_node->hits.self, total_hits)},
-                {"is_hot", true}
+                {"totalSamples", current_node->hits.total},
+                {"selfSamples", current_node->hits.self},
+                {"totalPercent", make_percent(current_node->hits.total, total_hits)},
+                {"selfPercent", make_percent(current_node->hits.self, total_hits)},
+                {"isHot", true}
             };
 
             auto* current_json_node = &result;
@@ -519,7 +456,7 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
                 callers.begin(), callers.end(),
                 [](const nlohmann::json& lhs, const nlohmann::json& rhs)
                 {
-                    return lhs.at("total_samples").get<std::size_t>() > rhs.at("total_samples").get<std::size_t>();
+                    return lhs.at("totalSamples").get<std::size_t>() > rhs.at("totalSamples").get<std::size_t>();
                 });
 
             // TODO: make into function and remove code duplication with code below
@@ -528,8 +465,8 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
                 analysis::hit_counts accumulated_hits;
                 for(std::size_t i = max_entries - 1; i < callers.size(); ++i)
                 {
-                    accumulated_hits.total += callers[i].at("total_samples").get<std::size_t>();
-                    accumulated_hits.total += callers[i].at("self_samples").get<std::size_t>();
+                    accumulated_hits.total += callers[i].at("totalSamples").get<std::size_t>();
+                    accumulated_hits.total += callers[i].at("selfSamples").get<std::size_t>();
                 }
 
                 callers.erase(callers.begin() + common::narrow_cast<std::ptrdiff_t>(max_entries - 1), callers.end());
@@ -539,10 +476,10 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
                         {"id", nlohmann::json(nullptr)},
                         {"module", "[multiple]"},
                         {"type", "accumulated"},
-                        {"total_samples", accumulated_hits.total},
-                        {"self_samples", accumulated_hits.self},
-                        {"total_percent", make_percent(accumulated_hits.total, total_hits)},
-                        {"self_percent", make_percent(accumulated_hits.self, total_hits)},
+                        {"totalSamples", accumulated_hits.total},
+                        {"selfSamples", accumulated_hits.self},
+                        {"totalPercent", make_percent(accumulated_hits.total, total_hits)},
+                        {"selfPercent", make_percent(accumulated_hits.self, total_hits)},
                 });
             }
 
@@ -557,7 +494,7 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
                 callees.begin(), callees.end(),
                 [](const nlohmann::json& lhs, const nlohmann::json& rhs)
                 {
-                    return lhs.at("total_samples").get<std::size_t>() > rhs.at("total_samples").get<std::size_t>();
+                    return lhs.at("totalSamples").get<std::size_t>() > rhs.at("totalSamples").get<std::size_t>();
                 });
 
             if(callees.size() > max_entries)
@@ -565,8 +502,8 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
                 analysis::hit_counts accumulated_hits;
                 for(std::size_t i = max_entries - 1; i < callees.size(); ++i)
                 {
-                    accumulated_hits.total += callees[i].at("total_samples").get<std::size_t>();
-                    accumulated_hits.total += callees[i].at("self_samples").get<std::size_t>();
+                    accumulated_hits.total += callees[i].at("totalSamples").get<std::size_t>();
+                    accumulated_hits.total += callees[i].at("selfSamples").get<std::size_t>();
                 }
 
                 callees.erase(callees.begin() + common::narrow_cast<std::ptrdiff_t>(max_entries - 1), callees.end());
@@ -576,10 +513,10 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
                         {"id", nlohmann::json(nullptr)},
                         {"module", "[multiple]"},
                         {"type", "accumulated"},
-                        {"total_samples", accumulated_hits.total},
-                        {"self_samples", accumulated_hits.self},
-                        {"total_percent", make_percent(accumulated_hits.total, total_hits)},
-                        {"self_percent", make_percent(accumulated_hits.self, total_hits)},
+                        {"totalSamples", accumulated_hits.total},
+                        {"selfSamples", accumulated_hits.self},
+                        {"totalPercent", make_percent(accumulated_hits.total, total_hits)},
+                        {"selfPercent", make_percent(accumulated_hits.self, total_hits)},
                 });
             }
 
@@ -597,15 +534,7 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
 
             if(function.file_id == std::nullopt || function.line_number == std::nullopt)
             {
-                return {
-                    {"file_path",     nlohmann::json(nullptr)},
-                    {"self_samples",  nlohmann::json(nullptr)},
-                    {"total_samples", nlohmann::json(nullptr)},
-                    {"self_percent",  nlohmann::json(nullptr)},
-                    {"total_percent", nlohmann::json(nullptr)},
-                    {"line_number",   nlohmann::json(nullptr)},
-                    {"line_hits",     nlohmann::json::array()}
-                };
+                return nullptr;
             }
 
             const auto total_hits = storage.get_data({request.document_id()}).session_info().number_of_samples; // TODO: use filtered
@@ -619,22 +548,22 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
             {
                 line_hits.push_back(
                     nlohmann::json{
-                        {"line_number", line_number},
-                        {"total_samples", hits.total},
-                        {"self_samples", hits.self},
-                        {"total_percent", make_percent(hits.total, total_hits)},
-                        {"self_percent", make_percent(hits.self, total_hits)},
+                        {"lineNumber", line_number},
+                        {"totalSamples", hits.total},
+                        {"selfSamples", hits.self},
+                        {"totalPercent", make_percent(hits.total, total_hits)},
+                        {"selfPercent", make_percent(hits.self, total_hits)},
                 });
             }
 
             return {
-                {"file_path", file.path},
-                {"total_samples", function.hits.total},
-                {"self_samples", function.hits.self},
-                {"total_percent", make_percent(function.hits.total, total_hits)},
-                {"self_percent", make_percent(function.hits.self, total_hits)},
-                {"line_number", *function.line_number},
-                {"line_hits", nlohmann::json(std::move(line_hits))}
+                {"filePath", file.path},
+                {"totalSamples", function.hits.total},
+                {"selfSamples", function.hits.self},
+                {"totalPercent", make_percent(function.hits.total, total_hits)},
+                {"selfPercent", make_percent(function.hits.self, total_hits)},
+                {"lineNumber", *function.line_number},
+                {"lineHits", nlohmann::json(std::move(line_hits))}
             };
         });
 }
