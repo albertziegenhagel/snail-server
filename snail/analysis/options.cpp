@@ -8,6 +8,36 @@
 using namespace snail;
 using namespace snail::analysis;
 
+namespace {
+
+bool matches_any(std::string_view               input,
+                 const std::vector<std::regex>& patterns)
+{
+    for(const auto& pattern : patterns)
+    {
+        if(std::regex_match(input.begin(), input.end(), pattern)) return true;
+    }
+    return false;
+}
+
+} // namespace
+
+filter_options::filter_options() :
+    mode(filter_mode::all_but_excluded)
+{}
+
+bool filter_options::check(std::string_view input) const
+{
+    switch(mode)
+    {
+    case filter_mode::all_but_excluded:
+        return !matches_any(input, excluded);
+    case filter_mode::only_included:
+        return matches_any(input, included);
+    }
+    return false;
+}
+
 pdb_symbol_find_options::pdb_symbol_find_options() :
     symbol_cache_dir_(common::get_temp_dir() / "SymbolCache")
 {

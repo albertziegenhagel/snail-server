@@ -1,10 +1,29 @@
 #pragma once
 
 #include <filesystem>
+#include <regex>
 #include <string>
 #include <vector>
 
 namespace snail::analysis {
+
+enum class filter_mode
+{
+    all_but_excluded,
+    only_included
+};
+
+struct filter_options
+{
+    filter_options();
+
+    filter_mode mode;
+
+    std::vector<std::regex> included;
+    std::vector<std::regex> excluded;
+
+    bool check(std::string_view input) const;
+};
 
 struct pdb_symbol_find_options
 {
@@ -30,6 +49,8 @@ struct options
 {
     pdb_symbol_find_options   pdb_find_options;
     dwarf_symbol_find_options dwarf_find_options;
+
+    filter_options filter;
 };
 
 } // namespace snail::analysis

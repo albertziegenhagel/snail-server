@@ -4,7 +4,8 @@ import * as fs from 'fs-extra';
 import * as snail from '../src/protocol';
 import * as fixture from './server';
 
-describe("InnerDiagsession", () => {
+describe("InnerDiagsession", function () {
+    this.timeout(60 * 1000);
 
     let documentId: number | undefined = undefined;
 
@@ -19,6 +20,7 @@ describe("InnerDiagsession", () => {
         }
 
         const dataDir = path.join(process.env.SNAIL_ROOT_DIR, 'tests', 'apps', 'inner', 'dist', 'windows', 'deb');
+        const cacheDir = path.join(process.env.SNAIL_TEMP_DIR, "cache")
 
         // Copy the file to a different path, under a different name so that we can test the module path map
         tempPdbFile = path.join(process.env.SNAIL_TEMP_DIR, 'inner-renamed.pdb')
@@ -31,18 +33,31 @@ describe("InnerDiagsession", () => {
             ]]
         });
 
+        await fixture.connection.sendNotification(snail.setModuleFiltersNotificationType, {
+            mode: snail.ModuleFilterMode.OnlyIncluded,
+            include: [
+                "*inner.exe",
+                "*ntdll.dll"
+            ],
+            exclude: []
+        });
+
         await fixture.connection.sendNotification(snail.setPdbSymbolFindOptionsNotificationType, {
             searchDirs: [
                 process.env.SNAIL_TEMP_DIR
             ],
             noDefaultUrls: true,
-            symbolServerUrls: [],
-            symbolCacheDir: "should-not-exist-2f4f23da-ef58-4f0c-8f99-a83aed90fbbe"
+            symbolServerUrls: [
+                "https://msdl.microsoft.com/download/symbols"
+            ],
+            symbolCacheDir: cacheDir
         });
 
         const response = await fixture.connection.sendRequest(snail.readDocumentRequestType, {
             filePath: path.join(dataDir, 'record', 'inner.diagsession')
         });
+
+        fs.removeSync(cacheDir);
 
         assert.isAtLeast(response.documentId, 0);
 
@@ -193,12 +208,12 @@ describe("InnerDiagsession", () => {
         assert.strictEqual(response.root.type, "process");
         assert.strictEqual(response.root.children?.length, 2);
 
-        assert.strictEqual(response.root.children?.at(1)?.name, "ntdll.dll!0x00007ffde3a5799e");
+        assert.strictEqual(response.root.children?.at(1)?.name, "LdrInitializeThunk");
         assert.isFalse(response.root.children?.at(1)?.isHot);
         assert.isNull(response.root.children?.at(1)?.children);
 
         let next = response.root.children?.at(0);
-        assert.strictEqual(next?.name, "ntdll.dll!0x00007ffde3a5e44b");
+        assert.strictEqual(next?.name, "RtlUserThreadStart");
         assert.isTrue(next?.isHot);
         assert.strictEqual(next?.children?.length, 1);
 
@@ -456,7 +471,7 @@ describe("InnerDiagsession", () => {
             pageIndex: 0
         });
 
-        const func = functionsPage.functions.find(func => func.name.startsWith("ntdll.dll!"));
+        const func = functionsPage.functions.find(func => func.name.startsWith("ntoskrnl.exe!"));
         assert.isDefined(func);
 
         const response = await fixture.connection.sendRequest(snail.retrieveLineInfoRequestType, {

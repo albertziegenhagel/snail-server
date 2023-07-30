@@ -35,8 +35,9 @@ std::optional<std::string_view> extract_xml_attribute(std::string_view xml_node,
 } // namespace
 
 diagsession_data_provider::diagsession_data_provider(pdb_symbol_find_options find_options,
-                                                     path_map                module_path_map) :
-    etl_data_provider(std::move(find_options), std::move(module_path_map))
+                                                     path_map                module_path_map,
+                                                     filter_options          module_filter) :
+    etl_data_provider(std::move(find_options), std::move(module_path_map), std::move(module_filter))
 {}
 
 diagsession_data_provider::~diagsession_data_provider()

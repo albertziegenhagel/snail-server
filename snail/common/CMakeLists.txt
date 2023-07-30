@@ -4,11 +4,12 @@ add_library(common)
 target_sources(common
   PRIVATE
     filename.cpp
-    string_compare.cpp
     guid.cpp
+    path.cpp
+    string_compare.cpp
     system.cpp
     trim.cpp
-    path.cpp
+    wildcard.cpp
 )
 
 target_link_libraries(common 

@@ -81,9 +81,11 @@ std::optional<std::filesystem::path> find_or_retrieve_binary(const std::filesyst
 } // namespace
 
 dwarf_resolver::dwarf_resolver(dwarf_symbol_find_options find_options,
-                               path_map                  module_path_map) :
+                               path_map                  module_path_map,
+                               filter_options            filter) :
     find_options_(std::move(find_options)),
-    module_path_map_(std::move(module_path_map))
+    module_path_map_(std::move(module_path_map)),
+    filter_(std::move(filter))
 {}
 
 dwarf_resolver::~dwarf_resolver() = default;
@@ -242,6 +244,12 @@ dwarf_resolver::context_storage* dwarf_resolver::get_dwarf_context(const module_
 
     auto input_binary_path = std::string(module.image_filename);
     module_path_map_.try_apply(input_binary_path);
+
+    if(!filter_.check(input_binary_path))
+    {
+        std::cout << "Skip loading DWARF debug info for " << module.image_filename << std::endl;
+        return nullptr;
+    }
 
     const auto binary_path = find_or_retrieve_binary(input_binary_path, module.build_id, find_options_);
 

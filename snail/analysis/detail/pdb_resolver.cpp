@@ -272,9 +272,13 @@ std::optional<std::filesystem::path> find_or_retrieve_pdb(const std::filesystem:
 
 } // namespace
 
-pdb_resolver::pdb_resolver(pdb_symbol_find_options find_options, path_map module_path_map, bool use_dia_sdk) :
+pdb_resolver::pdb_resolver(pdb_symbol_find_options find_options,
+                           path_map                module_path_map,
+                           filter_options          filter,
+                           bool                    use_dia_sdk) :
     find_options_(std::move(find_options)),
     module_path_map_(std::move(module_path_map)),
+    filter_(std::move(filter)),
     use_dia_sdk_(use_dia_sdk)
 {}
 
@@ -419,6 +423,12 @@ llvm::pdb::IPDBSession* pdb_resolver::get_pdb_session(const module_info& module)
 
     auto module_path = std::string(module.image_filename);
     module_path_map_.try_apply(module_path);
+
+    if(!filter_.check(module_path))
+    {
+        std::cout << "Skip loading PDB symbols for " << module.image_filename << std::endl;
+        return new_pdb_session.get();
+    }
 
     const auto pdb_info = module.pdb_info ?
                               module.pdb_info :
