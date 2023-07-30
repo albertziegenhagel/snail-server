@@ -8,6 +8,7 @@
 #include <snail/common/stream_position.hpp>
 #include <snail/common/string_compare.hpp>
 #include <snail/common/trim.hpp>
+#include <snail/common/wildcard.hpp>
 
 #include <array>
 
@@ -229,4 +230,18 @@ TEST(StreamPositionResetter, Reset)
     }
 
     EXPECT_EQ(stream.tellg(), 5);
+}
+
+TEST(Wildcard, ToRegex)
+{
+    EXPECT_EQ(wildcard_to_regex("*"), R"(^(?:.*)$)");
+    EXPECT_EQ(wildcard_to_regex("?"), R"(^(?:.)$)");
+
+    EXPECT_EQ(wildcard_to_regex("*.exe"), R"(^(?:.*\.exe)$)");
+    EXPECT_EQ(wildcard_to_regex("C:\\*.dll"), R"(^(?:C:\\.*\.dll)$)");
+
+    EXPECT_EQ(wildcard_to_regex("****.so"), R"(^(?:.*\.so)$)");
+    EXPECT_EQ(wildcard_to_regex("filename (1).so"), R"(^(?:filename\ \(1\)\.so)$)");
+
+    EXPECT_EQ(wildcard_to_regex("*ld-linux*.so*"), R"(^(?:.*ld\-linux.*\.so.*)$)");
 }
