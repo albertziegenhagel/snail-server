@@ -7,6 +7,7 @@
 #include <tuple>
 
 #include <snail/common/cast.hpp>
+#include <snail/common/wildcard.hpp>
 
 #include <snail/jsonrpc/request.hpp>
 #include <snail/jsonrpc/server.hpp>
@@ -202,6 +203,31 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
             {
                 module_path_map.add_rule(std::make_unique<analysis::simple_path_mapper>(
                     source, target));
+            }
+        });
+
+    server.register_notification<set_module_filters_request>(
+        [&](const set_module_filters_request& request)
+        {
+            auto& filter = storage.get_options().filter;
+
+            switch(request.mode())
+            {
+            case module_filter_mode::all_but_excluded:
+                filter.mode = analysis::filter_mode::all_but_excluded;
+                break;
+            case module_filter_mode::only_included:
+                filter.mode = analysis::filter_mode::only_included;
+                break;
+            }
+
+            for(const auto& wildcard_str : request.include())
+            {
+                filter.included.emplace_back(common::wildcard_to_regex(wildcard_str));
+            }
+            for(const auto& wildcard_str : request.exclude())
+            {
+                filter.excluded.emplace_back(common::wildcard_to_regex(wildcard_str));
             }
         });
 

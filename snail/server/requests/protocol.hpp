@@ -2,9 +2,32 @@
 
 #include <snail/server/requests/requests.hpp>
 
+#include <format>
 #include <optional>
+#include <stdexcept>
 #include <string>
+#include <string_view>
 #include <tuple>
+
+enum class module_filter_mode
+{
+    all_but_excluded,
+    only_included,
+};
+namespace snail::jsonrpc::detail {
+template<>
+struct enum_value_type<module_filter_mode>
+{
+    using type = std::string_view;
+};
+template<>
+module_filter_mode enum_from_value<module_filter_mode>(const std::string_view& value)
+{
+    if(value == "all_but_excluded") return module_filter_mode::all_but_excluded;
+    if(value == "only_included") return module_filter_mode::only_included;
+    throw std::runtime_error(std::format("'{}' is not a valid value for enum 'module_filter_mode'", value));
+}
+} // namespace snail::jsonrpc::detail
 
 struct initialize_request
 {
@@ -561,6 +584,47 @@ private:
 namespace snail::jsonrpc::detail {
 template<>
 struct is_request<set_dwarf_symbol_find_options_request> : std::true_type
+{};
+} // namespace snail::jsonrpc::detail
+
+struct set_module_filters_request
+{
+    static constexpr std::string_view name = "setModuleFilters";
+
+    static constexpr auto parameters = std::tuple(
+        snail::jsonrpc::detail::request_parameter<module_filter_mode>{"mode"},
+        snail::jsonrpc::detail::request_parameter<std::vector<std::string>>{"exclude"},
+        snail::jsonrpc::detail::request_parameter<std::vector<std::string>>{"include"});
+
+    const module_filter_mode& mode() const
+    {
+        return std::get<0>(data_);
+    }
+    // Modules to exclude when `mode` is `AllButExcluded`. Supports wildcards (as in '*.exe').
+    const std::vector<std::string>& exclude() const
+    {
+        return std::get<1>(data_);
+    }
+    // Modules to include when `mode` is `IncludedOnly`. Supports wildcards (as in '*.exe').
+    const std::vector<std::string>& include() const
+    {
+        return std::get<2>(data_);
+    }
+
+    template<typename RequestType>
+        requires snail::jsonrpc::detail::is_request_v<RequestType>
+    friend RequestType snail::jsonrpc::detail::unpack_request(const nlohmann::json& raw_data);
+
+private:
+    std::tuple<
+        module_filter_mode,
+        std::vector<std::string>,
+        std::vector<std::string>>
+        data_;
+};
+namespace snail::jsonrpc::detail {
+template<>
+struct is_request<set_module_filters_request> : std::true_type
 {};
 } // namespace snail::jsonrpc::detail
 

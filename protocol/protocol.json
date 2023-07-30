@@ -187,6 +187,14 @@
             }
         },
         {
+            "method": "setModuleFilters",
+            "messageDirection": "clientToServer",
+            "params": {
+                "kind": "reference",
+                "name": "SetModuleFiltersParams"
+            }
+        },
+        {
             "method": "exit",
             "messageDirection": "clientToServer"
         }
@@ -1090,9 +1098,62 @@
                     }
                 }
             ]
+        },
+        {
+            "name": "SetModuleFiltersParams",
+            "properties": [
+                {
+                    "name": "mode",
+                    "type": {
+                        "kind": "reference",
+                        "name": "ModuleFilterMode"
+                    }
+                },
+                {
+                    "name": "exclude",
+                    "type": {
+                        "kind": "array",
+                        "element": {
+                            "kind": "base",
+                            "name": "string"
+                        }
+                    },
+                    "documentation": "Modules to exclude when `mode` is `AllButExcluded`. Supports wildcards (as in '*.exe')."
+                },
+                {
+                    "name": "include",
+                    "type": {
+                        "kind": "array",
+                        "element": {
+                            "kind": "base",
+                            "name": "string"
+                        }
+                    },
+                    "documentation": "Modules to include when `mode` is `IncludedOnly`. Supports wildcards (as in '*.exe')."
+                }
+            ]
         }
     ],
-    "enumerations": [],
+    "enumerations": [
+        {
+            "name": "ModuleFilterMode",
+            "type": {
+                "kind": "base",
+                "name": "string"
+            },
+            "values": [
+                {
+                    "name": "AllButExcluded",
+                    "value": "all_but_excluded"
+                },
+                {
+                    "name": "OnlyIncluded",
+                    "value": "only_included"
+                }
+            ],
+            "supportsCustomValues": false
+        }
+    ],
     "typeAliases": [
         {
             "name": "LSPObject",

@@ -1,9 +1,11 @@
 import { assert } from 'chai';
 import * as path from 'path';
+import * as fs from 'fs-extra';
 import * as snail from '../src/protocol';
 import * as fixture from './server';
 
-describe("InnerPerfData", () => {
+describe("InnerPerfData", function () {
+    this.timeout(60 * 1000);
 
     let documentId: number | undefined = undefined;
 
@@ -11,21 +13,38 @@ describe("InnerPerfData", () => {
         if (process.env.SNAIL_ROOT_DIR === undefined) {
             assert.fail("Missing environment variable \"SNAIL_ROOT_DIR\".");
         }
+        if (process.env.SNAIL_TEMP_DIR === undefined) {
+            assert.fail("Missing environment variable \"SNAIL_TEMP_DIR\".");
+        }
 
         const dataDir = path.join(process.env.SNAIL_ROOT_DIR, 'tests', 'apps', 'inner', 'dist', 'linux', 'deb');
+        const cacheDir = path.join(process.env.SNAIL_TEMP_DIR, "cache")
 
         await fixture.connection.sendNotification(snail.setDwarfSymbolFindOptionsNotificationType, {
             searchDirs: [
                 path.join(dataDir, 'bin')
             ],
             noDefaultUrls: true,
-            debuginfodUrls: [],
-            debuginfodCacheDir: "should-not-exist-2f4f23da-ef58-4f0c-8f99-a83aed90fbbe"
+            debuginfodUrls: [
+                "https://debuginfod.elfutils.org/"
+            ],
+            debuginfodCacheDir: cacheDir
+        });
+
+        await fixture.connection.sendNotification(snail.setModuleFiltersNotificationType, {
+            mode: snail.ModuleFilterMode.AllButExcluded,
+            include: [],
+            exclude: [
+                "*ld-linux*.so*",
+                "*libc.so*"
+            ]
         });
 
         const response = await fixture.connection.sendRequest(snail.readDocumentRequestType, {
             filePath: path.join(dataDir, 'record', 'inner-perf.data')
         });
+
+        fs.removeSync(cacheDir);
 
         assert.isAtLeast(response.documentId, 0);
 
