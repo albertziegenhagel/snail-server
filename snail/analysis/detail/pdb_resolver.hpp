@@ -45,6 +45,7 @@ public:
 
     explicit pdb_resolver(pdb_symbol_find_options find_options    = {},
                           path_map                module_path_map = {},
+                          filter_options          filter          = {},
                           bool                    use_dia_sdk     = default_use_dia_sdk);
     ~pdb_resolver();
 
@@ -94,6 +95,7 @@ private:
 
     pdb_symbol_find_options find_options_;
     path_map                module_path_map_;
+    filter_options          filter_;
     bool                    use_dia_sdk_;
 
 #ifdef SNAIL_HAS_LLVM

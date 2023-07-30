@@ -24,7 +24,8 @@ class perf_data_data_provider : public data_provider
 {
 public:
     perf_data_data_provider(dwarf_symbol_find_options find_options    = {},
-                            path_map                  module_path_map = {});
+                            path_map                  module_path_map = {},
+                            filter_options            module_filter   = {});
 
     virtual ~perf_data_data_provider();
 

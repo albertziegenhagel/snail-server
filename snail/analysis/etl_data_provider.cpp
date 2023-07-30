@@ -152,9 +152,13 @@ std::string win_architecture_to_str(std::uint16_t arch)
 } // namespace
 
 etl_data_provider::etl_data_provider(pdb_symbol_find_options find_options,
-                                     path_map                module_path_map)
+                                     path_map                module_path_map,
+                                     filter_options          module_filter)
 {
-    symbol_resolver_ = std::make_unique<detail::pdb_resolver>(std::move(find_options), std::move(module_path_map));
+    symbol_resolver_ = std::make_unique<detail::pdb_resolver>(
+        std::move(find_options),
+        std::move(module_path_map),
+        std::move(module_filter));
 }
 
 etl_data_provider::~etl_data_provider() = default;

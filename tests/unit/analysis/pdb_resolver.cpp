@@ -1,11 +1,16 @@
 
+#include <snail/analysis/detail/pdb_resolver.hpp>
+
 #include <gtest/gtest.h>
 
 #include <folders.hpp>
 
-#include <snail/analysis/detail/pdb_resolver.hpp>
+#include <snail/analysis/options.hpp>
+
+#include <snail/common/wildcard.hpp>
 
 using namespace snail;
+using namespace snail::analysis;
 using namespace snail::analysis::detail;
 using namespace snail::detail::tests;
 
@@ -15,7 +20,7 @@ TEST(PdbResolver, ResolveSymbol)
     const auto exe_path = get_root_dir().value() / "tests" / "apps" / "inner" / "dist" / "windows" / "deb" / "bin" / "inner.exe";
     ASSERT_TRUE(std::filesystem::exists(exe_path)) << "Missing test file:\n  " << exe_path << "\nDid you forget checking out GIT LFS files?";
 
-    pdb_resolver resolver({}, {}, false);
+    pdb_resolver resolver({}, {}, {}, false);
 
     const auto exe_path_str = exe_path.string();
 
@@ -62,5 +67,29 @@ TEST(PdbResolver, ResolveSymbol)
         EXPECT_EQ(symbol.file_path, "");
         EXPECT_EQ(symbol.function_line_number, 0);
         EXPECT_EQ(symbol.instruction_line_number, 0);
+    }
+}
+
+TEST(PdbResolver, Filter)
+{
+    ASSERT_TRUE(get_root_dir().has_value()) << "Missing root dir. Did you forget to pass --snail-root-dir=<dir> to the test executable?";
+    const auto exe_path = get_root_dir().value() / "tests" / "apps" / "inner" / "dist" / "windows" / "deb" / "bin" / "inner.exe";
+    ASSERT_TRUE(std::filesystem::exists(exe_path)) << "Missing test file:\n  " << exe_path << "\nDid you forget checking out GIT LFS files?";
+
+    filter_options filter;
+    filter.excluded.emplace_back(common::wildcard_to_regex("*inner.exe"));
+
+    pdb_resolver resolver({}, {}, filter, false);
+
+    const auto exe_path_str = exe_path.string();
+
+    pdb_resolver::module_info module{};
+    module.image_filename = exe_path_str;
+
+    {
+        const auto symbol = resolver.resolve_symbol(module, module.image_base + 0x00001BF0 + 150);
+
+        EXPECT_TRUE(symbol.is_generic);
+        EXPECT_EQ(symbol.name, "inner.exe!0x0000000000001c86");
     }
 }

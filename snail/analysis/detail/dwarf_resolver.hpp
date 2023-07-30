@@ -21,7 +21,9 @@ public:
     using timestamp_t           = std::uint64_t;
     using instruction_pointer_t = std::uint64_t;
 
-    dwarf_resolver(dwarf_symbol_find_options find_options = {}, path_map module_path_map = {});
+    dwarf_resolver(dwarf_symbol_find_options find_options    = {},
+                   path_map                  module_path_map = {},
+                   filter_options            filter          = {});
     ~dwarf_resolver();
 
     struct symbol_info;
@@ -70,6 +72,7 @@ private:
 
     dwarf_symbol_find_options find_options_;
     path_map                  module_path_map_;
+    filter_options            filter_;
 
 #ifdef SNAIL_HAS_LLVM
     struct context_storage;

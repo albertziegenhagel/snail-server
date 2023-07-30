@@ -23,15 +23,15 @@ std::unique_ptr<data_provider> snail::analysis::make_data_provider(const std::fi
 {
     if(extension == ".etl")
     {
-        return std::make_unique<snail::analysis::etl_data_provider>(std::move(options.pdb_find_options), std::move(module_path_map));
+        return std::make_unique<snail::analysis::etl_data_provider>(std::move(options.pdb_find_options), std::move(module_path_map), std::move(options.filter));
     }
     if(extension == ".diagsession")
     {
-        return std::make_unique<snail::analysis::diagsession_data_provider>(std::move(options.pdb_find_options), std::move(module_path_map));
+        return std::make_unique<snail::analysis::diagsession_data_provider>(std::move(options.pdb_find_options), std::move(module_path_map), std::move(options.filter));
     }
     if(extension == ".data")
     {
-        return std::make_unique<snail::analysis::perf_data_data_provider>(std::move(options.dwarf_find_options), std::move(module_path_map));
+        return std::make_unique<snail::analysis::perf_data_data_provider>(std::move(options.dwarf_find_options), std::move(module_path_map), std::move(options.filter));
     }
 
     throw std::runtime_error(std::format("Unsupported file extension: {}", extension.string()));

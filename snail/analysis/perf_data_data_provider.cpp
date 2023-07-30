@@ -94,9 +94,13 @@ struct perf_data_sample_data : public sample_data
 } // namespace
 
 perf_data_data_provider::perf_data_data_provider(dwarf_symbol_find_options find_options,
-                                                 path_map                  module_path_map)
+                                                 path_map                  module_path_map,
+                                                 filter_options            module_filter)
 {
-    symbol_resolver_ = std::make_unique<detail::dwarf_resolver>(std::move(find_options), std::move(module_path_map));
+    symbol_resolver_ = std::make_unique<detail::dwarf_resolver>(
+        std::move(find_options),
+        std::move(module_path_map),
+        std::move(module_filter));
 }
 
 perf_data_data_provider::~perf_data_data_provider() = default;
