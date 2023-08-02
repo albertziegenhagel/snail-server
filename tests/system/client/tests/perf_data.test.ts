@@ -32,7 +32,7 @@ describe("InnerPerfData", function () {
         });
 
         await fixture.connection.sendNotification(snail.setModuleFiltersNotificationType, {
-            mode: snail.ModuleFilterMode.AllButExcluded,
+            mode: snail.ModuleFilterMode.allButExcluded,
             include: [],
             exclude: [
                 "*ld-linux*.so*",

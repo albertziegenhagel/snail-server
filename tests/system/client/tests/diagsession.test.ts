@@ -34,7 +34,7 @@ describe("InnerDiagsession", function () {
         });
 
         await fixture.connection.sendNotification(snail.setModuleFiltersNotificationType, {
-            mode: snail.ModuleFilterMode.OnlyIncluded,
+            mode: snail.ModuleFilterMode.onlyIncluded,
             include: [
                 "*inner.exe",
                 "*ntdll.dll"

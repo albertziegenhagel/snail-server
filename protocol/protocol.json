@@ -1143,11 +1143,11 @@
             },
             "values": [
                 {
-                    "name": "AllButExcluded",
+                    "name": "allButExcluded",
                     "value": "all_but_excluded"
                 },
                 {
-                    "name": "OnlyIncluded",
+                    "name": "onlyIncluded",
                     "value": "only_included"
                 }
             ],

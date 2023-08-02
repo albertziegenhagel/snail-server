@@ -4,8 +4,8 @@ import * as rpc from 'vscode-jsonrpc/node';
 
 
 export enum ModuleFilterMode {
-    AllButExcluded = "all_but_excluded",
-    OnlyIncluded = "only_included",
+    allButExcluded = "all_but_excluded",
+    onlyIncluded = "only_included",
 }
 
 export interface ThreadInfo {
