@@ -62,7 +62,7 @@ std::optional<std::string> server::handle(std::string_view data)
 std::optional<response> server::handle_request(const jsonrpc::request& request)
 {
     const auto& method = methods_.find(request.method);
-    if(method == methods_.end()) throw unknown_method_error(request.method.c_str());
+    if(method == methods_.end()) throw unknown_method_error(std::format("Unknown method: '{}'", request.method.c_str()).c_str());
 
     auto result = method->second(request.params);
 

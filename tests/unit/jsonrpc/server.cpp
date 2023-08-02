@@ -86,9 +86,9 @@ TEST(JsonRpcServer, ServeSome)
               "Content-Length: 51\r\n"
               "\r\n"
               R"({"jsonrpc":"2.0","result":"response string","id":1})"
-              "Content-Length: 68\r\n"
+              "Content-Length: 86\r\n"
               "\r\n"
-              R"({"jsonrpc":"2.0","error":{"code":-32601,"message":"does-not-exist"}})");
+              R"({"jsonrpc":"2.0","error":{"code":-32601,"message":"Unknown method: 'does-not-exist'"}})");
 
     server.register_request<my_test_3_request>(
         [&](const my_test_3_request&) -> nlohmann::json
@@ -106,9 +106,9 @@ TEST(JsonRpcServer, ServeSome)
               "Content-Length: 51\r\n"
               "\r\n"
               R"({"jsonrpc":"2.0","result":"response string","id":1})"
-              "Content-Length: 68\r\n"
+              "Content-Length: 86\r\n"
               "\r\n"
-              R"({"jsonrpc":"2.0","error":{"code":-32601,"message":"does-not-exist"}})"
+              R"({"jsonrpc":"2.0","error":{"code":-32601,"message":"Unknown method: 'does-not-exist'"}})"
               "Content-Length: 71\r\n"
               "\r\n"
               R"({"jsonrpc":"2.0","error":{"code":-32603,"message":"unexpected"},"id":3})");
