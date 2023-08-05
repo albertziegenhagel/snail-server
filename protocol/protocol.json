@@ -216,7 +216,14 @@
             "name": "ThreadInfo",
             "properties": [
                 {
-                    "name": "id",
+                    "name": "key",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "osId",
                     "type": {
                         "kind": "base",
                         "name": "uinteger"
@@ -252,7 +259,14 @@
             "name": "ProcessInfo",
             "properties": [
                 {
-                    "name": "id",
+                    "name": "key",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "osId",
                     "type": {
                         "kind": "base",
                         "name": "uinteger"
@@ -539,7 +553,7 @@
             "name": "ProcessFunction",
             "properties": [
                 {
-                    "name": "processId",
+                    "name": "processKey",
                     "type": {
                         "kind": "base",
                         "name": "uinteger"
@@ -611,7 +625,7 @@
             "name": "_ProcessParams",
             "properties": [
                 {
-                    "name": "processId",
+                    "name": "processKey",
                     "type": {
                         "kind": "base",
                         "name": "uinteger"

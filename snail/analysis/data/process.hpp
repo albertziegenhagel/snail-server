@@ -3,13 +3,15 @@
 #include <chrono>
 #include <string>
 
-#include <snail/common/types.hpp>
+#include <snail/analysis/data/ids.hpp>
 
 namespace snail::analysis {
 
 struct process_info
 {
-    common::process_id_t id;
+    unique_process_id unique_id;
+
+    std::uint32_t os_id;
 
     std::string name;
 

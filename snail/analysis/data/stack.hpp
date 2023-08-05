@@ -2,8 +2,6 @@
 
 #include <string_view>
 
-#include <snail/common/types.hpp>
-
 namespace snail::analysis {
 
 struct stack_frame

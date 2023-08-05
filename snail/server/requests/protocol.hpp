@@ -223,10 +223,10 @@ struct retrieve_call_tree_hot_path_request
     static constexpr std::string_view name = "retrieveCallTreeHotPath";
 
     static constexpr auto parameters = std::tuple(
-        snail::jsonrpc::detail::request_parameter<snail::common::process_id_t>{"processId"},
+        snail::jsonrpc::detail::request_parameter<std::uint64_t>{"processKey"},
         snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"});
 
-    const snail::common::process_id_t& process_id() const
+    const std::uint64_t& process_key() const
     {
         return std::get<0>(data_);
     }
@@ -243,7 +243,7 @@ struct retrieve_call_tree_hot_path_request
 
 private:
     std::tuple<
-        snail::common::process_id_t,
+        std::uint64_t,
         std::size_t>
         data_;
 };
@@ -260,7 +260,7 @@ struct retrieve_functions_page_request
     static constexpr auto parameters = std::tuple(
         snail::jsonrpc::detail::request_parameter<std::size_t>{"pageSize"},
         snail::jsonrpc::detail::request_parameter<std::size_t>{"pageIndex"},
-        snail::jsonrpc::detail::request_parameter<snail::common::process_id_t>{"processId"},
+        snail::jsonrpc::detail::request_parameter<std::uint64_t>{"processKey"},
         snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"});
 
     const std::size_t& page_size() const
@@ -273,7 +273,7 @@ struct retrieve_functions_page_request
         return std::get<1>(data_);
     }
 
-    const snail::common::process_id_t& process_id() const
+    const std::uint64_t& process_key() const
     {
         return std::get<2>(data_);
     }
@@ -292,7 +292,7 @@ private:
     std::tuple<
         std::size_t,
         std::size_t,
-        snail::common::process_id_t,
+        std::uint64_t,
         std::size_t>
         data_;
 };
@@ -308,7 +308,7 @@ struct expand_call_tree_node_request
 
     static constexpr auto parameters = std::tuple(
         snail::jsonrpc::detail::request_parameter<std::size_t>{"nodeId"},
-        snail::jsonrpc::detail::request_parameter<snail::common::process_id_t>{"processId"},
+        snail::jsonrpc::detail::request_parameter<std::uint64_t>{"processKey"},
         snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"});
 
     const std::size_t& node_id() const
@@ -316,7 +316,7 @@ struct expand_call_tree_node_request
         return std::get<0>(data_);
     }
 
-    const snail::common::process_id_t& process_id() const
+    const std::uint64_t& process_key() const
     {
         return std::get<1>(data_);
     }
@@ -334,7 +334,7 @@ struct expand_call_tree_node_request
 private:
     std::tuple<
         std::size_t,
-        snail::common::process_id_t,
+        std::uint64_t,
         std::size_t>
         data_;
 };
@@ -351,7 +351,7 @@ struct retrieve_callers_callees_request
     static constexpr auto parameters = std::tuple(
         snail::jsonrpc::detail::request_parameter<std::size_t>{"maxEntries"},
         snail::jsonrpc::detail::request_parameter<std::size_t>{"functionId"},
-        snail::jsonrpc::detail::request_parameter<snail::common::process_id_t>{"processId"},
+        snail::jsonrpc::detail::request_parameter<std::uint64_t>{"processKey"},
         snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"});
 
     const std::size_t& max_entries() const
@@ -364,7 +364,7 @@ struct retrieve_callers_callees_request
         return std::get<1>(data_);
     }
 
-    const snail::common::process_id_t& process_id() const
+    const std::uint64_t& process_key() const
     {
         return std::get<2>(data_);
     }
@@ -383,7 +383,7 @@ private:
     std::tuple<
         std::size_t,
         std::size_t,
-        snail::common::process_id_t,
+        std::uint64_t,
         std::size_t>
         data_;
 };
@@ -399,7 +399,7 @@ struct retrieve_line_info_request
 
     static constexpr auto parameters = std::tuple(
         snail::jsonrpc::detail::request_parameter<std::size_t>{"functionId"},
-        snail::jsonrpc::detail::request_parameter<snail::common::process_id_t>{"processId"},
+        snail::jsonrpc::detail::request_parameter<std::uint64_t>{"processKey"},
         snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"});
 
     const std::size_t& function_id() const
@@ -407,7 +407,7 @@ struct retrieve_line_info_request
         return std::get<0>(data_);
     }
 
-    const snail::common::process_id_t& process_id() const
+    const std::uint64_t& process_key() const
     {
         return std::get<1>(data_);
     }
@@ -425,7 +425,7 @@ struct retrieve_line_info_request
 private:
     std::tuple<
         std::size_t,
-        snail::common::process_id_t,
+        std::uint64_t,
         std::size_t>
         data_;
 };

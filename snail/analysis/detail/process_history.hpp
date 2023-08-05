@@ -29,6 +29,10 @@ public:
     {
         return entries_by_id;
     }
+    [[nodiscard]] std::unordered_map<Id, std::vector<entry>>& all_entries()
+    {
+        return entries_by_id;
+    }
 
     [[nodiscard]] std::size_t size() const
     {

@@ -29,7 +29,6 @@
 #include <snail/etl/parser/records/visual_studio/diagnostics_hub.hpp>
 
 #include <snail/common/detail/dump.hpp>
-#include <snail/common/types.hpp>
 
 using namespace snail;
 
@@ -162,8 +161,8 @@ struct options
     bool show_config_ex = false;
     bool show_vs_diag   = false;
 
-    std::optional<common::process_id_t> process_of_interest;
-    bool                                all_processes = false;
+    std::optional<std::uint32_t> process_of_interest;
+    bool                         all_processes = false;
 
     std::vector<std::string> only;
     std::vector<std::string> except;

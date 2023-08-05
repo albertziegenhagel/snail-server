@@ -655,17 +655,18 @@ TEST(EtlFileProcessContext, Threads)
     EXPECT_EQ(thread_333.payload.process_id, 456);
     EXPECT_EQ(thread_333.payload.end_time, std::nullopt);
 
-    using threads_per_proc_set = std::set<std::pair<etl_file_process_context::thread_id_t, etl_file_process_context::timestamp_t>>;
+    const auto& processes = context.get_processes().all_entries();
+    const auto  process_a = processes.at(123)[0];
+    const auto  process_b = processes.at(456)[0];
+    const auto  process_c = processes.at(456)[1];
 
-    EXPECT_EQ(context.get_process_threads(123), (threads_per_proc_set{
-                                                    {111, 10},
-                                                    {222, 45}
-    }));
+    using threads_set = std::set<analysis::unique_thread_id>;
 
-    EXPECT_EQ(context.get_process_threads(456), (threads_per_proc_set{
-                                                    {222, 15},
-                                                    {333, 40}
-    }));
+    EXPECT_EQ(context.get_process_threads(*process_a.payload.unique_id), (threads_set{*thread_111.payload.unique_id, *thread_222_2.payload.unique_id}));
+
+    EXPECT_EQ(context.get_process_threads(*process_b.payload.unique_id), (threads_set{*thread_222_1.payload.unique_id}));
+
+    EXPECT_EQ(context.get_process_threads(*process_c.payload.unique_id), (threads_set{*thread_333.payload.unique_id}));
 }
 
 TEST(EtlFileProcessContext, Images)
@@ -1037,11 +1038,11 @@ TEST(EtlFileProcessContext, VsDiagnosticsHub)
     const auto& processes = context.profiler_processes();
     EXPECT_EQ(processes.size(), 2);
 
-    const auto process_123 = processes.at(123);
+    const auto process_123 = processes.at(etl_file_process_context::process_key{123, 10});
     EXPECT_EQ(process_123.process_id, 123);
     EXPECT_EQ(process_123.start_timestamp, 10);
 
-    const auto process_456 = processes.at(456);
+    const auto process_456 = processes.at(etl_file_process_context::process_key{456, 20});
     EXPECT_EQ(process_456.process_id, 456);
     EXPECT_EQ(process_456.start_timestamp, 20);
 }

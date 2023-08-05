@@ -7,8 +7,6 @@
 #include <string>
 #include <vector>
 
-#include <snail/common/types.hpp>
-
 namespace snail::analysis {
 
 enum class filter_mode

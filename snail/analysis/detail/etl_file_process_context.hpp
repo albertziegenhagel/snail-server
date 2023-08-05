@@ -11,8 +11,9 @@
 
 #include <snail/etl/dispatching_event_observer.hpp>
 
-#include <snail/common/types.hpp>
+#include <snail/analysis/data/ids.hpp>
 
+#include <snail/analysis/detail/id_at.hpp>
 #include <snail/analysis/detail/module_map.hpp>
 #include <snail/analysis/detail/pdb_info.hpp>
 #include <snail/analysis/detail/process_history.hpp>
@@ -43,10 +44,13 @@ namespace snail::analysis::detail {
 class etl_file_process_context
 {
 public:
-    using process_id_t          = std::uint32_t;
-    using thread_id_t           = std::uint32_t;
+    using os_pid_t              = std::uint32_t;
+    using os_tid_t              = std::uint32_t;
     using timestamp_t           = std::uint64_t;
     using instruction_pointer_t = std::uint64_t;
+
+    using process_key = id_at<os_pid_t, timestamp_t>;
+    using thread_key  = id_at<os_tid_t, timestamp_t>;
 
     struct profiler_process_info;
     struct sample_info;
@@ -58,6 +62,8 @@ public:
 
         std::optional<timestamp_t> end_time;
 
+        std::optional<unique_process_id> unique_id;
+
         [[nodiscard]] friend bool operator==(const process_data& lhs, const process_data& rhs)
         {
             return lhs.image_filename == rhs.image_filename &&
@@ -66,9 +72,11 @@ public:
     };
     struct thread_data
     {
-        process_id_t process_id;
+        os_pid_t process_id;
 
         std::optional<timestamp_t> end_time;
+
+        std::optional<unique_thread_id> unique_id;
 
         [[nodiscard]] friend bool operator==(const thread_data& lhs, const thread_data& rhs)
         {
@@ -90,8 +98,8 @@ public:
         }
     };
 
-    using process_history = detail::history<process_id_t, timestamp_t, process_data>;
-    using thread_history  = detail::history<thread_id_t, timestamp_t, thread_data>;
+    using process_history = detail::history<os_pid_t, timestamp_t, process_data>;
+    using thread_history  = detail::history<os_tid_t, timestamp_t, thread_data>;
 
     using process_info = process_history::entry;
     using thread_info  = thread_history::entry;
@@ -104,17 +112,20 @@ public:
 
     void finish();
 
-    const std::unordered_map<process_id_t, profiler_process_info>& profiler_processes() const;
+    process_key id_to_key(unique_process_id id) const;
+    thread_key  id_to_key(unique_thread_id id) const;
+
+    const std::unordered_map<process_key, profiler_process_info>& profiler_processes() const;
 
     const process_history& get_processes() const;
 
     const thread_history& get_threads() const;
 
-    const std::set<std::pair<thread_id_t, timestamp_t>>& get_process_threads(process_id_t process_id) const;
+    const std::set<unique_thread_id>& get_process_threads(unique_process_id process_id) const;
 
-    const module_map<module_data>& get_modules(process_id_t process_id) const;
+    const module_map<module_data, timestamp_t>& get_modules(os_pid_t process_id) const;
 
-    std::span<const sample_info> thread_samples(thread_id_t thread_id, timestamp_t start_time, std::optional<timestamp_t> end_time) const;
+    std::span<const sample_info> thread_samples(os_tid_t thread_id, timestamp_t start_time, std::optional<timestamp_t> end_time) const;
 
     const std::vector<instruction_pointer_t>& stack(std::size_t stack_index) const;
 
@@ -153,9 +164,9 @@ private:
     process_history processes;
     thread_history  threads;
 
-    std::unordered_map<process_id_t, std::set<std::pair<thread_id_t, timestamp_t>>> threads_per_process_;
+    std::unordered_map<os_pid_t, std::set<thread_key>> threads_per_process_id_;
 
-    std::unordered_map<process_id_t, profiler_process_info> profiler_processes_;
+    std::unordered_map<process_key, profiler_process_info> profiler_processes_;
 
     struct pdb_info_storage
     {
@@ -164,10 +175,15 @@ private:
         pdb_info      info;
     };
 
-    std::unordered_map<process_id_t, std::vector<pdb_info_storage>> modules_pdb_info_per_process;
-    std::unordered_map<process_id_t, module_map<module_data>>       modules_per_process;
+    std::unordered_map<os_pid_t, std::vector<pdb_info_storage>>        modules_pdb_info_per_process_id_;
+    std::unordered_map<os_pid_t, module_map<module_data, timestamp_t>> modules_per_process_id_;
 
-    std::unordered_map<thread_id_t, std::vector<sample_info>> samples_per_thread;
+    std::unordered_map<os_tid_t, std::vector<sample_info>> samples_per_thread_id_;
+
+    std::unordered_map<unique_process_id, std::set<unique_thread_id>> threads_per_process_;
+
+    std::unordered_map<unique_process_id, process_key> unique_process_id_to_key_;
+    std::unordered_map<unique_thread_id, thread_key>   unique_thread_id_to_key_;
 
     stack_cache stacks;
 
@@ -179,14 +195,14 @@ private:
 
 struct etl_file_process_context::profiler_process_info
 {
-    process_id_t process_id;
+    os_pid_t process_id;
 
     timestamp_t start_timestamp;
 };
 
 struct etl_file_process_context::sample_info
 {
-    thread_id_t thread_id;
+    os_tid_t thread_id;
 
     timestamp_t timestamp;
 

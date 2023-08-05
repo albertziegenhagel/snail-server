@@ -175,7 +175,7 @@ const call_tree_node& stacks_analysis::get_call_tree_node(call_tree_node::id_t i
 }
 
 stacks_analysis snail::analysis::analyze_stacks(const samples_provider& provider,
-                                                process_info            process,
+                                                unique_process_id       process_id,
                                                 const sample_filter&    filter)
 {
     std::unordered_map<std::string, module_info::id_t>                               modules_by_name;
@@ -183,7 +183,7 @@ stacks_analysis snail::analysis::analyze_stacks(const samples_provider& provider
     std::unordered_map<std::string, file_info::id_t>                                 files_by_path;
 
     stacks_analysis result;
-    result.process = std::move(process);
+    result.process_id = process_id;
 
     result.function_root = function_info{
         .id           = stacks_analysis::root_function_id,
@@ -204,7 +204,7 @@ stacks_analysis snail::analysis::analyze_stacks(const samples_provider& provider
         .children    = {},
     };
 
-    for(const auto& sample : provider.samples(result.process.id, filter))
+    for(const auto& sample : provider.samples(process_id, filter))
     {
         ++result.call_tree_root.hits.total;
         ++result.function_root.hits.total;

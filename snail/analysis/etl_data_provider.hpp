@@ -32,13 +32,13 @@ public:
 
     virtual const analysis::system_info& system_info() const override;
 
-    virtual common::generator<common::process_id_t> sampling_processes() const override;
+    virtual common::generator<unique_process_id> sampling_processes() const override;
 
-    virtual analysis::process_info process_info(common::process_id_t process_id) const override;
+    virtual analysis::process_info process_info(unique_process_id process_id) const override;
 
-    virtual common::generator<analysis::thread_info> threads_info(common::process_id_t process_id) const override;
+    virtual common::generator<analysis::thread_info> threads_info(unique_process_id process_id) const override;
 
-    virtual common::generator<const sample_data&> samples(common::process_id_t process_id,
+    virtual common::generator<const sample_data&> samples(unique_process_id    process_id,
                                                           const sample_filter& filter) const override;
 
 private:

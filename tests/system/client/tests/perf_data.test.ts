@@ -69,7 +69,7 @@ describe("InnerPerfData", function () {
         assert.strictEqual(response.systemInfo.numberOfProcessors, 8);
     });
 
-    it("systemInfo", async () => {
+    it("sessionInfo", async () => {
         const response = await fixture.connection.sendRequest(snail.retrieveSessionInfoRequestType, {
             documentId: documentId
         });
@@ -78,7 +78,7 @@ describe("InnerPerfData", function () {
         // assert.strictEqual(response.sessionInfo.date, "2023-07-02T19:47+0000");
         assert.strictEqual(response.sessionInfo.runtime, 387398400);
         assert.strictEqual(response.sessionInfo.numberOfProcesses, 1);
-        assert.strictEqual(response.sessionInfo.numberOfThreads, 2);
+        assert.strictEqual(response.sessionInfo.numberOfThreads, 1);
         assert.strictEqual(response.sessionInfo.numberOfSamples, 1524);
         assert.strictEqual(response.sessionInfo.averageSamplingRate, 3933.9346780988258);
     });
@@ -90,32 +90,33 @@ describe("InnerPerfData", function () {
 
         assert.strictEqual(response.processes.length, 1);
 
-        assert.strictEqual(response.processes[0].id, 248);
+        assert.strictEqual(response.processes[0].osId, 248);
         assert.strictEqual(response.processes[0].name, "inner");
         assert.strictEqual(response.processes[0].startTime, 0);
         assert.strictEqual(response.processes[0].endTime, 387398400);
 
-        assert.strictEqual(response.processes[0].threads.length, 2);
+        assert.strictEqual(response.processes[0].threads.length, 1);
 
-        assert.strictEqual(response.processes[0].threads[0].id, 248);
-        assert.strictEqual(response.processes[0].threads[0].name, "perf-exec");
+        assert.strictEqual(response.processes[0].threads[0].osId, 248);
+        assert.strictEqual(response.processes[0].threads[0].name, "inner");
         assert.strictEqual(response.processes[0].threads[0].startTime, 0);
         assert.strictEqual(response.processes[0].threads[0].endTime, 387398400);
-
-        assert.strictEqual(response.processes[0].threads[1].id, 248);
-        assert.strictEqual(response.processes[0].threads[1].name, "inner");
-        assert.strictEqual(response.processes[0].threads[1].startTime, 0);
-        assert.strictEqual(response.processes[0].threads[1].endTime, 387398400);
     });
 
     it("hottestFunctions_1", async () => {
+        const processesResponse = await fixture.connection.sendRequest(snail.retrieveProcessesRequestType, {
+            documentId: documentId
+        });
+        const process = processesResponse.processes.find(proc => proc.osId == 248);
+        assert.isDefined(process);
+
         const response = await fixture.connection.sendRequest(snail.retrieveHottestFunctionsRequestType, {
             documentId: documentId,
             count: 1
         });
 
         assert.strictEqual(response.functions.length, 1);
-        assert.strictEqual(response.functions[0].processId, 248);
+        assert.strictEqual(response.functions[0].processKey, process!.key);
         assert.strictEqual(response.functions[0].function.name, "double std::generate_canonical<double, 53ul, std::mersenne_twister_engine<unsigned long, 32ul, 624ul, 397ul, 31ul, 2567483615ul, 11ul, 4294967295ul, 7ul, 2636928640ul, 15ul, 4022730752ul, 18ul, 1812433253ul>>(std::mersenne_twister_engine<unsigned long, 32ul, 624ul, 397ul, 31ul, 2567483615ul, 11ul, 4294967295ul, 7ul, 2636928640ul, 15ul, 4022730752ul, 18ul, 1812433253ul>&)");
         assert.isAtLeast(response.functions[0].function.id, 0);
         assert.strictEqual(response.functions[0].function.module, "/tmp/build/inner/Debug/build/inner");
@@ -127,6 +128,12 @@ describe("InnerPerfData", function () {
     });
 
     it("hottestFunctions_3", async () => {
+        const processesResponse = await fixture.connection.sendRequest(snail.retrieveProcessesRequestType, {
+            documentId: documentId
+        });
+        const process = processesResponse.processes.find(proc => proc.osId == 248);
+        assert.isDefined(process);
+
         const response = await fixture.connection.sendRequest(snail.retrieveHottestFunctionsRequestType, {
             documentId: documentId,
             count: 3
@@ -134,7 +141,7 @@ describe("InnerPerfData", function () {
 
         assert.strictEqual(response.functions.length, 3);
 
-        assert.strictEqual(response.functions[0].processId, 248);
+        assert.strictEqual(response.functions[0].processKey, process!.key);
         assert.strictEqual(response.functions[0].function.name, "double std::generate_canonical<double, 53ul, std::mersenne_twister_engine<unsigned long, 32ul, 624ul, 397ul, 31ul, 2567483615ul, 11ul, 4294967295ul, 7ul, 2636928640ul, 15ul, 4022730752ul, 18ul, 1812433253ul>>(std::mersenne_twister_engine<unsigned long, 32ul, 624ul, 397ul, 31ul, 2567483615ul, 11ul, 4294967295ul, 7ul, 2636928640ul, 15ul, 4022730752ul, 18ul, 1812433253ul>&)");
         assert.isAtLeast(response.functions[0].function.id, 0);
         assert.strictEqual(response.functions[0].function.module, "/tmp/build/inner/Debug/build/inner");
@@ -144,7 +151,7 @@ describe("InnerPerfData", function () {
         assert.strictEqual(response.functions[0].function.totalPercent, 72.11286089238845);
         assert.strictEqual(response.functions[0].function.selfPercent, 21.128608923884514);
 
-        assert.strictEqual(response.functions[1].processId, 248);
+        assert.strictEqual(response.functions[1].processKey, process!.key);
         assert.strictEqual(response.functions[1].function.name, "libm.so.6!0x00007f6062b2d34f");
         assert.isAtLeast(response.functions[1].function.id, 0);
         assert.strictEqual(response.functions[1].function.module, "/usr/lib64/libm.so.6");
@@ -154,7 +161,7 @@ describe("InnerPerfData", function () {
         assert.strictEqual(response.functions[1].function.totalPercent, 21.062992125984252);
         assert.strictEqual(response.functions[1].function.selfPercent, 21.062992125984252);
 
-        assert.strictEqual(response.functions[2].processId, 248);
+        assert.strictEqual(response.functions[2].processKey, process!.key);
         assert.strictEqual(response.functions[2].function.name, "std::mersenne_twister_engine<unsigned long, 32ul, 624ul, 397ul, 31ul, 2567483615ul, 11ul, 4294967295ul, 7ul, 2636928640ul, 15ul, 4022730752ul, 18ul, 1812433253ul>::_M_gen_rand()");
         assert.isAtLeast(response.functions[2].function.id, 0);
         assert.strictEqual(response.functions[2].function.module, "/tmp/build/inner/Debug/build/inner");
@@ -167,9 +174,15 @@ describe("InnerPerfData", function () {
 
 
     it("callTreeHotPath", async () => {
+        const processesResponse = await fixture.connection.sendRequest(snail.retrieveProcessesRequestType, {
+            documentId: documentId
+        });
+        const process = processesResponse.processes.find(proc => proc.osId == 248);
+        assert.isDefined(process);
+
         const response = await fixture.connection.sendRequest(snail.retrieveCallTreeHotPathRequestType, {
             documentId: documentId,
-            processId: 248
+            processKey: process!.key
         });
 
         const root_id = 4294967295; // uint32 max
@@ -246,9 +259,15 @@ describe("InnerPerfData", function () {
     });
 
     it("functionPage", async () => {
+        const processesResponse = await fixture.connection.sendRequest(snail.retrieveProcessesRequestType, {
+            documentId: documentId
+        });
+        const process = processesResponse.processes.find(proc => proc.osId == 248);
+        assert.isDefined(process);
+
         const response = await fixture.connection.sendRequest(snail.retrieveFunctionsPageRequestType, {
             documentId: documentId,
-            processId: 248,
+            processKey: process!.key,
             pageSize: 3,
             pageIndex: 0
         });
@@ -284,13 +303,18 @@ describe("InnerPerfData", function () {
     });
 
     it("expandCallTreeNode", async () => {
+        const processesResponse = await fixture.connection.sendRequest(snail.retrieveProcessesRequestType, {
+            documentId: documentId
+        });
+        const process = processesResponse.processes.find(proc => proc.osId == 248);
+        assert.isDefined(process);
 
-        const hot_path = await fixture.connection.sendRequest(snail.retrieveCallTreeHotPathRequestType, {
+        const hotPathResponse = await fixture.connection.sendRequest(snail.retrieveCallTreeHotPathRequestType, {
             documentId: documentId,
-            processId: 248
+            processKey: process!.key
         });
 
-        var current: snail.CallTreeNode | null = hot_path.root;
+        var current: snail.CallTreeNode | null = hotPathResponse.root;
         while (current && current.children) {
             if (current.name === "main") {
                 break;
@@ -316,7 +340,7 @@ describe("InnerPerfData", function () {
 
         const response = await fixture.connection.sendRequest(snail.expandCallTreeNodeRequestType, {
             documentId: documentId,
-            processId: 248,
+            processKey: process!.key,
             nodeId: current?.id
         });
 
@@ -336,10 +360,15 @@ describe("InnerPerfData", function () {
     });
 
     it("callersCalleesMain", async () => {
+        const processesResponse = await fixture.connection.sendRequest(snail.retrieveProcessesRequestType, {
+            documentId: documentId
+        });
+        const process = processesResponse.processes.find(proc => proc.osId == 248);
+        assert.isDefined(process);
 
         const functionsPage = await fixture.connection.sendRequest(snail.retrieveFunctionsPageRequestType, {
             documentId: documentId,
-            processId: 248,
+            processKey: process!.key,
             pageSize: 200,
             pageIndex: 0
         });
@@ -349,7 +378,7 @@ describe("InnerPerfData", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveCallersCalleesRequestType, {
             documentId: documentId,
-            processId: 248,
+            processKey: process!.key,
             functionId: func!.id,
             maxEntries: 2
         });
@@ -364,10 +393,15 @@ describe("InnerPerfData", function () {
     });
 
     it("callersCalleesUniformRealDist", async () => {
+        const processesResponse = await fixture.connection.sendRequest(snail.retrieveProcessesRequestType, {
+            documentId: documentId
+        });
+        const process = processesResponse.processes.find(proc => proc.osId == 248);
+        assert.isDefined(process);
 
         const functionsPage = await fixture.connection.sendRequest(snail.retrieveFunctionsPageRequestType, {
             documentId: documentId,
-            processId: 248,
+            processKey: process!.key,
             pageSize: 200,
             pageIndex: 0
         });
@@ -377,7 +411,7 @@ describe("InnerPerfData", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveCallersCalleesRequestType, {
             documentId: documentId,
-            processId: 248,
+            processKey: process!.key,
             functionId: func!.id,
             maxEntries: 1
         });
@@ -390,10 +424,15 @@ describe("InnerPerfData", function () {
     });
 
     it("lineInfoMain", async () => {
+        const processesResponse = await fixture.connection.sendRequest(snail.retrieveProcessesRequestType, {
+            documentId: documentId
+        });
+        const process = processesResponse.processes.find(proc => proc.osId == 248);
+        assert.isDefined(process);
 
         const functionsPage = await fixture.connection.sendRequest(snail.retrieveFunctionsPageRequestType, {
             documentId: documentId,
-            processId: 248,
+            processKey: process!.key,
             pageSize: 200,
             pageIndex: 0
         });
@@ -403,7 +442,7 @@ describe("InnerPerfData", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveLineInfoRequestType, {
             documentId: documentId,
-            processId: 248,
+            processKey: process!.key,
             functionId: func!.id,
         });
 
