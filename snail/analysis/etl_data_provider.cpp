@@ -438,3 +438,44 @@ common::generator<const sample_data&> etl_data_provider::samples(unique_process_
         }
     }
 }
+
+std::size_t etl_data_provider::count_samples(unique_process_id    process_id,
+                                             const sample_filter& filter) const
+{
+    if(process_context_ == nullptr) return 0;
+
+    // TODO: remove code duplication
+
+    assert(symbol_resolver_ != nullptr);
+
+    const auto& process_context = *process_context_;
+
+    const auto filter_min_timestamp = filter.min_time == std::nullopt ? std::nullopt :
+                                                                        std::make_optional(static_cast<detail::etl_file_process_context::timestamp_t>(session_start_qpc_ticks_ + std::max(to_qpc_ticks(*filter.min_time, qpc_frequency_), std::chrono::nanoseconds::rep(0))));
+
+    const auto filter_max_timestamp = filter.max_time == std::nullopt ? std::nullopt :
+                                                                        std::make_optional(static_cast<detail::etl_file_process_context::timestamp_t>(session_start_qpc_ticks_ + std::max(to_qpc_ticks(*filter.max_time, qpc_frequency_), std::chrono::nanoseconds::rep(0))));
+
+    const auto& threads = process_context.get_process_threads(process_id);
+
+    std::size_t total_samples_count = 0;
+    for(const auto& thread_id : threads)
+    {
+        const auto        thread_key = process_context.id_to_key(thread_id);
+        const auto* const thread     = process_context.get_threads().find_at(thread_key.id, thread_key.time);
+        if(thread == nullptr) continue;
+
+        const auto sample_min_time = filter_min_timestamp ?
+                                         std::max(*filter_min_timestamp, thread->timestamp) :
+                                         thread->timestamp;
+
+        const auto sample_max_time = filter_max_timestamp ?
+                                         (thread->payload.end_time ?
+                                              std::min(*filter_max_timestamp, *thread->payload.end_time) :
+                                              *filter_max_timestamp) :
+                                         thread->payload.end_time;
+
+        total_samples_count += process_context.thread_samples(thread_key.id, sample_min_time, sample_max_time).size();
+    }
+    return total_samples_count;
+}

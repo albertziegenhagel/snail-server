@@ -44,6 +44,9 @@ public:
     virtual common::generator<const sample_data&> samples(unique_process_id    process_id,
                                                           const sample_filter& filter) const override;
 
+    virtual std::size_t count_samples(unique_process_id    process_id,
+                                      const sample_filter& filter) const override;
+
 private:
     std::unique_ptr<detail::perf_data_file_process_context> process_context_;
     std::unique_ptr<detail::dwarf_resolver>                 symbol_resolver_;

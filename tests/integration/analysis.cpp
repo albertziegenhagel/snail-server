@@ -229,6 +229,7 @@ TEST(DiagsessionDataProvider, Process)
         EXPECT_EQ(stack, expected_stack);
     }
     EXPECT_EQ(sample_count, 292);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 292);
 
     // Filter complete range
     filter.min_time = 1073706700ns;
@@ -253,6 +254,7 @@ TEST(DiagsessionDataProvider, Process)
         EXPECT_EQ(stack, expected_stack);
     }
     EXPECT_EQ(sample_count, 292);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 292);
 
     // Filter first half
     filter.min_time = std::nullopt;
@@ -277,6 +279,7 @@ TEST(DiagsessionDataProvider, Process)
         EXPECT_EQ(stack, expected_stack);
     }
     EXPECT_EQ(sample_count, 11);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 11);
 
     // Filter second half
     filter.min_time = 1818779600ns;
@@ -301,6 +304,7 @@ TEST(DiagsessionDataProvider, Process)
         EXPECT_EQ(stack, expected_stack);
     }
     EXPECT_EQ(sample_count, 281);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 281);
 
     // Filter somewhere in the middle
     filter.min_time = 2200000000ns;
@@ -325,6 +329,7 @@ TEST(DiagsessionDataProvider, Process)
         EXPECT_EQ(stack, expected_stack);
     }
     EXPECT_EQ(sample_count, 99);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 99);
 
     // None empty
     filter.min_time = 2300000000ns;
@@ -336,6 +341,7 @@ TEST(DiagsessionDataProvider, Process)
         ++sample_count;
     }
     EXPECT_EQ(sample_count, 0);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 0);
 }
 
 TEST(PerfDataDataProvider, Process)
@@ -436,6 +442,7 @@ TEST(PerfDataDataProvider, Process)
         EXPECT_EQ(stack, expected_stack);
     }
     EXPECT_EQ(sample_count, 1524);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 1524);
 
     // Filter complete range
     filter.min_time = 0ns;
@@ -460,6 +467,7 @@ TEST(PerfDataDataProvider, Process)
         EXPECT_EQ(stack, expected_stack);
     }
     EXPECT_EQ(sample_count, 1524);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 1524);
 
     // Filter first half
     filter.min_time = std::nullopt;
@@ -484,6 +492,7 @@ TEST(PerfDataDataProvider, Process)
         EXPECT_EQ(stack, expected_stack);
     }
     EXPECT_EQ(sample_count, 755);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 755);
 
     // Filter second half
     filter.min_time = 193699200ns;
@@ -508,6 +517,7 @@ TEST(PerfDataDataProvider, Process)
         EXPECT_EQ(stack, expected_stack);
     }
     EXPECT_EQ(sample_count, 769);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 769);
 
     // Filter somewhere in the middle
     filter.min_time = 180000000ns;
@@ -532,6 +542,7 @@ TEST(PerfDataDataProvider, Process)
         EXPECT_EQ(stack, expected_stack);
     }
     EXPECT_EQ(sample_count, 80);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 80);
 
     // None empty
     filter.min_time = 230000000ns;
@@ -543,4 +554,5 @@ TEST(PerfDataDataProvider, Process)
         ++sample_count;
     }
     EXPECT_EQ(sample_count, 0);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 0);
 }

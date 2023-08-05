@@ -36,6 +36,9 @@ public:
 
     virtual common::generator<const sample_data&> samples(unique_process_id    process_id,
                                                           const sample_filter& filter = {}) const = 0;
+
+    virtual std::size_t count_samples(unique_process_id    process_id,
+                                      const sample_filter& filter = {}) const = 0;
 };
 
 class info_provider

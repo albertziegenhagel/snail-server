@@ -32,8 +32,8 @@ struct test_sample_data : public sample_data
 class test_samples_provider : public samples_provider
 {
 public:
-    common::generator<const sample_data&> samples(unique_process_id    process_id,
-                                                  const sample_filter& filter) const override
+    common::generator<const sample_data&> samples(unique_process_id process_id,
+                                                  const sample_filter& /*filter*/) const override
     {
         if(process_id != expected_process_id_) co_return;
 
@@ -41,6 +41,12 @@ public:
         {
             co_yield sample;
         }
+    }
+    std::size_t count_samples(unique_process_id process_id,
+                              const sample_filter& /*filter*/) const override
+    {
+        if(process_id != expected_process_id_) return 0;
+        return samples_.size();
     }
 
     unique_process_id             expected_process_id_;

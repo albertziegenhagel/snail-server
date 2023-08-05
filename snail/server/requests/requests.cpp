@@ -371,7 +371,7 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
                                   return lhs.function->hits.self > rhs.function->hits.self;
                               });
 
-            const auto total_hits = data_provider.session_info().number_of_samples; // TODO: use filtered
+            const auto total_hits = storage.get_total_samples_count({request.document_id()});
 
             auto json_functions = nlohmann::json::array();
             for(const auto& entry : intermediate_functions | std::views::take(request.count()))
@@ -405,7 +405,7 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
 
             const auto& process_info = data_provider.process_info({request.process_key()});
 
-            const auto total_hits = data_provider.session_info().number_of_samples; // TODO: use filtered
+            const auto total_hits = storage.get_total_samples_count({request.document_id()});
 
             auto json_functions = nlohmann::json::array();
             // if(sort_order == direction::descending)
@@ -436,7 +436,7 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
             const auto& data_provider = storage.get_data({request.document_id()});
             const auto& process       = data_provider.process_info({request.process_key()});
 
-            const auto total_hits = data_provider.session_info().number_of_samples; // TODO: use filtered
+            const auto total_hits = storage.get_total_samples_count({request.document_id()});
 
             const auto root_name = std::format("{} (PID: {})", process.name, process.os_id);
 
@@ -480,7 +480,7 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
         {
             const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, {request.process_key()});
 
-            const auto total_hits = storage.get_data({request.document_id()}).session_info().number_of_samples; // TODO: use filtered
+            const auto total_hits = storage.get_total_samples_count({request.document_id()});
 
             const auto& current_node = stacks_analysis.get_call_tree_node(request.node_id());
 
@@ -501,7 +501,7 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
 
             const auto max_entries = request.max_entries() > 0 ? request.max_entries() : 1;
 
-            const auto total_hits = data_provider.session_info().number_of_samples; // TODO: use filtered
+            const auto total_hits = storage.get_total_samples_count({request.document_id()});
 
             const auto& function = stacks_analysis.get_function(request.function_id());
 
@@ -602,7 +602,7 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
                 return nullptr;
             }
 
-            const auto total_hits = storage.get_data({request.document_id()}).session_info().number_of_samples; // TODO: use filtered
+            const auto total_hits = storage.get_total_samples_count({request.document_id()});
 
             const auto& file = stacks_analysis.get_file(*function.file_id);
 

@@ -54,6 +54,8 @@ public:
 
     void apply_document_filter(const document_id& id, analysis::sample_filter filter);
 
+    std::size_t get_total_samples_count(const document_id& id);
+
     const analysis::stacks_analysis& get_stacks_analysis(const document_id& id, analysis::unique_process_id process_id);
 
     std::span<const analysis::function_info::id_t> get_functions_page(const document_id& id, analysis::unique_process_id process_id,
