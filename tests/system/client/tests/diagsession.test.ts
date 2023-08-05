@@ -535,4 +535,100 @@ describe("InnerDiagsession", function () {
 
         assert.isNull(response);
     });
+
+    it("filterTime", async () => {
+        await fixture.connection.sendRequest(snail.setSampleFiltersRequestType, {
+            documentId: documentId!,
+            minTime: 2200000000,
+            maxTime: 2300000000,
+            excludedProcesses: [],
+            excludedThreads: []
+        });
+
+        const processesResponse = await fixture.connection.sendRequest(snail.retrieveProcessesRequestType, {
+            documentId: documentId
+        });
+        const process = processesResponse.processes.find(proc => proc.osId == 4140);
+        assert.isDefined(process);
+
+        const response = await fixture.connection.sendRequest(snail.retrieveHottestFunctionsRequestType, {
+            documentId: documentId,
+            count: 1
+        });
+
+        assert.strictEqual(response.functions.length, 1);
+        assert.strictEqual(response.functions[0].processKey, process!.key);
+        assert.strictEqual(response.functions[0].function.name, "double __cdecl std::generate_canonical<double, 53, class std::mersenne_twister_engine<unsigned int, 32, 624, 397, 31, 2567483615, 11, 4294967295, 7, 2636928640, 15, 4022730752, 18, 1812433253>>(class std::mersenne_twister_engine<unsigned int, 32, 624, 397, 31, 2567483615, 11, 4294967295, 7, 2636928640, 15, 4022730752, 18, 1812433253> &)");
+        assert.isAtLeast(response.functions[0].function.id, 0);
+        assert.strictEqual(response.functions[0].function.module, "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe");
+        assert.strictEqual(response.functions[0].function.type, "function");
+        assert.strictEqual(response.functions[0].function.totalSamples, 42);
+        assert.strictEqual(response.functions[0].function.selfSamples, 15);
+        assert.strictEqual(response.functions[0].function.totalPercent, 42.42424242424242);
+        assert.strictEqual(response.functions[0].function.selfPercent, 15.151515151515152);
+    });
+
+    it("filterProcess", async () => {
+
+        const processesResponse = await fixture.connection.sendRequest(snail.retrieveProcessesRequestType, {
+            documentId: documentId
+        });
+        const process = processesResponse.processes.find(proc => proc.osId == 4140);
+        assert.isDefined(process);
+
+        await fixture.connection.sendRequest(snail.setSampleFiltersRequestType, {
+            documentId: documentId!,
+            minTime: null,
+            maxTime: null,
+            excludedProcesses: [process!.key],
+            excludedThreads: []
+        });
+
+        const response = await fixture.connection.sendRequest(snail.retrieveHottestFunctionsRequestType, {
+            documentId: documentId,
+            count: 10
+        });
+
+        assert.strictEqual(response.functions.length, 0);
+    });
+
+    it("filterThreads", async () => {
+
+        const processesResponse = await fixture.connection.sendRequest(snail.retrieveProcessesRequestType, {
+            documentId: documentId
+        });
+        const process = processesResponse.processes.find(proc => proc.osId == 4140);
+        assert.isDefined(process);
+
+        const thread3828 = process?.threads.find(thread => thread.osId == 3828);
+        assert.isDefined(thread3828);
+
+        const thread4224 = process?.threads.find(thread => thread.osId == 4224);
+        assert.isDefined(thread4224);
+
+        await fixture.connection.sendRequest(snail.setSampleFiltersRequestType, {
+            documentId: documentId!,
+            minTime: null,
+            maxTime: null,
+            excludedProcesses: [],
+            excludedThreads: [thread3828!.key, thread4224!.key]
+        });
+
+        const response = await fixture.connection.sendRequest(snail.retrieveHottestFunctionsRequestType, {
+            documentId: documentId,
+            count: 1
+        });
+
+        assert.strictEqual(response.functions.length, 1);
+        console.log(response.functions[0])
+        assert.strictEqual(response.functions[0].processKey, process!.key);
+        assert.strictEqual(response.functions[0].function.name, "RtlpHeapGenerateRandomValue32");
+        assert.isAtLeast(response.functions[0].function.id, 0);
+        assert.strictEqual(response.functions[0].function.module, "C:\\Windows\\System32\\ntdll.dll");
+        assert.strictEqual(response.functions[0].function.type, "function");
+        assert.strictEqual(response.functions[0].function.totalSamples, 1);
+        assert.strictEqual(response.functions[0].function.selfSamples, 1);
+        assert.strictEqual(response.functions[0].function.totalPercent, 33.333333333333336);
+        assert.strictEqual(response.functions[0].function.selfPercent, 33.333333333333336);
+    });
 });

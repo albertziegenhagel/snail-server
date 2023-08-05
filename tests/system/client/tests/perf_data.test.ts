@@ -471,4 +471,85 @@ describe("InnerPerfData", function () {
         assert.strictEqual(response!.lineHits[1].totalPercent, 48.75328083989501);
         assert.strictEqual(response!.lineHits[1].selfPercent, 0);
     });
+
+    it("filterTime", async () => {
+        await fixture.connection.sendRequest(snail.setSampleFiltersRequestType, {
+            documentId: documentId!,
+            minTime: 180000000,
+            maxTime: 200000000,
+            excludedProcesses: [],
+            excludedThreads: []
+        });
+
+        const processesResponse = await fixture.connection.sendRequest(snail.retrieveProcessesRequestType, {
+            documentId: documentId
+        });
+        const process = processesResponse.processes.find(proc => proc.osId == 248);
+        assert.isDefined(process);
+
+        const response = await fixture.connection.sendRequest(snail.retrieveHottestFunctionsRequestType, {
+            documentId: documentId,
+            count: 1
+        });
+
+        assert.strictEqual(response.functions.length, 1);
+        assert.strictEqual(response.functions[0].processKey, process!.key);
+        assert.strictEqual(response.functions[0].function.name, "double std::generate_canonical<double, 53ul, std::mersenne_twister_engine<unsigned long, 32ul, 624ul, 397ul, 31ul, 2567483615ul, 11ul, 4294967295ul, 7ul, 2636928640ul, 15ul, 4022730752ul, 18ul, 1812433253ul>>(std::mersenne_twister_engine<unsigned long, 32ul, 624ul, 397ul, 31ul, 2567483615ul, 11ul, 4294967295ul, 7ul, 2636928640ul, 15ul, 4022730752ul, 18ul, 1812433253ul>&)");
+        assert.isAtLeast(response.functions[0].function.id, 0);
+        assert.strictEqual(response.functions[0].function.module, "/tmp/build/inner/Debug/build/inner");
+        assert.strictEqual(response.functions[0].function.type, "function");
+        assert.strictEqual(response.functions[0].function.totalSamples, 55);
+        assert.strictEqual(response.functions[0].function.selfSamples, 16);
+        assert.strictEqual(response.functions[0].function.totalPercent, 68.75);
+        assert.strictEqual(response.functions[0].function.selfPercent, 20);
+    });
+
+    it("filterProcess", async () => {
+        const processesResponse = await fixture.connection.sendRequest(snail.retrieveProcessesRequestType, {
+            documentId: documentId
+        });
+        const process = processesResponse.processes.find(proc => proc.osId == 248);
+        assert.isDefined(process);
+
+        await fixture.connection.sendRequest(snail.setSampleFiltersRequestType, {
+            documentId: documentId!,
+            minTime: null,
+            maxTime: null,
+            excludedProcesses: [process!.key],
+            excludedThreads: []
+        });
+
+        const response = await fixture.connection.sendRequest(snail.retrieveHottestFunctionsRequestType, {
+            documentId: documentId,
+            count: 10
+        });
+
+        assert.strictEqual(response.functions.length, 0);
+    });
+
+    it("filterThreads", async () => {
+        const processesResponse = await fixture.connection.sendRequest(snail.retrieveProcessesRequestType, {
+            documentId: documentId
+        });
+        const process = processesResponse.processes.find(proc => proc.osId == 248);
+        assert.isDefined(process);
+
+        const thread = process?.threads.find(thread => thread.osId == 248);
+        assert.isDefined(thread);
+
+        await fixture.connection.sendRequest(snail.setSampleFiltersRequestType, {
+            documentId: documentId!,
+            minTime: null,
+            maxTime: null,
+            excludedProcesses: [],
+            excludedThreads: [thread!.key]
+        });
+
+        const response = await fixture.connection.sendRequest(snail.retrieveHottestFunctionsRequestType, {
+            documentId: documentId,
+            count: 10
+        });
+
+        assert.strictEqual(response.functions.length, 0);
+    });
 });
