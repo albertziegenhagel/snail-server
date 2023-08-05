@@ -328,7 +328,9 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
         .timestamp           = header.timestamp,
         .instruction_pointer = event.instruction_pointer(),
         .user_mode_stack     = {},
+        .user_timestamp      = {},
         .kernel_mode_stack   = {},
+        .kernel_timestamp    = {},
     });
 }
 
@@ -358,8 +360,9 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data&   
 
         assert(sample.timestamp == sample_timestamp);
 
-        const auto starts_in_kernel   = is_kernel_address(event.stack().back(), file_header.pointer_size);
-        auto&      sample_stack_index = starts_in_kernel ? sample.kernel_mode_stack : sample.user_mode_stack;
+        const auto starts_in_kernel       = is_kernel_address(event.stack().back(), file_header.pointer_size);
+        auto&      sample_stack_index     = starts_in_kernel ? sample.kernel_mode_stack : sample.user_mode_stack;
+        auto&      sample_stack_timestamp = starts_in_kernel ? sample.kernel_timestamp : sample.user_timestamp;
 
         // Usually, we should have one user mode stack and optionally one kernel mode stack.
         // But it seems that we can sometimes have multiple kernel mode stacks for a single sample.
@@ -368,7 +371,8 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data&   
         // for know, we just replace the old stack.
         assert(sample_stack_index == std::nullopt || starts_in_kernel);
 
-        sample_stack_index = stacks.insert(event.stack());
+        sample_stack_index     = stacks.insert(event.stack());
+        sample_stack_timestamp = header.timestamp;
 
         break;
     }

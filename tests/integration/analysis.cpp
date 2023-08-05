@@ -128,7 +128,7 @@ TEST(DiagsessionDataProvider, Process)
 
     // We just compare some selected sample stacks
     const std::unordered_map<std::size_t, std::vector<analysis::stack_frame>> expected_sample_stacks = {
-        {4,
+        {3,
          {{"ntdll.dll!0x00007ffde3a5799e", "C:\\Windows\\System32\\ntdll.dll", "", 0, 0},
           {"ntdll.dll!0x00007ffde3a7d9bd", "C:\\Windows\\System32\\ntdll.dll", "", 0, 0},
           {"ntdll.dll!0x00007ffde3a57b98", "C:\\Windows\\System32\\ntdll.dll", "", 0, 0},
@@ -145,25 +145,7 @@ TEST(DiagsessionDataProvider, Process)
           {"ntdll.dll!0x00007ffde39f47fb", "C:\\Windows\\System32\\ntdll.dll", "", 0, 0},
           {"ntdll.dll!0x00007ffde39fc4f9", "C:\\Windows\\System32\\ntdll.dll", "", 0, 0},
           {"ntdll.dll!0x00007ffde39fff76", "C:\\Windows\\System32\\ntdll.dll", "", 0, 0}}                                                                                                                                                                                                                                     },
-        {34,
-         {{"ntdll.dll!0x00007ffde3a5e44b", "C:\\Windows\\System32\\ntdll.dll", "", 0, 0},
-          {"kernel32.dll!0x00007ffde2e54de0", "C:\\Windows\\System32\\kernel32.dll", "", 0, 0},
-          {"mainCRTStartup", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_main.cpp", 14, 16},
-          {"__scrt_common_main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 323, 330},
-          {"__scrt_common_main_seh", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 235, 287},
-          {"invoke_main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 76, 78},
-          {"main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/snail-server/snail-server/tests/apps/inner/main.cpp", 57, 69},
-          {"void __cdecl make_random_vector(class std::vector<double, class std::allocator<double>> &, unsigned __int64)", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/snail-server/snail-server/tests/apps/inner/main.cpp", 11, 19}}                                                          },
-        {278,
-         {{"ntdll.dll!0x00007ffde3a5e44b", "C:\\Windows\\System32\\ntdll.dll", "", 0, 0},
-          {"kernel32.dll!0x00007ffde2e54de0", "C:\\Windows\\System32\\kernel32.dll", "", 0, 0},
-          {"mainCRTStartup", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_main.cpp", 14, 16},
-          {"__scrt_common_main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 323, 330},
-          {"__scrt_common_main_seh", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 235, 287},
-          {"invoke_main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 76, 78},
-          {"main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/snail-server/snail-server/tests/apps/inner/main.cpp", 57, 71},
-          {"double __cdecl compute_inner_product(class std::vector<double, class std::allocator<double>> const &, class std::vector<double, class std::allocator<double>> const &)", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/snail-server/snail-server/tests/apps/inner/main.cpp", 27, 36}}},
-        {287,
+        {7,
          {{"ntdll.dll!0x00007ffde3a5e44b", "C:\\Windows\\System32\\ntdll.dll", "", 0, 0},
           {"kernel32.dll!0x00007ffde2e54de0", "C:\\Windows\\System32\\kernel32.dll", "", 0, 0},
           {"ntdll.dll!0x00007ffde39ebb26", "C:\\Windows\\System32\\ntdll.dll", "", 0, 0},
@@ -192,19 +174,43 @@ TEST(DiagsessionDataProvider, Process)
           {"ntoskrnl.exe!0xfffff804838f54b5", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0},
           {"ntoskrnl.exe!0xfffff8048389eabf", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0},
           {"ntoskrnl.exe!0xfffff8048389f531", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0},
-          {"ntoskrnl.exe!0xfffff80483a29227", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0}}                                                                                                                                                                                                                               }
+          {"ntoskrnl.exe!0xfffff80483a29227", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0}}                                                                                                                                                                                                                               },
+        {39,
+         {{"ntdll.dll!0x00007ffde3a5e44b", "C:\\Windows\\System32\\ntdll.dll", "", 0, 0},
+          {"kernel32.dll!0x00007ffde2e54de0", "C:\\Windows\\System32\\kernel32.dll", "", 0, 0},
+          {"mainCRTStartup", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_main.cpp", 14, 16},
+          {"__scrt_common_main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 323, 330},
+          {"__scrt_common_main_seh", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 235, 287},
+          {"invoke_main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 76, 78},
+          {"main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/snail-server/snail-server/tests/apps/inner/main.cpp", 57, 69},
+          {"void __cdecl make_random_vector(class std::vector<double, class std::allocator<double>> &, unsigned __int64)", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/snail-server/snail-server/tests/apps/inner/main.cpp", 11, 19}}                                                          },
+        {96,
+         {{"ntoskrnl.exe!0xfffff80483a21be1", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0},
+          {"ntoskrnl.exe!0xfffff80483a27c05", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0},
+          {"ntoskrnl.exe!0xfffff80483a28510", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0},
+          {"ntoskrnl.exe!0xfffff80483a28725", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0},
+          {"ntoskrnl.exe!0xfffff80483838314", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0},
+          {"ntoskrnl.exe!0xfffff804838399cc", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0},
+          {"ntoskrnl.exe!0xfffff8048383c9e5", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0},
+          {"ntoskrnl.exe!0xfffff80483835de6", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0}}                                                                                                                                                                                                                               },
+        {283,
+         {{"ntdll.dll!0x00007ffde3a5e44b", "C:\\Windows\\System32\\ntdll.dll", "", 0, 0},
+          {"kernel32.dll!0x00007ffde2e54de0", "C:\\Windows\\System32\\kernel32.dll", "", 0, 0},
+          {"mainCRTStartup", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_main.cpp", 14, 16},
+          {"__scrt_common_main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 323, 330},
+          {"__scrt_common_main_seh", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 235, 287},
+          {"invoke_main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 76, 78},
+          {"main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/snail-server/snail-server/tests/apps/inner/main.cpp", 57, 71},
+          {"double __cdecl compute_inner_product(class std::vector<double, class std::allocator<double>> const &, class std::vector<double, class std::allocator<double>> const &)", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/snail-server/snail-server/tests/apps/inner/main.cpp", 27, 36}}}
     };
 
     for(const auto& sample : data_provider.samples(4140, {}))
     {
         ++sample_count;
 
-        // TODO: ETL samples are not currently ordered but this is not a requirement by
-        //       the analysis yet. This is going to change in the future and then we need
-        //       to fix this and enable the following check.
         const auto timestamp = sample.timestamp();
-        // ASSERT_LE(last_timestamp, timestamp);
-        last_timestamp       = timestamp;
+        ASSERT_LE(last_timestamp, timestamp);
+        last_timestamp = timestamp;
 
         const auto sample_index = sample_count - 1;
         if(!expected_sample_stacks.contains(sample_index)) continue;

@@ -193,7 +193,10 @@ struct etl_file_process_context::sample_info
     instruction_pointer_t instruction_pointer;
 
     std::optional<std::size_t> user_mode_stack;
+    timestamp_t                user_timestamp;
+
     std::optional<std::size_t> kernel_mode_stack;
+    timestamp_t                kernel_timestamp;
 };
 
 } // namespace snail::analysis::detail

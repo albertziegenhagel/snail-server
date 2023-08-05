@@ -4,6 +4,7 @@
 #include <chrono>
 #include <format>
 #include <numeric>
+#include <queue>
 #include <ranges>
 
 #include <utf8/cpp17.h>
@@ -20,14 +21,6 @@ using namespace snail;
 using namespace snail::analysis;
 
 namespace {
-
-bool is_kernel_address(std::uint64_t address, std::uint32_t pointer_size)
-{
-    // See https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/user-space-and-system-space
-    return pointer_size == 4 ?
-               address >= 0x80000000 :        // 32bit
-               address >= 0x0000800000000000; // 64bit
-}
 
 template<typename Rep, typename Ratio>
 std::int64_t to_qpc_ticks(std::chrono::duration<Rep, Ratio> time, std::uint64_t qpc_frequency)
@@ -148,6 +141,26 @@ std::string win_architecture_to_str(std::uint16_t arch)
     }
     return "[unknown]";
 }
+
+struct next_sample_priority_info
+{
+    common::timestamp_t next_sample_time;
+    std::size_t         thread_index;
+
+    bool operator<(const next_sample_priority_info& other) const
+    {
+        // event with lowest timestamp has highest priority
+        return next_sample_time > other.next_sample_time;
+    }
+};
+
+struct thread_sample_data
+{
+    using sample_info = detail::etl_file_process_context::sample_info;
+
+    std::span<const sample_info> samples;
+    std::size_t                  next_sample_index;
+};
 
 } // namespace
 
@@ -319,92 +332,86 @@ common::generator<const sample_data&> etl_data_provider::samples(common::process
     current_sample_data.session_start_qpc_ticks = session_start_qpc_ticks_;
     current_sample_data.qpc_frequency           = qpc_frequency_;
 
-    // FIXME: retrieve this!
-    const uint32_t pointer_size = 8;
-
     const auto& threads = process_context.get_process_threads(process_id);
+
+    std::priority_queue<next_sample_priority_info> sample_queue;
+
+    std::vector<thread_sample_data> threads_samples;
+    threads_samples.reserve(threads.size());
 
     for(const auto& [thread_id, thread_start_timestamp] : threads)
     {
         const auto* const thread = process_context.get_threads().find_at(thread_id, thread_start_timestamp);
         if(thread == nullptr) continue;
 
-        for(const auto& sample : process_context.thread_samples(thread_id, thread->timestamp, thread->payload.end_time))
+        const auto samples = process_context.thread_samples(thread_id, thread->timestamp, thread->payload.end_time);
+
+        if(samples.empty()) continue;
+
+        sample_queue.push(next_sample_priority_info{
+            .next_sample_time = samples.front().timestamp,
+            .thread_index     = threads_samples.size()});
+
+        threads_samples.push_back(thread_sample_data{
+            .samples           = samples,
+            .next_sample_index = 0});
+    }
+
+    while(!sample_queue.empty())
+    {
+        // Get the thread that has the earliest sample to extract next.
+        const auto [_, thread_index] = sample_queue.top();
+        sample_queue.pop();
+
+        auto& thread_data = threads_samples[thread_index];
+
+        // Extract samples for this thread as long as possible
+        while(true)
         {
+            const auto current_sample_index = thread_data.next_sample_index;
+            ++thread_data.next_sample_index;
+
+            const auto& sample = thread_data.samples[current_sample_index];
+
             current_sample_data.sample_timestamp = sample.timestamp;
 
             if(sample.user_mode_stack)
             {
-                const auto&                 user_stack       = process_context.stack(*sample.user_mode_stack);
-                [[maybe_unused]] const auto starts_in_kernel = is_kernel_address(user_stack.back(), pointer_size);
-                const auto                  ends_in_kernel   = is_kernel_address(user_stack.front(), pointer_size);
-                assert(!starts_in_kernel);
-
-                if(ends_in_kernel)
-                {
-                    current_sample_data.user_stack     = &user_stack;
-                    current_sample_data.user_timestamp = sample.timestamp;
-                    current_sample_data.kernel_stack   = nullptr;
-                    co_yield current_sample_data;
-                }
-                else
-                {
-                    auto& remembered_samples = remembered_kernel_samples[sample.thread_id];
-                    for(const auto* const remembered_sample : remembered_samples)
-                    {
-                        assert(remembered_sample->kernel_mode_stack);
-                        const auto& kernel_stack = process_context.stack(*remembered_sample->kernel_mode_stack);
-
-                        current_sample_data.user_stack       = &user_stack;
-                        current_sample_data.user_timestamp   = sample.timestamp;
-                        current_sample_data.kernel_stack     = &kernel_stack;
-                        current_sample_data.kernel_timestamp = remembered_sample->timestamp;
-                        co_yield current_sample_data;
-                    }
-                    remembered_samples.clear();
-
-                    if(sample.kernel_mode_stack)
-                    {
-                        const auto& kernel_stack = process_context.stack(*sample.kernel_mode_stack);
-
-                        current_sample_data.user_stack       = &user_stack;
-                        current_sample_data.user_timestamp   = sample.timestamp;
-                        current_sample_data.kernel_stack     = &kernel_stack;
-                        current_sample_data.kernel_timestamp = sample.timestamp;
-                        co_yield current_sample_data;
-                    }
-                    else
-                    {
-                        current_sample_data.user_stack     = &user_stack;
-                        current_sample_data.user_timestamp = sample.timestamp;
-                        current_sample_data.kernel_stack   = nullptr;
-                        co_yield current_sample_data;
-                    }
-                }
-            }
-            else if(sample.kernel_mode_stack)
-            {
-                remembered_kernel_samples[sample.thread_id].push_back(&sample);
+                current_sample_data.user_stack     = &process_context.stack(*sample.user_mode_stack);
+                current_sample_data.user_timestamp = sample.user_timestamp;
             }
             else
             {
-                current_sample_data.user_stack   = nullptr;
-                current_sample_data.kernel_stack = nullptr;
-                co_yield current_sample_data;
+                current_sample_data.user_stack = nullptr;
             }
-        }
 
-        for(const auto& [remembered_thread_id, remembered_samples] : remembered_kernel_samples)
-        {
-            for(const auto* const remembered_sample : remembered_samples)
+            if(sample.kernel_mode_stack)
             {
-                assert(remembered_sample->kernel_mode_stack);
-                const auto& kernel_stack = process_context.stack(*remembered_sample->kernel_mode_stack);
+                current_sample_data.kernel_stack     = &process_context.stack(*sample.kernel_mode_stack);
+                current_sample_data.kernel_timestamp = sample.kernel_timestamp;
+            }
+            else
+            {
+                current_sample_data.kernel_stack = nullptr;
+            }
 
-                current_sample_data.user_stack       = nullptr;
-                current_sample_data.kernel_stack     = &kernel_stack;
-                current_sample_data.kernel_timestamp = remembered_sample->timestamp;
-                co_yield current_sample_data;
+            co_yield current_sample_data;
+
+            // There are no more samples for this thread
+            if(thread_data.next_sample_index >= thread_data.samples.size()) break;
+
+            const auto next_sample_time = thread_data.samples[thread_data.next_sample_index].timestamp;
+
+            if(!sample_queue.empty() && sample_queue.top().next_sample_time < next_sample_time)
+            {
+                // There is another thread which's next sample is earlier than the
+                // next sample for the current thread. Hence, insert the current thread
+                // sample into the priority queue and stop extracting samples for the current
+                // thread.
+                sample_queue.push(next_sample_priority_info{
+                    .next_sample_time = next_sample_time,
+                    .thread_index     = thread_index});
+                break;
             }
         }
     }

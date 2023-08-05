@@ -51,6 +51,7 @@ private:
     std::uint64_t session_start_qpc_ticks_;
     std::uint64_t session_end_qpc_ticks_;
     std::uint64_t qpc_frequency_;
+    std::uint32_t pointer_size_;
 };
 
 } // namespace snail::analysis
