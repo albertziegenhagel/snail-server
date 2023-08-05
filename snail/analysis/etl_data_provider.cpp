@@ -332,6 +332,12 @@ common::generator<const sample_data&> etl_data_provider::samples(common::process
     current_sample_data.session_start_qpc_ticks = session_start_qpc_ticks_;
     current_sample_data.qpc_frequency           = qpc_frequency_;
 
+    const auto filter_min_timestamp = filter.min_time == std::nullopt ? std::nullopt :
+                                                                        std::make_optional(static_cast<common::timestamp_t>(session_start_qpc_ticks_ + std::max(to_qpc_ticks(*filter.min_time, qpc_frequency_), std::chrono::nanoseconds::rep(0))));
+
+    const auto filter_max_timestamp = filter.max_time == std::nullopt ? std::nullopt :
+                                                                        std::make_optional(static_cast<common::timestamp_t>(session_start_qpc_ticks_ + std::max(to_qpc_ticks(*filter.max_time, qpc_frequency_), std::chrono::nanoseconds::rep(0))));
+
     const auto& threads = process_context.get_process_threads(process_id);
 
     std::priority_queue<next_sample_priority_info> sample_queue;
@@ -344,7 +350,17 @@ common::generator<const sample_data&> etl_data_provider::samples(common::process
         const auto* const thread = process_context.get_threads().find_at(thread_id, thread_start_timestamp);
         if(thread == nullptr) continue;
 
-        const auto samples = process_context.thread_samples(thread_id, thread->timestamp, thread->payload.end_time);
+        const auto& sample_min_time = filter_min_timestamp ?
+                                          std::max(*filter_min_timestamp, thread->timestamp) :
+                                          thread->timestamp;
+
+        const auto& sample_max_time = filter_max_timestamp ?
+                                          (thread->payload.end_time ?
+                                               std::min(*filter_max_timestamp, *thread->payload.end_time) :
+                                               std::optional<common::timestamp_t>{}) :
+                                          thread->payload.end_time;
+
+        const auto samples = process_context.thread_samples(thread_id, sample_min_time, sample_max_time);
 
         if(samples.empty()) continue;
 

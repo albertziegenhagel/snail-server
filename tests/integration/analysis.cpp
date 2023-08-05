@@ -123,8 +123,9 @@ TEST(DiagsessionDataProvider, Process)
     EXPECT_EQ(threads[3].start_time, 1137662800ns);
     EXPECT_EQ(threads[3].end_time, 2563540200ns);
 
-    std::chrono::nanoseconds last_timestamp = 0ns;
-    std::size_t              sample_count   = 0;
+    analysis::sample_filter  filter;
+    std::chrono::nanoseconds last_timestamp;
+    std::size_t              sample_count;
 
     // We just compare some selected sample stacks
     const std::unordered_map<std::size_t, std::vector<analysis::stack_frame>> expected_sample_stacks = {
@@ -204,6 +205,9 @@ TEST(DiagsessionDataProvider, Process)
           {"double __cdecl compute_inner_product(class std::vector<double, class std::allocator<double>> const &, class std::vector<double, class std::allocator<double>> const &)", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/snail-server/snail-server/tests/apps/inner/main.cpp", 27, 36}}}
     };
 
+    // No filter
+    sample_count   = 0;
+    last_timestamp = 0ns;
     for(const auto& sample : data_provider.samples(4140, {}))
     {
         ++sample_count;
@@ -221,8 +225,114 @@ TEST(DiagsessionDataProvider, Process)
 
         EXPECT_EQ(stack, expected_stack);
     }
-
     EXPECT_EQ(sample_count, 292);
+
+    // Filter complete range
+    filter.min_time = 1073706700ns;
+    filter.max_time = 2563852500ns;
+    sample_count    = 0;
+    last_timestamp  = 0ns;
+    for(const auto& sample : data_provider.samples(4140, filter))
+    {
+        ++sample_count;
+
+        const auto timestamp = sample.timestamp();
+        ASSERT_LE(last_timestamp, timestamp);
+        last_timestamp = timestamp;
+
+        const auto sample_index = sample_count - 1;
+        if(!expected_sample_stacks.contains(sample_index)) continue;
+
+        const auto expected_stack = expected_sample_stacks.at(sample_index);
+
+        const auto stack = to_vector(sample.reversed_stack());
+
+        EXPECT_EQ(stack, expected_stack);
+    }
+    EXPECT_EQ(sample_count, 292);
+
+    // Filter first half
+    filter.min_time = std::nullopt;
+    filter.max_time = 1818779600ns;
+    sample_count    = 0;
+    last_timestamp  = 0ns;
+    for(const auto& sample : data_provider.samples(4140, filter))
+    {
+        ++sample_count;
+
+        const auto timestamp = sample.timestamp();
+        ASSERT_LE(last_timestamp, timestamp);
+        last_timestamp = timestamp;
+
+        const auto sample_index = sample_count - 1;
+        if(!expected_sample_stacks.contains(sample_index)) continue;
+
+        const auto expected_stack = expected_sample_stacks.at(sample_index);
+
+        const auto stack = to_vector(sample.reversed_stack());
+
+        EXPECT_EQ(stack, expected_stack);
+    }
+    EXPECT_EQ(sample_count, 11);
+
+    // Filter second half
+    filter.min_time = 1818779600ns;
+    filter.max_time = std::nullopt;
+    sample_count    = 0;
+    last_timestamp  = 0ns;
+    for(const auto& sample : data_provider.samples(4140, filter))
+    {
+        ++sample_count;
+
+        const auto timestamp = sample.timestamp();
+        ASSERT_LE(last_timestamp, timestamp);
+        last_timestamp = timestamp;
+
+        const auto sample_index = sample_count - 1 + 11;
+        if(!expected_sample_stacks.contains(sample_index)) continue;
+
+        const auto expected_stack = expected_sample_stacks.at(sample_index);
+
+        const auto stack = to_vector(sample.reversed_stack());
+
+        EXPECT_EQ(stack, expected_stack);
+    }
+    EXPECT_EQ(sample_count, 281);
+
+    // Filter somewhere in the middle
+    filter.min_time = 2200000000ns;
+    filter.max_time = 2300000000ns;
+    sample_count    = 0;
+    last_timestamp  = 0ns;
+    for(const auto& sample : data_provider.samples(4140, filter))
+    {
+        ++sample_count;
+
+        const auto timestamp = sample.timestamp();
+        ASSERT_LE(last_timestamp, timestamp);
+        last_timestamp = timestamp;
+
+        const auto sample_index = sample_count - 1 + 102;
+        if(!expected_sample_stacks.contains(sample_index)) continue;
+
+        const auto expected_stack = expected_sample_stacks.at(sample_index);
+
+        const auto stack = to_vector(sample.reversed_stack());
+
+        EXPECT_EQ(stack, expected_stack);
+    }
+    EXPECT_EQ(sample_count, 99);
+
+    // None empty
+    filter.min_time = 2300000000ns;
+    filter.max_time = 2200000000ns;
+    sample_count    = 0;
+    last_timestamp  = 0ns;
+    for([[maybe_unused]] const auto& sample : data_provider.samples(4140, filter))
+    {
+        ++sample_count;
+    }
+    EXPECT_EQ(sample_count, 0);
 }
 
 TEST(PerfDataDataProvider, Process)
