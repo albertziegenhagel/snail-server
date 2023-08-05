@@ -12,6 +12,7 @@ namespace snail::analysis {
 
 struct stacks_analysis;
 struct options;
+struct sample_filter;
 class path_map;
 class data_provider;
 
@@ -51,6 +52,8 @@ public:
     void        close_document(const document_id& id);
 
     const analysis::data_provider& get_data(const document_id& id);
+
+    void apply_document_filter(const document_id& id, analysis::sample_filter filter);
 
     const analysis::stacks_analysis& get_stacks_analysis(const document_id& id, common::process_id_t process_id);
 

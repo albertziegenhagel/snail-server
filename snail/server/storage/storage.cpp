@@ -145,6 +145,7 @@ document_id storage::read_document(const std::filesystem::path& path)
     impl_->open_documents[new_id.id_] = document_storage{
         .path                 = path,
         .data_provider        = std::move(data_provider),
+        .filter               = {},
         .analysis_per_process = {},
     };
 
@@ -163,6 +164,14 @@ const analysis::data_provider& storage::get_data(const server::document_id& docu
 {
     auto& document = impl_->get_document_storage(document_id);
     return *document.data_provider;
+}
+
+void storage::apply_document_filter(const document_id& document_id, analysis::sample_filter filter)
+{
+    auto& document = impl_->get_document_storage(document_id);
+    if(document.filter == filter) return;
+    document.filter = std::move(filter);
+    document.analysis_per_process.clear();
 }
 
 const analysis::stacks_analysis& storage::get_stacks_analysis(const server::document_id& document_id,

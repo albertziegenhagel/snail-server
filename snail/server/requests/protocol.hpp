@@ -435,6 +435,49 @@ struct is_request<retrieve_line_info_request> : std::true_type
 {};
 } // namespace snail::jsonrpc::detail
 
+struct set_sample_filters_request
+{
+    static constexpr std::string_view name = "setSampleFilters";
+
+    static constexpr auto parameters = std::tuple(
+        snail::jsonrpc::detail::request_parameter<std::optional<std::size_t>>{"minTime"},
+        snail::jsonrpc::detail::request_parameter<std::optional<std::size_t>>{"maxTime"},
+        snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"});
+
+    // In nanoseconds since session start.
+    const std::optional<std::size_t>& min_time() const
+    {
+        return std::get<0>(data_);
+    }
+    // In nanoseconds since session start.
+    const std::optional<std::size_t>& max_time() const
+    {
+        return std::get<1>(data_);
+    }
+    // The id of the document to perform the operation on.
+    // This should be an id that resulted from a call to `readDocument`.
+    const std::size_t& document_id() const
+    {
+        return std::get<2>(data_);
+    }
+
+    template<typename RequestType>
+        requires snail::jsonrpc::detail::is_request_v<RequestType>
+    friend RequestType snail::jsonrpc::detail::unpack_request(const nlohmann::json& raw_data);
+
+private:
+    std::tuple<
+        std::optional<std::size_t>,
+        std::optional<std::size_t>,
+        std::size_t>
+        data_;
+};
+namespace snail::jsonrpc::detail {
+template<>
+struct is_request<set_sample_filters_request> : std::true_type
+{};
+} // namespace snail::jsonrpc::detail
+
 struct close_document_request
 {
     static constexpr std::string_view name = "closeDocument";

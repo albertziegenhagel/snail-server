@@ -151,6 +151,18 @@
                 "kind": "reference",
                 "name": "RetrieveLineInfoParams"
             }
+        },
+        {
+            "method": "setSampleFilters",
+            "messageDirection": "clientToServer",
+            "result": {
+                "kind": "base",
+                "name": "null"
+            },
+            "params": {
+                "kind": "reference",
+                "name": "SetSampleFiltersParams"
+            }
         }
     ],
     "notifications": [
@@ -1130,6 +1142,35 @@
                         }
                     },
                     "documentation": "Modules to include when `mode` is `IncludedOnly`. Supports wildcards (as in '*.exe')."
+                }
+            ]
+        },
+        {
+            "name": "SetSampleFiltersParams",
+            "extends": [
+                {
+                    "kind": "reference",
+                    "name": "_DocumentIdParams"
+                }
+            ],
+            "properties": [
+                {
+                    "name": "minTime",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    },
+                    "optional": true,
+                    "documentation": "In nanoseconds since session start."
+                },
+                {
+                    "name": "maxTime",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    },
+                    "optional": true,
+                    "documentation": "In nanoseconds since session start."
                 }
             ]
         }

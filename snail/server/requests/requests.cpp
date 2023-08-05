@@ -246,6 +246,19 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
             storage.close_document({request.document_id()});
         });
 
+    server.register_request<set_sample_filters_request>(
+        [&](const set_sample_filters_request& request) -> nlohmann::json
+        {
+            analysis::sample_filter filter;
+
+            if(request.min_time()) filter.min_time = std::chrono::nanoseconds(static_cast<std::chrono::nanoseconds::rep>(*request.min_time()));
+            if(request.max_time()) filter.max_time = std::chrono::nanoseconds(static_cast<std::chrono::nanoseconds::rep>(*request.max_time()));
+
+            storage.apply_document_filter({request.document_id()}, std::move(filter));
+
+            return nullptr;
+        });
+
     server.register_request<retrieve_session_info_request>(
         [&](const retrieve_session_info_request& request) -> nlohmann::json
         {
