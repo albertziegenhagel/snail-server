@@ -10,6 +10,8 @@
 #include <snail/analysis/data/modules.hpp>
 #include <snail/analysis/data/process.hpp>
 
+#include <snail/analysis/options.hpp>
+
 namespace snail::analysis {
 
 class samples_provider;
@@ -17,7 +19,8 @@ class samples_provider;
 struct stacks_analysis;
 
 stacks_analysis analyze_stacks(const samples_provider& provider,
-                               process_info            process);
+                               process_info            process,
+                               const sample_filter&    filter = {});
 
 struct stacks_analysis
 {
@@ -39,7 +42,8 @@ struct stacks_analysis
 
 private:
     friend stacks_analysis analyze_stacks(const samples_provider& provider,
-                                          process_info            process);
+                                          process_info            process,
+                                          const sample_filter&    filter);
 
     // FIXME: This is a workaround: we would like to use the max of std::size_t, but since we will
     //        serialize those values to JSON and eventually handle them in JavaScript which cannot

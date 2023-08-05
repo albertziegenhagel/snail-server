@@ -35,7 +35,8 @@ class samples_provider
 public:
     virtual ~samples_provider() = default;
 
-    virtual common::generator<const sample_data&> samples(common::process_id_t process_id) const = 0;
+    virtual common::generator<const sample_data&> samples(common::process_id_t process_id,
+                                                          const sample_filter& filter = {}) const = 0;
 };
 
 class info_provider

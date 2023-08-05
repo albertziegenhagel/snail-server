@@ -38,7 +38,8 @@ public:
 
     virtual common::generator<analysis::thread_info> threads_info(common::process_id_t process_id) const override;
 
-    virtual common::generator<const sample_data&> samples(common::process_id_t process_id) const override;
+    virtual common::generator<const sample_data&> samples(common::process_id_t process_id,
+                                                          const sample_filter& filter) const override;
 
 private:
     std::unique_ptr<detail::etl_file_process_context> process_context_;

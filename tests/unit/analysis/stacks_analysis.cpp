@@ -32,7 +32,8 @@ struct test_sample_data : public sample_data
 class test_samples_provider : public samples_provider
 {
 public:
-    common::generator<const sample_data&> samples(common::process_id_t process_id) const override
+    common::generator<const sample_data&> samples(common::process_id_t process_id,
+                                                  const sample_filter& filter) const override
     {
         if(process_id != expected_process_id_) co_return;
 

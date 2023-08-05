@@ -249,7 +249,8 @@ common::generator<analysis::thread_info> perf_data_data_provider::threads_info(c
     }
 }
 
-common::generator<const sample_data&> perf_data_data_provider::samples(common::process_id_t process_id) const
+common::generator<const sample_data&> perf_data_data_provider::samples(common::process_id_t process_id,
+                                                                       const sample_filter& filter) const
 {
     if(process_context_ == nullptr) co_return;
 

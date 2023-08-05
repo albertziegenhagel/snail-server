@@ -195,7 +195,7 @@ TEST(DiagsessionDataProvider, Process)
           {"ntoskrnl.exe!0xfffff80483a29227", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0}}                                                                                                                                                                                                                               }
     };
 
-    for(const auto& sample : data_provider.samples(4140))
+    for(const auto& sample : data_provider.samples(4140, {}))
     {
         ++sample_count;
 
@@ -297,7 +297,7 @@ TEST(PerfDataDataProvider, Process)
           {"compute_inner_product(std::vector<double, std::allocator<double>> const&, std::vector<double, std::allocator<double>> const&)", "/tmp/build/inner/Debug/build/inner", "/tmp/snail-server/tests/apps/inner/main.cpp", 26, 35}}}
     };
 
-    for(const auto& sample : data_provider.samples(248))
+    for(const auto& sample : data_provider.samples(248, {}))
     {
         ++sample_count;
 

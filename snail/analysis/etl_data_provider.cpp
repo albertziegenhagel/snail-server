@@ -191,6 +191,8 @@ void etl_data_provider::process(const std::filesystem::path& file_path)
         }
     }
 
+    pointer_size_ = file.header().pointer_size;
+
     const auto runtime = file.header().end_time - file.header().start_time;
 
     session_start_qpc_ticks_ = file.header().start_time_qpc_ticks;
@@ -295,7 +297,8 @@ common::generator<analysis::thread_info> etl_data_provider::threads_info(common:
     }
 }
 
-common::generator<const sample_data&> etl_data_provider::samples(common::process_id_t process_id) const
+common::generator<const sample_data&> etl_data_provider::samples(common::process_id_t process_id,
+                                                                 const sample_filter& filter) const
 {
     if(process_context_ == nullptr) co_return;
 

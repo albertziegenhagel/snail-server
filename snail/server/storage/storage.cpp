@@ -19,6 +19,7 @@ struct document_storage
 {
     std::filesystem::path                    path;
     std::unique_ptr<analysis::data_provider> data_provider;
+    analysis::sample_filter                  filter;
 
     const analysis::stacks_analysis& get_process_analysis(common::process_id_t process_id)
     {
@@ -27,7 +28,7 @@ struct document_storage
         if(data.stacks_analysis == std::nullopt)
         {
             data = analysis_data{
-                .stacks_analysis            = snail::analysis::analyze_stacks(*data_provider, data_provider->process_info(process_id)),
+                .stacks_analysis            = snail::analysis::analyze_stacks(*data_provider, data_provider->process_info(process_id), filter),
                 .functions_by_self_samples  = {},
                 .functions_by_total_samples = {},
                 .functions_by_name          = {},

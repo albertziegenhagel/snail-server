@@ -1,9 +1,13 @@
 #pragma once
 
+#include <chrono>
 #include <filesystem>
+#include <optional>
 #include <regex>
 #include <string>
 #include <vector>
+
+#include <snail/common/types.hpp>
 
 namespace snail::analysis {
 
@@ -51,6 +55,14 @@ struct options
     dwarf_symbol_find_options dwarf_find_options;
 
     filter_options filter;
+};
+
+struct sample_filter
+{
+    std::optional<std::chrono::nanoseconds> min_time;
+    std::optional<std::chrono::nanoseconds> max_time;
+
+    bool operator==(const sample_filter& other) const = default;
 };
 
 } // namespace snail::analysis
