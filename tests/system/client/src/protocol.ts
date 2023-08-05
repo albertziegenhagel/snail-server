@@ -313,6 +313,10 @@ export interface SetModuleFiltersParams {
 }
 
 export interface SetSampleFiltersParams {
+    excludedProcesses: number[];
+
+    excludedThreads: number[];
+
     // The id of the document to perform the operation on.
     // This should be an id that resulted from a call to `readDocument`.
     documentId: number;

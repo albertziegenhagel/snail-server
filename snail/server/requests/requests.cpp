@@ -255,6 +255,15 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
             if(request.min_time()) filter.min_time = std::chrono::nanoseconds(static_cast<std::chrono::nanoseconds::rep>(*request.min_time()));
             if(request.max_time()) filter.max_time = std::chrono::nanoseconds(static_cast<std::chrono::nanoseconds::rep>(*request.max_time()));
 
+            for(const auto thread_key : request.excluded_threads())
+            {
+                filter.excluded_threads.insert(analysis::unique_thread_id{thread_key});
+            }
+            for(const auto process_key : request.excluded_processes())
+            {
+                filter.excluded_processes.insert(analysis::unique_process_id{process_key});
+            }
+
             storage.apply_document_filter({request.document_id()}, std::move(filter));
 
             return nullptr;

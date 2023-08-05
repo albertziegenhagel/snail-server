@@ -299,6 +299,8 @@ common::generator<const sample_data&> perf_data_data_provider::samples(unique_pr
 {
     if(process_context_ == nullptr) co_return;
 
+    if(filter.excluded_processes.contains(process_id)) co_return;
+
     assert(symbol_resolver_ != nullptr);
 
     const auto& process_context = *process_context_;
@@ -328,6 +330,8 @@ common::generator<const sample_data&> perf_data_data_provider::samples(unique_pr
 
     for(const auto& thread_id : threads)
     {
+        if(filter.excluded_threads.contains(thread_id)) continue;
+
         const auto        thread_key = process_context.id_to_key(thread_id);
         const auto* const thread     = process_context.get_threads().find_at(thread_key.id, thread_key.time);
         if(thread == nullptr) continue;
@@ -401,6 +405,8 @@ std::size_t perf_data_data_provider::count_samples(unique_process_id    process_
 {
     if(process_context_ == nullptr) return 0;
 
+    if(filter.excluded_processes.contains(process_id)) return 0;
+
     // TODO: remove code duplication
 
     assert(symbol_resolver_ != nullptr);
@@ -418,6 +424,8 @@ std::size_t perf_data_data_provider::count_samples(unique_process_id    process_
     std::size_t total_samples_count = 0;
     for(const auto& thread_id : threads)
     {
+        if(filter.excluded_threads.contains(thread_id)) continue;
+
         const auto        thread_key = process_context.id_to_key(thread_id);
         const auto* const thread     = process_context.get_threads().find_at(thread_key.id, thread_key.time);
         if(thread == nullptr) continue;

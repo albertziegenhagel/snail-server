@@ -442,6 +442,8 @@ struct set_sample_filters_request
     static constexpr auto parameters = std::tuple(
         snail::jsonrpc::detail::request_parameter<std::optional<std::size_t>>{"minTime"},
         snail::jsonrpc::detail::request_parameter<std::optional<std::size_t>>{"maxTime"},
+        snail::jsonrpc::detail::request_parameter<std::vector<std::uint64_t>>{"excludedProcesses"},
+        snail::jsonrpc::detail::request_parameter<std::vector<std::uint64_t>>{"excludedThreads"},
         snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"});
 
     // In nanoseconds since session start.
@@ -454,11 +456,21 @@ struct set_sample_filters_request
     {
         return std::get<1>(data_);
     }
+
+    const std::vector<std::uint64_t>& excluded_processes() const
+    {
+        return std::get<2>(data_);
+    }
+
+    const std::vector<std::uint64_t>& excluded_threads() const
+    {
+        return std::get<3>(data_);
+    }
     // The id of the document to perform the operation on.
     // This should be an id that resulted from a call to `readDocument`.
     const std::size_t& document_id() const
     {
-        return std::get<2>(data_);
+        return std::get<4>(data_);
     }
 
     template<typename RequestType>
@@ -469,6 +481,8 @@ private:
     std::tuple<
         std::optional<std::size_t>,
         std::optional<std::size_t>,
+        std::vector<std::uint64_t>,
+        std::vector<std::uint64_t>,
         std::size_t>
         data_;
 };

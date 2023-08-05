@@ -4,8 +4,11 @@
 #include <filesystem>
 #include <optional>
 #include <regex>
+#include <set>
 #include <string>
 #include <vector>
+
+#include <snail/analysis/data/ids.hpp>
 
 namespace snail::analysis {
 
@@ -59,6 +62,9 @@ struct sample_filter
 {
     std::optional<std::chrono::nanoseconds> min_time;
     std::optional<std::chrono::nanoseconds> max_time;
+
+    std::set<unique_process_id> excluded_processes;
+    std::set<unique_thread_id>  excluded_threads;
 
     bool operator==(const sample_filter& other) const = default;
 };

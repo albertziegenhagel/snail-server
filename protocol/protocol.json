@@ -1185,6 +1185,26 @@
                     },
                     "optional": true,
                     "documentation": "In nanoseconds since session start."
+                },
+                {
+                    "name": "excludedProcesses",
+                    "type": {
+                        "kind": "array",
+                        "element": {
+                            "kind": "base",
+                            "name": "uinteger"
+                        }
+                    }
+                },
+                {
+                    "name": "excludedThreads",
+                    "type": {
+                        "kind": "array",
+                        "element": {
+                            "kind": "base",
+                            "name": "uinteger"
+                        }
+                    }
                 }
             ]
         }
