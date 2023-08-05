@@ -39,7 +39,7 @@ inline constexpr auto default_use_dia_sdk = platform_supports_dia_sdk;
 class pdb_resolver
 {
 public:
-    using process_id_t          = std::uint32_t;
+    using os_pid_t              = std::uint32_t;
     using timestamp_t           = std::uint64_t;
     using instruction_pointer_t = std::uint64_t;
 
@@ -61,8 +61,8 @@ public:
 private:
     struct module_key
     {
-        process_id_t process_id;
-        timestamp_t  load_timestamp;
+        os_pid_t    process_id;
+        timestamp_t load_timestamp;
 
         bool operator==(const module_key& other) const;
     };
@@ -80,8 +80,8 @@ private:
         std::size_t operator()(const module_key& key) const;
 
     private:
-        std::hash<process_id_t> process_id_hasher;
-        std::hash<timestamp_t>  timestamp_hasher;
+        std::hash<os_pid_t>    process_id_hasher;
+        std::hash<timestamp_t> timestamp_hasher;
     };
 
     struct symbol_key_hasher
@@ -125,8 +125,8 @@ struct pdb_resolver::module_info
     std::uint32_t                   checksum;
     std::optional<detail::pdb_info> pdb_info;
 
-    process_id_t process_id;
-    timestamp_t  load_timestamp;
+    os_pid_t    process_id;
+    timestamp_t load_timestamp;
 };
 
 } // namespace snail::analysis::detail

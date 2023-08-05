@@ -2,13 +2,14 @@
 
 #include <limits>
 
-#include <snail/common/types.hpp>
-
 #include <snail/analysis/data/call_tree.hpp>
 #include <snail/analysis/data/file.hpp>
 #include <snail/analysis/data/functions.hpp>
+#include <snail/analysis/data/ids.hpp>
 #include <snail/analysis/data/modules.hpp>
 #include <snail/analysis/data/process.hpp>
+
+#include <snail/analysis/options.hpp>
 
 namespace snail::analysis {
 
@@ -17,11 +18,12 @@ class samples_provider;
 struct stacks_analysis;
 
 stacks_analysis analyze_stacks(const samples_provider& provider,
-                               process_info            process);
+                               unique_process_id       process_id,
+                               const sample_filter&    filter = {});
 
 struct stacks_analysis
 {
-    process_info process;
+    unique_process_id process_id;
 
     const module_info& get_module(module_info::id_t id) const;
 
@@ -39,7 +41,8 @@ struct stacks_analysis
 
 private:
     friend stacks_analysis analyze_stacks(const samples_provider& provider,
-                                          process_info            process);
+                                          unique_process_id       process_id,
+                                          const sample_filter&    filter);
 
     // FIXME: This is a workaround: we would like to use the max of std::size_t, but since we will
     //        serialize those values to JSON and eventually handle them in JavaScript which cannot

@@ -17,17 +17,45 @@ namespace {
 
 struct document_storage
 {
+    struct analysis_data
+    {
+        std::optional<analysis::stacks_analysis> stacks_analysis;
+
+        std::optional<std::vector<analysis::function_info::id_t>> functions_by_self_samples;
+        std::optional<std::vector<analysis::function_info::id_t>> functions_by_total_samples;
+        std::optional<std::vector<analysis::function_info::id_t>> functions_by_name;
+    };
+
     std::filesystem::path                    path;
     std::unique_ptr<analysis::data_provider> data_provider;
+    analysis::sample_filter                  filter;
 
-    const analysis::stacks_analysis& get_process_analysis(common::process_id_t process_id)
+    std::optional<std::size_t> total_samples_count;
+
+    std::unordered_map<analysis::unique_process_id, analysis_data> analysis_per_process;
+
+    std::size_t get_total_samples_count()
+    {
+        if(total_samples_count) return *total_samples_count;
+
+        total_samples_count = 0;
+
+        for(const auto process_id : data_provider->sampling_processes())
+        {
+            (*total_samples_count) += data_provider->count_samples(process_id, filter);
+        }
+
+        return *total_samples_count;
+    }
+
+    const analysis::stacks_analysis& get_process_analysis(analysis::unique_process_id process_id)
     {
         auto& data = analysis_per_process[process_id];
 
         if(data.stacks_analysis == std::nullopt)
         {
             data = analysis_data{
-                .stacks_analysis            = snail::analysis::analyze_stacks(*data_provider, data_provider->process_info(process_id)),
+                .stacks_analysis            = snail::analysis::analyze_stacks(*data_provider, process_id, filter),
                 .functions_by_self_samples  = {},
                 .functions_by_total_samples = {},
                 .functions_by_name          = {},
@@ -36,8 +64,8 @@ struct document_storage
         return *data.stacks_analysis;
     }
 
-    const std::vector<analysis::function_info::id_t>& get_sorted_functions(common::process_id_t process_id,
-                                                                           function_data_type   sort_by)
+    const std::vector<analysis::function_info::id_t>& get_sorted_functions(analysis::unique_process_id process_id,
+                                                                           function_data_type          sort_by)
     {
         const auto& stacks_analysis = get_process_analysis(process_id);
 
@@ -78,17 +106,6 @@ struct document_storage
 
         throw std::runtime_error("Invalid function sort-by value");
     }
-
-    struct analysis_data
-    {
-        std::optional<analysis::stacks_analysis> stacks_analysis;
-
-        std::optional<std::vector<analysis::function_info::id_t>> functions_by_self_samples;
-        std::optional<std::vector<analysis::function_info::id_t>> functions_by_total_samples;
-        std::optional<std::vector<analysis::function_info::id_t>> functions_by_name;
-    };
-
-    std::unordered_map<common::process_id_t, analysis_data> analysis_per_process;
 };
 
 } // namespace
@@ -144,6 +161,8 @@ document_id storage::read_document(const std::filesystem::path& path)
     impl_->open_documents[new_id.id_] = document_storage{
         .path                 = path,
         .data_provider        = std::move(data_provider),
+        .filter               = {},
+        .total_samples_count  = {},
         .analysis_per_process = {},
     };
 
@@ -164,15 +183,30 @@ const analysis::data_provider& storage::get_data(const server::document_id& docu
     return *document.data_provider;
 }
 
-const analysis::stacks_analysis& storage::get_stacks_analysis(const server::document_id& document_id,
-                                                              common::process_id_t       process_id)
+void storage::apply_document_filter(const document_id& document_id, analysis::sample_filter filter)
+{
+    auto& document = impl_->get_document_storage(document_id);
+    if(document.filter == filter) return;
+    document.filter = std::move(filter);
+    document.total_samples_count.reset();
+    document.analysis_per_process.clear();
+}
+
+std::size_t storage::get_total_samples_count(const server::document_id& document_id)
+{
+    auto& document = impl_->get_document_storage(document_id);
+    return document.get_total_samples_count();
+}
+
+const analysis::stacks_analysis& storage::get_stacks_analysis(const server::document_id&  document_id,
+                                                              analysis::unique_process_id process_id)
 {
     auto& document = impl_->get_document_storage(document_id);
     return document.get_process_analysis(process_id);
 }
 
-std::span<const analysis::function_info::id_t> storage::get_functions_page(const server::document_id& document_id,
-                                                                           common::process_id_t       process_id,
+std::span<const analysis::function_info::id_t> storage::get_functions_page(const server::document_id&  document_id,
+                                                                           analysis::unique_process_id process_id,
                                                                            function_data_type sort_by, bool reversed,
                                                                            std::size_t page_size, std::size_t page_index)
 {

@@ -151,6 +151,18 @@
                 "kind": "reference",
                 "name": "RetrieveLineInfoParams"
             }
+        },
+        {
+            "method": "setSampleFilters",
+            "messageDirection": "clientToServer",
+            "result": {
+                "kind": "base",
+                "name": "null"
+            },
+            "params": {
+                "kind": "reference",
+                "name": "SetSampleFiltersParams"
+            }
         }
     ],
     "notifications": [
@@ -204,7 +216,14 @@
             "name": "ThreadInfo",
             "properties": [
                 {
-                    "name": "id",
+                    "name": "key",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "osId",
                     "type": {
                         "kind": "base",
                         "name": "uinteger"
@@ -240,7 +259,14 @@
             "name": "ProcessInfo",
             "properties": [
                 {
-                    "name": "id",
+                    "name": "key",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "osId",
                     "type": {
                         "kind": "base",
                         "name": "uinteger"
@@ -527,7 +553,7 @@
             "name": "ProcessFunction",
             "properties": [
                 {
-                    "name": "processId",
+                    "name": "processKey",
                     "type": {
                         "kind": "base",
                         "name": "uinteger"
@@ -599,7 +625,7 @@
             "name": "_ProcessParams",
             "properties": [
                 {
-                    "name": "processId",
+                    "name": "processKey",
                     "type": {
                         "kind": "base",
                         "name": "uinteger"
@@ -1130,6 +1156,55 @@
                         }
                     },
                     "documentation": "Modules to include when `mode` is `IncludedOnly`. Supports wildcards (as in '*.exe')."
+                }
+            ]
+        },
+        {
+            "name": "SetSampleFiltersParams",
+            "extends": [
+                {
+                    "kind": "reference",
+                    "name": "_DocumentIdParams"
+                }
+            ],
+            "properties": [
+                {
+                    "name": "minTime",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    },
+                    "optional": true,
+                    "documentation": "In nanoseconds since session start."
+                },
+                {
+                    "name": "maxTime",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    },
+                    "optional": true,
+                    "documentation": "In nanoseconds since session start."
+                },
+                {
+                    "name": "excludedProcesses",
+                    "type": {
+                        "kind": "array",
+                        "element": {
+                            "kind": "base",
+                            "name": "uinteger"
+                        }
+                    }
+                },
+                {
+                    "name": "excludedThreads",
+                    "type": {
+                        "kind": "array",
+                        "element": {
+                            "kind": "base",
+                            "name": "uinteger"
+                        }
+                    }
                 }
             ]
         }

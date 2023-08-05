@@ -26,7 +26,7 @@ TEST(ModuleMap, InsertNonOverlapping)
     const module_info<id_data> module_3{.base = 90, .size = 40, .payload = {.id = 3}};
 
     {
-        module_map<id_data> map;
+        module_map<id_data, unsigned int> map;
 
         EXPECT_EQ(map.find(20, 0).first, nullptr);
 
@@ -69,7 +69,7 @@ TEST(ModuleMap, InsertNonOverlapping)
         EXPECT_EQ(map.find(150, 20).first, nullptr);
     }
     {
-        module_map<id_data> map;
+        module_map<id_data, unsigned int> map;
 
         EXPECT_EQ(map.find(20, 0).first, nullptr);
 
@@ -95,7 +95,7 @@ TEST(ModuleMap, InsertNonOverlapping)
         EXPECT_EQ(map.find(150, 20).first, nullptr);
     }
     {
-        module_map<id_data> map;
+        module_map<id_data, unsigned int> map;
 
         EXPECT_EQ(map.find(20, 0).first, nullptr);
 
@@ -135,7 +135,7 @@ TEST(ModuleMap, InsertOverlapping)
     const module_info<id_data> module_4{.base = 40, .size = 50, .payload = {.id = 4}};
 
     {
-        module_map<id_data> map;
+        module_map<id_data, unsigned int> map;
 
         map.insert(module_1, 5);
         map.insert(module_2, 10);
@@ -159,7 +159,7 @@ TEST(ModuleMap, InsertOverlappingExtend)
     const module_info<id_data> module_4{.base = 40, .size = 50, .payload = {.id = 4}};
 
     {
-        module_map<id_data> map;
+        module_map<id_data, unsigned int> map;
 
         map.insert(module_1, 5);
         map.insert(module_2, 10);

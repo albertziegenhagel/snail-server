@@ -219,10 +219,10 @@ TEST(PerfDataFileProcessContext, Processes)
 
     // And another one for proc-a...
     push_fork_event(context.observer(), writable_bytes_buffer,
-                    25, 456, 222);
+                    25, 123, 222);
     // Which gets a name...
     push_comm_event(context.observer(), writable_bytes_buffer,
-                    25, 456, 222, "thread-222");
+                    25, 123, 222, "thread-222");
 
     context.finish();
 
@@ -231,69 +231,76 @@ TEST(PerfDataFileProcessContext, Processes)
 
     const auto& processes_123 = processes.at(123);
     EXPECT_EQ(processes_123.size(), 2);
-    EXPECT_EQ(processes_123[0].id, 123);
-    EXPECT_EQ(processes_123[0].timestamp, 0);
-    EXPECT_EQ(processes_123[0].payload.name, "perf-exec");
-    // EXPECT_EQ(processes_123[0].payload.end_time, 10);
-    EXPECT_EQ(processes_123[1].id, 123);
-    EXPECT_EQ(processes_123[1].timestamp, 10);
-    EXPECT_EQ(processes_123[1].payload.name, "proc-a");
-    EXPECT_EQ(processes_123[1].payload.end_time, std::nullopt);
-
     const auto& processes_456 = processes.at(456);
     EXPECT_EQ(processes_456.size(), 1);
-    EXPECT_EQ(processes_456[0].id, 456);
-    EXPECT_EQ(processes_456[0].timestamp, 15);
-    EXPECT_EQ(processes_456[0].payload.name, "proc-b");
-    EXPECT_EQ(processes_456[0].payload.end_time, std::nullopt);
+
+    const auto& process_123_0 = processes_123.at(0);
+    EXPECT_EQ(process_123_0.id, 123);
+    EXPECT_EQ(process_123_0.timestamp, 0);
+    EXPECT_EQ(process_123_0.payload.name, "perf-exec");
+    EXPECT_EQ(process_123_0.payload.end_time, 10);
+
+    const auto& process_123_1 = processes_123.at(1);
+    EXPECT_EQ(process_123_1.id, 123);
+    EXPECT_EQ(process_123_1.timestamp, 10);
+    EXPECT_EQ(process_123_1.payload.name, "proc-a");
+    EXPECT_EQ(process_123_1.payload.end_time, std::nullopt);
+
+    const auto& process_456_0 = processes_456.at(0);
+    EXPECT_EQ(process_456_0.id, 456);
+    EXPECT_EQ(process_456_0.timestamp, 15);
+    EXPECT_EQ(process_456_0.payload.name, "proc-b");
+    EXPECT_EQ(process_456_0.payload.end_time, std::nullopt);
 
     const auto& threads = context.get_threads().all_entries();
     EXPECT_EQ(threads.size(), 4);
 
     const auto& threads_123 = threads.at(123);
     EXPECT_EQ(threads_123.size(), 2);
-    EXPECT_EQ(threads_123[0].id, 123);
-    EXPECT_EQ(threads_123[0].timestamp, 0);
-    EXPECT_EQ(threads_123[0].payload.name, "perf-exec");
-    // EXPECT_EQ(threads_123[0].payload.end_time, 10);
-    EXPECT_EQ(threads_123[1].id, 123);
-    EXPECT_EQ(threads_123[1].timestamp, 10);
-    EXPECT_EQ(threads_123[1].payload.name, "proc-a");
-    EXPECT_EQ(threads_123[1].payload.end_time, std::nullopt);
-
     const auto& threads_456 = threads.at(456);
     EXPECT_EQ(threads_456.size(), 1);
-    EXPECT_EQ(threads_456[0].id, 456);
-    EXPECT_EQ(threads_456[0].timestamp, 15);
-    EXPECT_EQ(threads_456[0].payload.name, "proc-b");
-    EXPECT_EQ(threads_456[0].payload.end_time, std::nullopt);
-
     const auto& threads_111 = threads.at(111);
     EXPECT_EQ(threads_111.size(), 1);
-    EXPECT_EQ(threads_111[0].id, 111);
-    EXPECT_EQ(threads_111[0].timestamp, 20);
-    EXPECT_EQ(threads_111[0].payload.name, std::nullopt);
-    EXPECT_EQ(threads_111[0].payload.end_time, std::nullopt);
-
     const auto& threads_222 = threads.at(222);
     EXPECT_EQ(threads_222.size(), 1);
-    EXPECT_EQ(threads_222[0].id, 222);
-    EXPECT_EQ(threads_222[0].timestamp, 25);
-    EXPECT_EQ(threads_222[0].payload.name, "thread-222");
-    EXPECT_EQ(threads_222[0].payload.end_time, std::nullopt);
 
-    using threads_per_proc_set = std::set<std::pair<perf_data_file_process_context::thread_id_t, perf_data_file_process_context::timestamp_t>>;
+    const auto& thread_123_0 = threads_123[0];
+    EXPECT_EQ(thread_123_0.id, 123);
+    EXPECT_EQ(thread_123_0.timestamp, 0);
+    EXPECT_EQ(thread_123_0.payload.name, "perf-exec");
+    EXPECT_EQ(thread_123_0.payload.end_time, 10);
 
-    EXPECT_EQ(context.get_process_threads(123), (threads_per_proc_set{
-                                                    {123, 0 },
-                                                    {123, 10}
-    }));
+    const auto& thread_123_1 = threads_123[1];
+    EXPECT_EQ(thread_123_1.id, 123);
+    EXPECT_EQ(thread_123_1.timestamp, 10);
+    EXPECT_EQ(thread_123_1.payload.name, "proc-a");
+    EXPECT_EQ(thread_123_1.payload.end_time, std::nullopt);
 
-    EXPECT_EQ(context.get_process_threads(456), (threads_per_proc_set{
-                                                    {456, 15},
-                                                    {111, 20},
-                                                    {222, 25}
-    }));
+    const auto& thread_456_0 = threads_456[0];
+    EXPECT_EQ(thread_456_0.id, 456);
+    EXPECT_EQ(thread_456_0.timestamp, 15);
+    EXPECT_EQ(thread_456_0.payload.name, "proc-b");
+    EXPECT_EQ(thread_456_0.payload.end_time, std::nullopt);
+
+    const auto& thread_111_0 = threads_111[0];
+    EXPECT_EQ(thread_111_0.id, 111);
+    EXPECT_EQ(thread_111_0.timestamp, 20);
+    EXPECT_EQ(thread_111_0.payload.name, std::nullopt);
+    EXPECT_EQ(thread_111_0.payload.end_time, std::nullopt);
+
+    const auto& thread_222_0 = threads_222[0];
+    EXPECT_EQ(thread_222_0.id, 222);
+    EXPECT_EQ(thread_222_0.timestamp, 25);
+    EXPECT_EQ(thread_222_0.payload.name, "thread-222");
+    EXPECT_EQ(thread_222_0.payload.end_time, std::nullopt);
+
+    using threads_set = std::set<analysis::unique_thread_id>;
+
+    EXPECT_EQ(context.get_process_threads(*process_123_0.payload.unique_id), (threads_set{*thread_123_0.payload.unique_id}));
+
+    EXPECT_EQ(context.get_process_threads(*process_123_1.payload.unique_id), (threads_set{*thread_123_1.payload.unique_id, *thread_222_0.payload.unique_id}));
+
+    EXPECT_EQ(context.get_process_threads(*process_456_0.payload.unique_id), (threads_set{*thread_456_0.payload.unique_id, *thread_111_0.payload.unique_id}));
 }
 
 TEST(PerfDataFileProcessContext, Images)
@@ -359,39 +366,34 @@ TEST(PerfDataFileProcessContext, Samples)
 
     context.finish();
 
-    EXPECT_EQ(context.get_samples_per_process().size(), 2);
+    const auto samples_123 = context.thread_samples(123, 20, 20);
+    EXPECT_EQ(samples_123.size(), 1);
 
-    EXPECT_TRUE(context.get_samples_per_process().contains(123));
-    const auto& samples_123 = context.get_samples_per_process().at(123);
-    EXPECT_EQ(samples_123.first_sample_time, 20);
-    EXPECT_EQ(samples_123.last_sample_time, 30);
-    EXPECT_EQ(samples_123.samples.size(), 3);
+    EXPECT_EQ(samples_123[0].thread_id, 123);
+    EXPECT_EQ(samples_123[0].timestamp, 20);
+    EXPECT_EQ(samples_123[0].instruction_pointer, 0xAA11);
+    EXPECT_EQ(samples_123[0].stack_index, 0);
 
-    EXPECT_EQ(samples_123.samples[0].thread_id, 123);
-    EXPECT_EQ(samples_123.samples[0].timestamp, 20);
-    EXPECT_EQ(samples_123.samples[0].instruction_pointer, 0xAA11);
-    EXPECT_EQ(samples_123.samples[0].stack_index, 0);
+    const auto samples_222 = context.thread_samples(222, 25, 30);
+    EXPECT_EQ(samples_222.size(), 2);
 
-    EXPECT_EQ(samples_123.samples[1].thread_id, 222);
-    EXPECT_EQ(samples_123.samples[1].timestamp, 25);
-    EXPECT_EQ(samples_123.samples[1].instruction_pointer, 0xAA22);
-    EXPECT_EQ(samples_123.samples[1].stack_index, 1);
+    EXPECT_EQ(samples_222[0].thread_id, 222);
+    EXPECT_EQ(samples_222[0].timestamp, 25);
+    EXPECT_EQ(samples_222[0].instruction_pointer, 0xAA22);
+    EXPECT_EQ(samples_222[0].stack_index, 1);
 
-    EXPECT_EQ(samples_123.samples[2].thread_id, 222);
-    EXPECT_EQ(samples_123.samples[2].timestamp, 30);
-    EXPECT_EQ(samples_123.samples[2].instruction_pointer, 0xAA33);
-    EXPECT_EQ(samples_123.samples[2].stack_index, 0);
+    EXPECT_EQ(samples_222[1].thread_id, 222);
+    EXPECT_EQ(samples_222[1].timestamp, 30);
+    EXPECT_EQ(samples_222[1].instruction_pointer, 0xAA33);
+    EXPECT_EQ(samples_222[1].stack_index, 0);
 
-    EXPECT_TRUE(context.get_samples_per_process().contains(456));
-    const auto& samples_456 = context.get_samples_per_process().at(456);
-    EXPECT_EQ(samples_456.first_sample_time, 40);
-    EXPECT_EQ(samples_456.last_sample_time, 40);
-    EXPECT_EQ(samples_456.samples.size(), 1);
+    const auto samples_456 = context.thread_samples(456, 40, 40);
+    EXPECT_EQ(samples_456.size(), 1);
 
-    EXPECT_EQ(samples_456.samples[0].thread_id, 456);
-    EXPECT_EQ(samples_456.samples[0].timestamp, 40);
-    EXPECT_EQ(samples_456.samples[0].instruction_pointer, 0xBB11);
-    EXPECT_EQ(samples_456.samples[0].stack_index, 2);
+    EXPECT_EQ(samples_456[0].thread_id, 456);
+    EXPECT_EQ(samples_456[0].timestamp, 40);
+    EXPECT_EQ(samples_456[0].instruction_pointer, 0xBB11);
+    EXPECT_EQ(samples_456[0].stack_index, 2);
 
     EXPECT_EQ(context.stack(0), (std::vector<std::uint64_t>{0xAAA1, 0xAAA2, 0xAAA3}));
     EXPECT_EQ(context.stack(1), (std::vector<std::uint64_t>{0xAAB1, 0xAAB2}));

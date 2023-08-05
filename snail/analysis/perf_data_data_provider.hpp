@@ -35,13 +35,17 @@ public:
 
     virtual const analysis::system_info& system_info() const override;
 
-    virtual common::generator<common::process_id_t> sampling_processes() const override;
+    virtual common::generator<unique_process_id> sampling_processes() const override;
 
-    virtual analysis::process_info process_info(common::process_id_t process_id) const override;
+    virtual analysis::process_info process_info(unique_process_id process_id) const override;
 
-    virtual common::generator<analysis::thread_info> threads_info(common::process_id_t process_id) const override;
+    virtual common::generator<analysis::thread_info> threads_info(unique_process_id process_id) const override;
 
-    virtual common::generator<const sample_data&> samples(common::process_id_t process_id) const override;
+    virtual common::generator<const sample_data&> samples(unique_process_id    process_id,
+                                                          const sample_filter& filter) const override;
+
+    virtual std::size_t count_samples(unique_process_id    process_id,
+                                      const sample_filter& filter) const override;
 
 private:
     std::unique_ptr<detail::perf_data_file_process_context> process_context_;
@@ -51,8 +55,8 @@ private:
     std::optional<analysis::session_info>                               session_info_;
     std::optional<analysis::system_info>                                system_info_;
 
-    common::timestamp_t session_start_time_;
-    common::timestamp_t session_end_time_;
+    std::uint64_t session_start_time_;
+    std::uint64_t session_end_time_;
 };
 
 } // namespace snail::analysis

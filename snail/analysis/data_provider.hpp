@@ -7,8 +7,7 @@
 
 #include <snail/common/generator.hpp>
 
-#include <snail/common/types.hpp>
-
+#include <snail/analysis/data/ids.hpp>
 #include <snail/analysis/data/process.hpp>
 #include <snail/analysis/data/session.hpp>
 #include <snail/analysis/data/stack.hpp>
@@ -35,7 +34,11 @@ class samples_provider
 public:
     virtual ~samples_provider() = default;
 
-    virtual common::generator<const sample_data&> samples(common::process_id_t process_id) const = 0;
+    virtual common::generator<const sample_data&> samples(unique_process_id    process_id,
+                                                          const sample_filter& filter = {}) const = 0;
+
+    virtual std::size_t count_samples(unique_process_id    process_id,
+                                      const sample_filter& filter = {}) const = 0;
 };
 
 class info_provider
@@ -53,11 +56,11 @@ class process_provider
 public:
     virtual ~process_provider() = default;
 
-    virtual common::generator<common::process_id_t> sampling_processes() const = 0;
+    virtual common::generator<unique_process_id> sampling_processes() const = 0;
 
-    virtual analysis::process_info process_info(common::process_id_t process_id) const = 0;
+    virtual analysis::process_info process_info(unique_process_id process_id) const = 0;
 
-    virtual common::generator<analysis::thread_info> threads_info(common::process_id_t process_id) const = 0;
+    virtual common::generator<analysis::thread_info> threads_info(unique_process_id process_id) const = 0;
 };
 
 class file_processor

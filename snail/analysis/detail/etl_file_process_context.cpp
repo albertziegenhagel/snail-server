@@ -17,6 +17,7 @@
 #include <snail/etl/parser/records/visual_studio/diagnostics_hub.hpp>
 
 using namespace snail;
+using namespace snail::analysis;
 using namespace snail::analysis::detail;
 
 namespace {
@@ -63,7 +64,47 @@ void etl_file_process_context::finish()
 
     static constexpr std::string_view default_system_root = "C:\\WINDOWS\\";
 
-    for(auto& [process_id, process_module_map] : modules_per_process)
+    // Assign unique IDs to processes and threads.
+    unique_process_id next_process_id{.key = 0x100000000};
+    for(auto& [id, entries] : processes.all_entries())
+    {
+        for(auto& entry : entries)
+        {
+            entry.payload.unique_id = next_process_id;
+            ++next_process_id.key;
+
+            unique_process_id_to_key_[*entry.payload.unique_id] = process_key{id, entry.timestamp};
+        }
+    }
+    unique_thread_id next_thread_id{.key = 0x200000000};
+    for(auto& [id, entries] : threads.all_entries())
+    {
+        for(auto& entry : entries)
+        {
+            entry.payload.unique_id = next_thread_id;
+            ++next_thread_id.key;
+
+            unique_thread_id_to_key_[*entry.payload.unique_id] = thread_key{id, entry.timestamp};
+        }
+    }
+
+    // Build threads per proccess map
+    for(const auto& [process_id, process_threads] : threads_per_process_id_)
+    {
+        for(const auto& thread_key : process_threads)
+        {
+            const auto* const process = processes.find_at(process_id, thread_key.time);
+            if(process == nullptr) continue;
+
+            const auto* const thread = threads.find_at(thread_key.id, thread_key.time);
+            if(thread == nullptr) continue;
+
+            threads_per_process_[*process->payload.unique_id].insert(*thread->payload.unique_id);
+        }
+    }
+
+    // Map NT to DOS paths
+    for(auto& [process_id, process_module_map] : modules_per_process_id_)
     {
         for(auto& module : process_module_map.all_modules())
         {
@@ -110,7 +151,17 @@ void etl_file_process_context::finish()
     }
 }
 
-const std::unordered_map<etl_file_process_context::process_id_t, etl_file_process_context::profiler_process_info>& etl_file_process_context::profiler_processes() const
+etl_file_process_context::process_key etl_file_process_context::id_to_key(unique_process_id id) const
+{
+    return unique_process_id_to_key_.at(id);
+}
+
+etl_file_process_context::thread_key etl_file_process_context::id_to_key(unique_thread_id id) const
+{
+    return unique_thread_id_to_key_.at(id);
+}
+
+const std::unordered_map<etl_file_process_context::process_key, etl_file_process_context::profiler_process_info>& etl_file_process_context::profiler_processes() const
 {
     return profiler_processes_;
 }
@@ -125,14 +176,14 @@ const etl_file_process_context::thread_history& etl_file_process_context::get_th
     return threads;
 }
 
-const std::set<std::pair<etl_file_process_context::thread_id_t, etl_file_process_context::timestamp_t>>& etl_file_process_context::get_process_threads(process_id_t process_id) const
+const std::set<unique_thread_id>& etl_file_process_context::get_process_threads(unique_process_id process_id) const
 {
     return threads_per_process_.at(process_id);
 }
 
-const module_map<etl_file_process_context::module_data>& etl_file_process_context::get_modules(process_id_t process_id) const
+const module_map<etl_file_process_context::module_data, etl_file_process_context::timestamp_t>& etl_file_process_context::get_modules(os_pid_t process_id) const
 {
-    return modules_per_process.at(process_id);
+    return modules_per_process_id_.at(process_id);
 }
 
 template<typename T>
@@ -225,9 +276,12 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
     if(header.type == 1 || header.type == 3) // load || dc_start
     {
         processes.insert(event.process_id(), header.timestamp,
-                         process_data{.image_filename = utf8::replace_invalid(event.image_filename()),
-                                      .command_line   = std::u16string(event.command_line()),
-                                      .end_time       = {}});
+                         process_data{
+                             .image_filename = utf8::replace_invalid(event.image_filename()),
+                             .command_line   = std::u16string(event.command_line()),
+                             .end_time       = {},
+                             .unique_id      = {},
+                         });
     }
     else if(header.type == 2 || header.type == 4) // unload || dc_end
     {
@@ -245,12 +299,17 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
 {
     if(header.type == 1 || header.type == 3) // start || dc_start
     {
+        // const auto name = event.thread_name();
+
         const auto is_new_thread = threads.insert(event.thread_id(), header.timestamp,
-                                                  thread_data{.process_id = event.process_id(),
-                                                              .end_time   = {}});
+                                                  thread_data{
+                                                      .process_id = event.process_id(),
+                                                      .end_time   = {},
+                                                      .unique_id  = {},
+                                                  });
         if(is_new_thread)
         {
-            threads_per_process_[event.process_id()].emplace(event.thread_id(), header.timestamp);
+            threads_per_process_id_[event.process_id()].emplace(event.thread_id(), header.timestamp);
         }
     }
     else if(header.type == 2 || header.type == 4) // end || dc_end
@@ -269,8 +328,8 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
 {
     if(header.type != 10 && header.type != 3) return; // We do only handle load events
 
-    auto& modules   = modules_per_process[event.process_id()];
-    auto& pdb_infos = modules_pdb_info_per_process[event.process_id()];
+    auto& modules   = modules_per_process_id_[event.process_id()];
+    auto& pdb_infos = modules_pdb_info_per_process_id_[event.process_id()];
 
     const auto image_base = event.image_base();
 
@@ -304,7 +363,7 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
                                             const etl::common_trace_header&                            header,
                                             const etl::parser::image_id_v2_dbg_id_pdb_info_event_view& event)
 {
-    auto& pdb_infos = modules_pdb_info_per_process[event.process_id()];
+    auto& pdb_infos = modules_pdb_info_per_process_id_[event.process_id()];
 
     pdb_infos.push_back(pdb_info_storage{
         .event_timestamp = header.timestamp,
@@ -321,14 +380,16 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
                                             const etl::parser::perfinfo_v2_sampled_profile_event_view& event)
 {
     const auto thread_id      = event.thread_id();
-    auto&      thread_samples = samples_per_thread[thread_id];
+    auto&      thread_samples = samples_per_thread_id_[thread_id];
 
     thread_samples.push_back(sample_info{
         .thread_id           = thread_id,
         .timestamp           = header.timestamp,
         .instruction_pointer = event.instruction_pointer(),
         .user_mode_stack     = {},
+        .user_timestamp      = {},
         .kernel_mode_stack   = {},
+        .kernel_timestamp    = {},
     });
 }
 
@@ -338,8 +399,8 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data&   
 {
     const auto thread_id = event.thread_id();
 
-    auto iter = samples_per_thread.find(thread_id);
-    if(iter == samples_per_thread.end()) return;
+    auto iter = samples_per_thread_id_.find(thread_id);
+    if(iter == samples_per_thread_id_.end()) return;
 
     const auto sample_timestamp = event.event_timestamp();
 
@@ -358,8 +419,9 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data&   
 
         assert(sample.timestamp == sample_timestamp);
 
-        const auto starts_in_kernel   = is_kernel_address(event.stack().back(), file_header.pointer_size);
-        auto&      sample_stack_index = starts_in_kernel ? sample.kernel_mode_stack : sample.user_mode_stack;
+        const auto starts_in_kernel       = is_kernel_address(event.stack().back(), file_header.pointer_size);
+        auto&      sample_stack_index     = starts_in_kernel ? sample.kernel_mode_stack : sample.user_mode_stack;
+        auto&      sample_stack_timestamp = starts_in_kernel ? sample.kernel_timestamp : sample.user_timestamp;
 
         // Usually, we should have one user mode stack and optionally one kernel mode stack.
         // But it seems that we can sometimes have multiple kernel mode stacks for a single sample.
@@ -368,7 +430,8 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data&   
         // for know, we just replace the old stack.
         assert(sample_stack_index == std::nullopt || starts_in_kernel);
 
-        sample_stack_index = stacks.insert(event.stack());
+        sample_stack_index     = stacks.insert(event.stack());
+        sample_stack_timestamp = header.timestamp;
 
         break;
     }
@@ -378,16 +441,17 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
                                             const etl::common_trace_header&                                            header,
                                             const etl::parser::vs_diagnostics_hub_target_profiling_started_event_view& event)
 {
-    const auto process_id           = event.process_id();
-    profiler_processes_[process_id] = profiler_process_info{
+    const auto process_id = event.process_id();
+
+    profiler_processes_[process_key{process_id, header.timestamp}] = profiler_process_info{
         .process_id      = process_id,
         .start_timestamp = header.timestamp};
 }
 
-std::span<const etl_file_process_context::sample_info> etl_file_process_context::thread_samples(thread_id_t thread_id, timestamp_t start_time, std::optional<timestamp_t> end_time) const
+std::span<const etl_file_process_context::sample_info> etl_file_process_context::thread_samples(os_tid_t thread_id, timestamp_t start_time, std::optional<timestamp_t> end_time) const
 {
-    auto iter = samples_per_thread.find(thread_id);
-    if(iter == samples_per_thread.end()) return {};
+    auto iter = samples_per_thread_id_.find(thread_id);
+    if(iter == samples_per_thread_id_.end()) return {};
 
     const auto& thread_samples = iter->second;
 
@@ -397,6 +461,8 @@ std::span<const etl_file_process_context::sample_info> etl_file_process_context:
     const auto range_end_iter = end_time != std::nullopt ?
                                     std::ranges::upper_bound(thread_samples, *end_time, std::less<>(), &sample_info::timestamp) :
                                     thread_samples.end();
+
+    if(range_first_iter > range_end_iter) return {};
 
     return std::span(thread_samples).subspan(range_first_iter - thread_samples.begin(), range_end_iter - range_first_iter);
 }

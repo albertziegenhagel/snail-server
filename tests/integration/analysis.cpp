@@ -92,43 +92,67 @@ TEST(DiagsessionDataProvider, Process)
     EXPECT_EQ(data_provider.system_info().cpu_name, "Intel(R) Xeon(R) Platinum 8272CL CPU @ 2.60GHz");
     EXPECT_EQ(data_provider.system_info().number_of_processors, 2);
 
-    EXPECT_EQ(to_vector(data_provider.sampling_processes()), (std::vector<common::process_id_t>{4140}));
+    const auto sampling_processes = to_vector(data_provider.sampling_processes());
+    ASSERT_EQ(sampling_processes.size(), 1);
+    const auto unique_sampling_process_id = sampling_processes[0];
 
-    const auto process_info = data_provider.process_info(4140);
-    EXPECT_EQ(process_info.id, 4140);
+    const auto process_info = data_provider.process_info(unique_sampling_process_id);
+    EXPECT_EQ(process_info.unique_id, unique_sampling_process_id);
+    EXPECT_EQ(process_info.os_id, 4140);
     EXPECT_EQ(process_info.name, "inner.exe");
     EXPECT_EQ(process_info.start_time, 56312800ns);
     EXPECT_EQ(process_info.end_time, 2564215900ns);
 
-    const auto threads = to_vector(data_provider.threads_info(4140));
+    const auto threads = to_vector(data_provider.threads_info(unique_sampling_process_id));
     ASSERT_EQ(threads.size(), 4);
 
-    EXPECT_EQ(threads[0].id, 3148);
-    EXPECT_EQ(threads[0].name, std::nullopt);
-    EXPECT_EQ(threads[0].start_time, 1137927400ns);
-    EXPECT_EQ(threads[0].end_time, 2563524800ns);
+    const auto thread_4224_iter = std::ranges::find_if(threads, [](const analysis::thread_info& thread)
+                                                       { return thread.os_id == 4224; });
+    ASSERT_TRUE(thread_4224_iter != threads.end());
+    const auto& thread_4224 = *thread_4224_iter;
 
-    EXPECT_EQ(threads[1].id, 3828);
-    EXPECT_EQ(threads[1].name, std::nullopt);
-    EXPECT_EQ(threads[1].start_time, 56313900ns);
-    EXPECT_EQ(threads[1].end_time, 2563993900ns);
+    const auto thread_6180_iter = std::ranges::find_if(threads, [](const analysis::thread_info& thread)
+                                                       { return thread.os_id == 6180; });
+    ASSERT_TRUE(thread_6180_iter != threads.end());
+    const auto& thread_6180 = *thread_6180_iter;
 
-    EXPECT_EQ(threads[2].id, 4224);
-    EXPECT_EQ(threads[2].name, std::nullopt);
-    EXPECT_EQ(threads[2].start_time, 1138034300ns);
-    EXPECT_EQ(threads[2].end_time, 2563493400ns);
+    const auto thread_3828_iter = std::ranges::find_if(threads, [](const analysis::thread_info& thread)
+                                                       { return thread.os_id == 3828; });
+    ASSERT_TRUE(thread_3828_iter != threads.end());
+    const auto& thread_3828 = *thread_3828_iter;
 
-    EXPECT_EQ(threads[3].id, 6180);
-    EXPECT_EQ(threads[3].name, std::nullopt);
-    EXPECT_EQ(threads[3].start_time, 1137662800ns);
-    EXPECT_EQ(threads[3].end_time, 2563540200ns);
+    const auto thread_3148_iter = std::ranges::find_if(threads, [](const analysis::thread_info& thread)
+                                                       { return thread.os_id == 3148; });
+    ASSERT_TRUE(thread_3148_iter != threads.end());
+    const auto& thread_3148 = *thread_3148_iter;
 
-    std::chrono::nanoseconds last_timestamp = 0ns;
-    std::size_t              sample_count   = 0;
+    EXPECT_EQ(thread_4224.os_id, 4224);
+    EXPECT_EQ(thread_4224.name, std::nullopt);
+    EXPECT_EQ(thread_4224.start_time, 1138034300ns);
+    EXPECT_EQ(thread_4224.end_time, 2563493400ns);
+
+    EXPECT_EQ(thread_6180.os_id, 6180);
+    EXPECT_EQ(thread_6180.name, std::nullopt);
+    EXPECT_EQ(thread_6180.start_time, 1137662800ns);
+    EXPECT_EQ(thread_6180.end_time, 2563540200ns);
+
+    EXPECT_EQ(thread_3828.os_id, 3828);
+    EXPECT_EQ(thread_3828.name, std::nullopt);
+    EXPECT_EQ(thread_3828.start_time, 56313900ns);
+    EXPECT_EQ(thread_3828.end_time, 2563993900ns);
+
+    EXPECT_EQ(thread_3148.os_id, 3148);
+    EXPECT_EQ(thread_3148.name, std::nullopt);
+    EXPECT_EQ(thread_3148.start_time, 1137927400ns);
+    EXPECT_EQ(thread_3148.end_time, 2563524800ns);
+
+    analysis::sample_filter  filter;
+    std::chrono::nanoseconds last_timestamp;
+    std::size_t              sample_count;
 
     // We just compare some selected sample stacks
     const std::unordered_map<std::size_t, std::vector<analysis::stack_frame>> expected_sample_stacks = {
-        {4,
+        {3,
          {{"ntdll.dll!0x00007ffde3a5799e", "C:\\Windows\\System32\\ntdll.dll", "", 0, 0},
           {"ntdll.dll!0x00007ffde3a7d9bd", "C:\\Windows\\System32\\ntdll.dll", "", 0, 0},
           {"ntdll.dll!0x00007ffde3a57b98", "C:\\Windows\\System32\\ntdll.dll", "", 0, 0},
@@ -145,25 +169,7 @@ TEST(DiagsessionDataProvider, Process)
           {"ntdll.dll!0x00007ffde39f47fb", "C:\\Windows\\System32\\ntdll.dll", "", 0, 0},
           {"ntdll.dll!0x00007ffde39fc4f9", "C:\\Windows\\System32\\ntdll.dll", "", 0, 0},
           {"ntdll.dll!0x00007ffde39fff76", "C:\\Windows\\System32\\ntdll.dll", "", 0, 0}}                                                                                                                                                                                                                                     },
-        {34,
-         {{"ntdll.dll!0x00007ffde3a5e44b", "C:\\Windows\\System32\\ntdll.dll", "", 0, 0},
-          {"kernel32.dll!0x00007ffde2e54de0", "C:\\Windows\\System32\\kernel32.dll", "", 0, 0},
-          {"mainCRTStartup", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_main.cpp", 14, 16},
-          {"__scrt_common_main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 323, 330},
-          {"__scrt_common_main_seh", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 235, 287},
-          {"invoke_main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 76, 78},
-          {"main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/snail-server/snail-server/tests/apps/inner/main.cpp", 57, 69},
-          {"void __cdecl make_random_vector(class std::vector<double, class std::allocator<double>> &, unsigned __int64)", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/snail-server/snail-server/tests/apps/inner/main.cpp", 11, 19}}                                                          },
-        {278,
-         {{"ntdll.dll!0x00007ffde3a5e44b", "C:\\Windows\\System32\\ntdll.dll", "", 0, 0},
-          {"kernel32.dll!0x00007ffde2e54de0", "C:\\Windows\\System32\\kernel32.dll", "", 0, 0},
-          {"mainCRTStartup", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_main.cpp", 14, 16},
-          {"__scrt_common_main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 323, 330},
-          {"__scrt_common_main_seh", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 235, 287},
-          {"invoke_main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 76, 78},
-          {"main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/snail-server/snail-server/tests/apps/inner/main.cpp", 57, 71},
-          {"double __cdecl compute_inner_product(class std::vector<double, class std::allocator<double>> const &, class std::vector<double, class std::allocator<double>> const &)", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/snail-server/snail-server/tests/apps/inner/main.cpp", 27, 36}}},
-        {287,
+        {7,
          {{"ntdll.dll!0x00007ffde3a5e44b", "C:\\Windows\\System32\\ntdll.dll", "", 0, 0},
           {"kernel32.dll!0x00007ffde2e54de0", "C:\\Windows\\System32\\kernel32.dll", "", 0, 0},
           {"ntdll.dll!0x00007ffde39ebb26", "C:\\Windows\\System32\\ntdll.dll", "", 0, 0},
@@ -192,19 +198,46 @@ TEST(DiagsessionDataProvider, Process)
           {"ntoskrnl.exe!0xfffff804838f54b5", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0},
           {"ntoskrnl.exe!0xfffff8048389eabf", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0},
           {"ntoskrnl.exe!0xfffff8048389f531", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0},
-          {"ntoskrnl.exe!0xfffff80483a29227", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0}}                                                                                                                                                                                                                               }
+          {"ntoskrnl.exe!0xfffff80483a29227", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0}}                                                                                                                                                                                                                               },
+        {39,
+         {{"ntdll.dll!0x00007ffde3a5e44b", "C:\\Windows\\System32\\ntdll.dll", "", 0, 0},
+          {"kernel32.dll!0x00007ffde2e54de0", "C:\\Windows\\System32\\kernel32.dll", "", 0, 0},
+          {"mainCRTStartup", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_main.cpp", 14, 16},
+          {"__scrt_common_main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 323, 330},
+          {"__scrt_common_main_seh", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 235, 287},
+          {"invoke_main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 76, 78},
+          {"main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/snail-server/snail-server/tests/apps/inner/main.cpp", 57, 69},
+          {"void __cdecl make_random_vector(class std::vector<double, class std::allocator<double>> &, unsigned __int64)", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/snail-server/snail-server/tests/apps/inner/main.cpp", 11, 19}}                                                          },
+        {96,
+         {{"ntoskrnl.exe!0xfffff80483a21be1", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0},
+          {"ntoskrnl.exe!0xfffff80483a27c05", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0},
+          {"ntoskrnl.exe!0xfffff80483a28510", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0},
+          {"ntoskrnl.exe!0xfffff80483a28725", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0},
+          {"ntoskrnl.exe!0xfffff80483838314", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0},
+          {"ntoskrnl.exe!0xfffff804838399cc", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0},
+          {"ntoskrnl.exe!0xfffff8048383c9e5", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0},
+          {"ntoskrnl.exe!0xfffff80483835de6", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0}}                                                                                                                                                                                                                               },
+        {283,
+         {{"ntdll.dll!0x00007ffde3a5e44b", "C:\\Windows\\System32\\ntdll.dll", "", 0, 0},
+          {"kernel32.dll!0x00007ffde2e54de0", "C:\\Windows\\System32\\kernel32.dll", "", 0, 0},
+          {"mainCRTStartup", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_main.cpp", 14, 16},
+          {"__scrt_common_main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 323, 330},
+          {"__scrt_common_main_seh", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 235, 287},
+          {"invoke_main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 76, 78},
+          {"main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/snail-server/snail-server/tests/apps/inner/main.cpp", 57, 71},
+          {"double __cdecl compute_inner_product(class std::vector<double, class std::allocator<double>> const &, class std::vector<double, class std::allocator<double>> const &)", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/snail-server/snail-server/tests/apps/inner/main.cpp", 27, 36}}}
     };
 
-    for(const auto& sample : data_provider.samples(4140))
+    // No filter
+    sample_count   = 0;
+    last_timestamp = 0ns;
+    for(const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
     {
         ++sample_count;
 
-        // TODO: ETL samples are not currently ordered but this is not a requirement by
-        //       the analysis yet. This is going to change in the future and then we need
-        //       to fix this and enable the following check.
         const auto timestamp = sample.timestamp();
-        // ASSERT_LE(last_timestamp, timestamp);
-        last_timestamp       = timestamp;
+        ASSERT_LE(last_timestamp, timestamp);
+        last_timestamp = timestamp;
 
         const auto sample_index = sample_count - 1;
         if(!expected_sample_stacks.contains(sample_index)) continue;
@@ -215,8 +248,180 @@ TEST(DiagsessionDataProvider, Process)
 
         EXPECT_EQ(stack, expected_stack);
     }
-
     EXPECT_EQ(sample_count, 292);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 292);
+
+    // Filter complete range
+    filter.min_time = 1073706700ns;
+    filter.max_time = 2563852500ns;
+    sample_count    = 0;
+    last_timestamp  = 0ns;
+    for(const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    {
+        ++sample_count;
+
+        const auto timestamp = sample.timestamp();
+        ASSERT_LE(last_timestamp, timestamp);
+        last_timestamp = timestamp;
+
+        const auto sample_index = sample_count - 1;
+        if(!expected_sample_stacks.contains(sample_index)) continue;
+
+        const auto expected_stack = expected_sample_stacks.at(sample_index);
+
+        const auto stack = to_vector(sample.reversed_stack());
+
+        EXPECT_EQ(stack, expected_stack);
+    }
+    EXPECT_EQ(sample_count, 292);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 292);
+
+    // Filter first half
+    filter.min_time = std::nullopt;
+    filter.max_time = 1818779600ns;
+    sample_count    = 0;
+    last_timestamp  = 0ns;
+    for(const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    {
+        ++sample_count;
+
+        const auto timestamp = sample.timestamp();
+        ASSERT_LE(last_timestamp, timestamp);
+        last_timestamp = timestamp;
+
+        const auto sample_index = sample_count - 1;
+        if(!expected_sample_stacks.contains(sample_index)) continue;
+
+        const auto expected_stack = expected_sample_stacks.at(sample_index);
+
+        const auto stack = to_vector(sample.reversed_stack());
+
+        EXPECT_EQ(stack, expected_stack);
+    }
+    EXPECT_EQ(sample_count, 11);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 11);
+
+    // Filter second half
+    filter.min_time = 1818779600ns;
+    filter.max_time = std::nullopt;
+    sample_count    = 0;
+    last_timestamp  = 0ns;
+    for(const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    {
+        ++sample_count;
+
+        const auto timestamp = sample.timestamp();
+        ASSERT_LE(last_timestamp, timestamp);
+        last_timestamp = timestamp;
+
+        const auto sample_index = sample_count - 1 + 11;
+        if(!expected_sample_stacks.contains(sample_index)) continue;
+
+        const auto expected_stack = expected_sample_stacks.at(sample_index);
+
+        const auto stack = to_vector(sample.reversed_stack());
+
+        EXPECT_EQ(stack, expected_stack);
+    }
+    EXPECT_EQ(sample_count, 281);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 281);
+
+    // Filter somewhere in the middle
+    filter.min_time = 2200000000ns;
+    filter.max_time = 2300000000ns;
+    sample_count    = 0;
+    last_timestamp  = 0ns;
+    for(const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    {
+        ++sample_count;
+
+        const auto timestamp = sample.timestamp();
+        ASSERT_LE(last_timestamp, timestamp);
+        last_timestamp = timestamp;
+
+        const auto sample_index = sample_count - 1 + 102;
+        if(!expected_sample_stacks.contains(sample_index)) continue;
+
+        const auto expected_stack = expected_sample_stacks.at(sample_index);
+
+        const auto stack = to_vector(sample.reversed_stack());
+
+        EXPECT_EQ(stack, expected_stack);
+    }
+    EXPECT_EQ(sample_count, 99);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 99);
+
+    // None empty
+    filter.min_time = 2300000000ns;
+    filter.max_time = 2200000000ns;
+    sample_count    = 0;
+    last_timestamp  = 0ns;
+    for([[maybe_unused]] const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    {
+        ++sample_count;
+    }
+    EXPECT_EQ(sample_count, 0);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 0);
+
+    // Filter one unimportant thread
+    filter.min_time = std::nullopt;
+    filter.max_time = std::nullopt;
+    filter.excluded_threads.clear();
+    filter.excluded_threads.insert(thread_3148.unique_id);
+    sample_count   = 0;
+    last_timestamp = 0ns;
+    for([[maybe_unused]] const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    {
+        ++sample_count;
+
+        const auto timestamp = sample.timestamp();
+        ASSERT_LE(last_timestamp, timestamp);
+        last_timestamp = timestamp;
+
+        const auto sample_index = sample_count - 1 + (sample_count > 6 ? 1 : 0);
+        if(!expected_sample_stacks.contains(sample_index)) continue;
+
+        const auto expected_stack = expected_sample_stacks.at(sample_index);
+
+        const auto stack = to_vector(sample.reversed_stack());
+
+        EXPECT_EQ(stack, expected_stack);
+    }
+    EXPECT_EQ(sample_count, 291);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 291);
+
+    // Filter the main thread and another one
+    filter.min_time = std::nullopt;
+    filter.max_time = std::nullopt;
+    filter.excluded_threads.clear();
+    filter.excluded_threads.insert(thread_3828.unique_id);
+    filter.excluded_threads.insert(thread_4224.unique_id);
+    sample_count   = 0;
+    last_timestamp = 0ns;
+    for([[maybe_unused]] const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    {
+        ++sample_count;
+
+        const auto timestamp = sample.timestamp();
+        ASSERT_LE(last_timestamp, timestamp);
+        last_timestamp = timestamp;
+    }
+    EXPECT_EQ(sample_count, 3);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 3);
+
+    // Filter the process
+    filter.min_time = std::nullopt;
+    filter.max_time = std::nullopt;
+    filter.excluded_threads.clear();
+    filter.excluded_processes.insert(unique_sampling_process_id);
+    sample_count   = 0;
+    last_timestamp = 0ns;
+    for([[maybe_unused]] const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    {
+        ++sample_count;
+    }
+    EXPECT_EQ(sample_count, 0);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 0);
 }
 
 TEST(PerfDataDataProvider, Process)
@@ -243,7 +448,7 @@ TEST(PerfDataDataProvider, Process)
     // EXPECT_EQ(data_provider.session_info().date, std::chrono::sys_seconds(1688327245s)); // This is not stable
     EXPECT_EQ(data_provider.session_info().runtime, 387398400ns);
     EXPECT_EQ(data_provider.session_info().number_of_processes, 1);
-    EXPECT_EQ(data_provider.session_info().number_of_threads, 2);
+    EXPECT_EQ(data_provider.session_info().number_of_threads, 1);
     EXPECT_EQ(data_provider.session_info().number_of_samples, 1524);
     EXPECT_EQ(data_provider.session_info().average_sampling_rate, 3933.9346780988258);
 
@@ -253,30 +458,28 @@ TEST(PerfDataDataProvider, Process)
     EXPECT_EQ(data_provider.system_info().cpu_name, "Intel(R) Core(TM) i7-7700HQ CPU @ 2.80GHz");
     EXPECT_EQ(data_provider.system_info().number_of_processors, 8);
 
-    EXPECT_EQ(to_vector(data_provider.sampling_processes()), (std::vector<common::process_id_t>{248}));
+    const auto sampling_processes = to_vector(data_provider.sampling_processes());
+    ASSERT_EQ(sampling_processes.size(), 1);
+    const auto unique_sampling_process_id = sampling_processes[0];
 
-    const auto process_info = data_provider.process_info(248);
-    EXPECT_EQ(process_info.id, 248);
+    const auto process_info = data_provider.process_info(unique_sampling_process_id);
+    EXPECT_EQ(process_info.unique_id, unique_sampling_process_id);
+    EXPECT_EQ(process_info.os_id, 248);
     EXPECT_EQ(process_info.name, "inner");
     EXPECT_EQ(process_info.start_time, 0ns);
     EXPECT_EQ(process_info.end_time, 387398400ns);
 
-    const auto threads = to_vector(data_provider.threads_info(248));
-    ASSERT_EQ(threads.size(), 2);
+    const auto threads = to_vector(data_provider.threads_info(unique_sampling_process_id));
+    ASSERT_EQ(threads.size(), 1);
 
-    // TODO: we probably should make sure thread lifetimes do not overlap (here it is just a renaming)
-    EXPECT_EQ(threads[0].id, 248);
-    EXPECT_EQ(threads[0].name, "perf-exec");
+    EXPECT_EQ(threads[0].os_id, 248);
+    EXPECT_EQ(threads[0].name, "inner");
     EXPECT_EQ(threads[0].start_time, 0ns);
     EXPECT_EQ(threads[0].end_time, 387398400ns);
 
-    EXPECT_EQ(threads[1].id, 248);
-    EXPECT_EQ(threads[1].name, "inner");
-    EXPECT_EQ(threads[1].start_time, 0ns);
-    EXPECT_EQ(threads[1].end_time, 387398400ns);
-
-    std::chrono::nanoseconds last_timestamp = 0ns;
-    std::size_t              sample_count   = 0;
+    analysis::sample_filter  filter;
+    std::chrono::nanoseconds last_timestamp;
+    std::size_t              sample_count;
 
     // We just compare some selected sample stacks
     const std::unordered_map<std::size_t, std::vector<analysis::stack_frame>> expected_sample_stacks = {
@@ -297,7 +500,10 @@ TEST(PerfDataDataProvider, Process)
           {"compute_inner_product(std::vector<double, std::allocator<double>> const&, std::vector<double, std::allocator<double>> const&)", "/tmp/build/inner/Debug/build/inner", "/tmp/snail-server/tests/apps/inner/main.cpp", 26, 35}}}
     };
 
-    for(const auto& sample : data_provider.samples(248))
+    // No filter
+    sample_count   = 0;
+    last_timestamp = 0ns;
+    for(const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
     {
         ++sample_count;
 
@@ -315,6 +521,146 @@ TEST(PerfDataDataProvider, Process)
 
         EXPECT_EQ(stack, expected_stack);
     }
-
     EXPECT_EQ(sample_count, 1524);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 1524);
+
+    // Filter complete range
+    filter.min_time = 0ns;
+    filter.max_time = 387398400ns;
+    sample_count    = 0;
+    last_timestamp  = 0ns;
+    for(const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    {
+        ++sample_count;
+
+        const auto timestamp = sample.timestamp();
+        ASSERT_LE(last_timestamp, timestamp);
+        last_timestamp = timestamp;
+
+        const auto sample_index = sample_count - 1;
+        if(!expected_sample_stacks.contains(sample_index)) continue;
+
+        const auto expected_stack = expected_sample_stacks.at(sample_index);
+
+        const auto stack = to_vector(sample.reversed_stack());
+
+        EXPECT_EQ(stack, expected_stack);
+    }
+    EXPECT_EQ(sample_count, 1524);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 1524);
+
+    // Filter first half
+    filter.min_time = std::nullopt;
+    filter.max_time = 193699200ns;
+    sample_count    = 0;
+    last_timestamp  = 0ns;
+    for(const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    {
+        ++sample_count;
+
+        const auto timestamp = sample.timestamp();
+        ASSERT_LE(last_timestamp, timestamp);
+        last_timestamp = timestamp;
+
+        const auto sample_index = sample_count - 1;
+        if(!expected_sample_stacks.contains(sample_index)) continue;
+
+        const auto expected_stack = expected_sample_stacks.at(sample_index);
+
+        const auto stack = to_vector(sample.reversed_stack());
+
+        EXPECT_EQ(stack, expected_stack);
+    }
+    EXPECT_EQ(sample_count, 755);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 755);
+
+    // Filter second half
+    filter.min_time = 193699200ns;
+    filter.max_time = std::nullopt;
+    sample_count    = 0;
+    last_timestamp  = 0ns;
+    for(const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    {
+        ++sample_count;
+
+        const auto timestamp = sample.timestamp();
+        ASSERT_LE(last_timestamp, timestamp);
+        last_timestamp = timestamp;
+
+        const auto sample_index = sample_count - 1 + 755;
+        if(!expected_sample_stacks.contains(sample_index)) continue;
+
+        const auto expected_stack = expected_sample_stacks.at(sample_index);
+
+        const auto stack = to_vector(sample.reversed_stack());
+
+        EXPECT_EQ(stack, expected_stack);
+    }
+    EXPECT_EQ(sample_count, 769);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 769);
+
+    // Filter somewhere in the middle
+    filter.min_time = 180000000ns;
+    filter.max_time = 200000000ns;
+    sample_count    = 0;
+    last_timestamp  = 0ns;
+    for(const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    {
+        ++sample_count;
+
+        const auto timestamp = sample.timestamp();
+        ASSERT_LE(last_timestamp, timestamp);
+        last_timestamp = timestamp;
+
+        const auto sample_index = sample_count - 1 + 700;
+        if(!expected_sample_stacks.contains(sample_index)) continue;
+
+        const auto expected_stack = expected_sample_stacks.at(sample_index);
+
+        const auto stack = to_vector(sample.reversed_stack());
+
+        EXPECT_EQ(stack, expected_stack);
+    }
+    EXPECT_EQ(sample_count, 80);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 80);
+
+    // None empty
+    filter.min_time = 230000000ns;
+    filter.max_time = 220000000ns;
+    sample_count    = 0;
+    last_timestamp  = 0ns;
+    for([[maybe_unused]] const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    {
+        ++sample_count;
+    }
+    EXPECT_EQ(sample_count, 0);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 0);
+
+    // Filter the only thread
+    filter.min_time = std::nullopt;
+    filter.max_time = std::nullopt;
+    filter.excluded_threads.clear();
+    filter.excluded_threads.insert(threads[0].unique_id);
+    sample_count   = 0;
+    last_timestamp = 0ns;
+    for([[maybe_unused]] const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    {
+        ++sample_count;
+    }
+    EXPECT_EQ(sample_count, 0);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 0);
+
+    // Filter the process
+    filter.min_time = std::nullopt;
+    filter.max_time = std::nullopt;
+    filter.excluded_threads.clear();
+    filter.excluded_processes.insert(unique_sampling_process_id);
+    sample_count   = 0;
+    last_timestamp = 0ns;
+    for([[maybe_unused]] const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    {
+        ++sample_count;
+    }
+    EXPECT_EQ(sample_count, 0);
+    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 0);
 }

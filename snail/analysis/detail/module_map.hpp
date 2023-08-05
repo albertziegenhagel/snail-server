@@ -10,8 +10,6 @@
 #include <string>
 #include <vector>
 
-#include <snail/common/types.hpp>
-
 #include <snail/perf_data/build_id.hpp>
 
 namespace snail::analysis::detail {
@@ -26,7 +24,7 @@ struct module_info
     Data payload;
 };
 
-template<typename Data>
+template<typename Data, typename Timestamp>
 class module_map
 {
 public:
@@ -36,10 +34,10 @@ public:
     std::vector<module_info<Data>>&       all_modules();
     const std::vector<module_info<Data>>& all_modules() const;
 
-    void insert(module_info<Data> module, common::timestamp_t load_timestamp);
+    void insert(module_info<Data> module, Timestamp load_timestamp);
 
     // FIXME: improve/remove returning load timestamp
-    std::pair<const module_info<Data>*, common::timestamp_t> find(common::instruction_pointer_t address, common::timestamp_t timestamp, bool strict = true) const;
+    std::pair<const module_info<Data>*, Timestamp> find(std::uint64_t address, Timestamp timestamp, bool strict = true) const;
 
 private:
     struct address_range;
@@ -50,8 +48,8 @@ private:
     std::vector<address_range> address_ranges;
 };
 
-template<typename Data>
-struct module_map<Data>::address_range
+template<typename Data, typename Timestamp>
+struct module_map<Data, Timestamp>::address_range
 {
     // half-open address range: [begin, end)
     std::uint64_t begin_address;
@@ -59,14 +57,14 @@ struct module_map<Data>::address_range
 
     struct module_entry
     {
-        common::timestamp_t load_timestamp;
-        std::size_t         module_index;
+        Timestamp   load_timestamp;
+        std::size_t module_index;
     };
 
     // Sorted by load_timestamp (from oldest to newest)
     std::vector<module_entry> active_modules;
 
-    [[nodiscard]] bool contains(common::instruction_pointer_t address) const noexcept
+    [[nodiscard]] bool contains(std::uint64_t address) const noexcept
     {
         return address >= begin_address &&
                address < end_address;
@@ -86,26 +84,26 @@ struct module_map<Data>::address_range
     }
 };
 
-template<typename Data>
-module_map<Data>::module_map() = default;
+template<typename Data, typename Timestamp>
+module_map<Data, Timestamp>::module_map() = default;
 
-template<typename Data>
-module_map<Data>::~module_map() = default;
+template<typename Data, typename Timestamp>
+module_map<Data, Timestamp>::~module_map() = default;
 
-template<typename Data>
-std::vector<module_info<Data>>& module_map<Data>::all_modules()
+template<typename Data, typename Timestamp>
+std::vector<module_info<Data>>& module_map<Data, Timestamp>::all_modules()
 {
     return modules;
 }
 
-template<typename Data>
-const std::vector<module_info<Data>>& module_map<Data>::all_modules() const
+template<typename Data, typename Timestamp>
+const std::vector<module_info<Data>>& module_map<Data, Timestamp>::all_modules() const
 {
     return modules;
 }
 
-template<typename Data>
-void module_map<Data>::insert(module_info<Data> module, common::timestamp_t load_timestamp)
+template<typename Data, typename Timestamp>
+void module_map<Data, Timestamp>::insert(module_info<Data> module, Timestamp load_timestamp)
 {
     const auto new_module_index = modules.size();
     modules.push_back(std::move(module));
@@ -255,8 +253,8 @@ void module_map<Data>::insert(module_info<Data> module, common::timestamp_t load
     }
 }
 
-template<typename Data>
-std::pair<const module_info<Data>*, common::timestamp_t> module_map<Data>::find(common::instruction_pointer_t address, common::timestamp_t timestamp, bool strict) const
+template<typename Data, typename Timestamp>
+std::pair<const module_info<Data>*, Timestamp> module_map<Data, Timestamp>::find(std::uint64_t address, Timestamp timestamp, bool strict) const
 {
     auto reversed_ranges = std::views::reverse(address_ranges);
 

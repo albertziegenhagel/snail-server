@@ -32,7 +32,8 @@ struct test_sample_data : public sample_data
 class test_samples_provider : public samples_provider
 {
 public:
-    common::generator<const sample_data&> samples(common::process_id_t process_id) const override
+    common::generator<const sample_data&> samples(unique_process_id process_id,
+                                                  const sample_filter& /*filter*/) const override
     {
         if(process_id != expected_process_id_) co_return;
 
@@ -41,8 +42,14 @@ public:
             co_yield sample;
         }
     }
+    std::size_t count_samples(unique_process_id process_id,
+                              const sample_filter& /*filter*/) const override
+    {
+        if(process_id != expected_process_id_) return 0;
+        return samples_.size();
+    }
 
-    common::process_id_t          expected_process_id_;
+    unique_process_id             expected_process_id_;
     std::vector<test_sample_data> samples_;
 };
 
@@ -51,11 +58,7 @@ using caller_map    = std::unordered_map<function_info::id_t, hit_counts>;
 
 TEST(Analysis, SampleStacksFullInfo)
 {
-    const auto process = process_info{
-        .id         = 42,
-        .name       = "process",
-        .start_time = std::chrono::nanoseconds(10),
-        .end_time   = std::chrono::nanoseconds(20)};
+    const auto process_id = unique_process_id{.key = 123};
 
     const std::string function_a_name = "func_a";
     const std::string function_b_name = "func_b";
@@ -68,7 +71,7 @@ TEST(Analysis, SampleStacksFullInfo)
     const std::string file_b_path = "C:/path/to/file/b.h";
 
     test_samples_provider samples_provider;
-    samples_provider.expected_process_id_ = process.id;
+    samples_provider.expected_process_id_ = process_id;
     samples_provider.samples_             = {
         test_sample_data(
             {stack_frame{
@@ -109,7 +112,9 @@ TEST(Analysis, SampleStacksFullInfo)
             )
     };
 
-    const auto analysis_result = analyze_stacks(samples_provider, process);
+    const auto analysis_result = analyze_stacks(samples_provider, process_id);
+
+    EXPECT_EQ(analysis_result.process_id, process_id);
 
     // Check that all functions are present
     EXPECT_EQ(analysis_result.all_functions().size(), 3);
@@ -287,11 +292,7 @@ TEST(Analysis, SampleStacksFullInfo)
 
 TEST(Analysis, SampleStacksMissingFile)
 {
-    const auto process = process_info{
-        .id         = 42,
-        .name       = "process",
-        .start_time = std::chrono::nanoseconds(10),
-        .end_time   = std::chrono::nanoseconds(20)};
+    const auto process_id = unique_process_id{.key = 123};
 
     const std::string function_a_name = "func_a";
     const std::string function_b_name = "func_b";
@@ -303,7 +304,7 @@ TEST(Analysis, SampleStacksMissingFile)
     const std::string file_a_path = "/home/path/to/file/a.cpp";
 
     test_samples_provider samples_provider;
-    samples_provider.expected_process_id_ = process.id;
+    samples_provider.expected_process_id_ = process_id;
     samples_provider.samples_             = {
         test_sample_data(
             {stack_frame{
@@ -335,7 +336,9 @@ TEST(Analysis, SampleStacksMissingFile)
             )
     };
 
-    const auto analysis_result = analyze_stacks(samples_provider, process);
+    const auto analysis_result = analyze_stacks(samples_provider, process_id);
+
+    EXPECT_EQ(analysis_result.process_id, process_id);
 
     // Check that all functions are present
     EXPECT_EQ(analysis_result.all_functions().size(), 4);

@@ -4,13 +4,15 @@
 #include <optional>
 #include <string>
 
-#include <snail/common/types.hpp>
+#include <snail/analysis/data/ids.hpp>
 
 namespace snail::analysis {
 
 struct thread_info
 {
-    common::thread_id_t id;
+    unique_thread_id unique_id;
+
+    std::uint32_t os_id;
 
     std::optional<std::string> name;
 

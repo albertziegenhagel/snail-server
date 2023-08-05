@@ -4,6 +4,7 @@
 #include <chrono>
 #include <format>
 #include <numeric>
+#include <queue>
 #include <ranges>
 
 #include <utf8/cpp17.h>
@@ -20,14 +21,6 @@ using namespace snail;
 using namespace snail::analysis;
 
 namespace {
-
-bool is_kernel_address(std::uint64_t address, std::uint32_t pointer_size)
-{
-    // See https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/user-space-and-system-space
-    return pointer_size == 4 ?
-               address >= 0x80000000 :        // 32bit
-               address >= 0x0000800000000000; // 64bit
-}
 
 template<typename Rep, typename Ratio>
 std::int64_t to_qpc_ticks(std::chrono::duration<Rep, Ratio> time, std::uint64_t qpc_frequency)
@@ -86,7 +79,7 @@ struct etl_sample_data : public sample_data
         }
         if(kernel_stack != nullptr)
         {
-            static constexpr detail::etl_file_process_context::process_id_t kernel_process_id = 0;
+            static constexpr detail::etl_file_process_context::os_pid_t kernel_process_id = 0;
             for(const auto instruction_pointer : std::views::reverse(*kernel_stack))
             {
                 auto [module, load_timestamp] = context->get_modules(kernel_process_id).find(instruction_pointer, kernel_timestamp);
@@ -123,9 +116,9 @@ struct etl_sample_data : public sample_data
     detail::etl_file_process_context::timestamp_t                               kernel_timestamp;
     detail::etl_file_process_context::timestamp_t                               user_timestamp;
 
-    detail::etl_file_process_context::process_id_t process_id;
-    detail::pdb_resolver*                          resolver;
-    detail::etl_file_process_context*              context;
+    detail::etl_file_process_context::os_pid_t process_id;
+    detail::pdb_resolver*                      resolver;
+    detail::etl_file_process_context*          context;
 
     detail::etl_file_process_context::timestamp_t sample_timestamp;
     std::uint64_t                                 session_start_qpc_ticks;
@@ -148,6 +141,26 @@ std::string win_architecture_to_str(std::uint16_t arch)
     }
     return "[unknown]";
 }
+
+struct next_sample_priority_info
+{
+    detail::etl_file_process_context::timestamp_t next_sample_time;
+    std::size_t                                   thread_index;
+
+    bool operator<(const next_sample_priority_info& other) const
+    {
+        // event with lowest timestamp has highest priority
+        return next_sample_time > other.next_sample_time;
+    }
+};
+
+struct thread_sample_data
+{
+    using sample_info = detail::etl_file_process_context::sample_info;
+
+    std::span<const sample_info> samples;
+    std::size_t                  next_sample_index;
+};
 
 } // namespace
 
@@ -176,20 +189,27 @@ void etl_data_provider::process(const std::filesystem::path& file_path)
 
     std::size_t total_sample_count = 0;
     std::size_t total_thread_count = 0;
-    for(const auto& [process_id, profiler_process_info] : process_context_->profiler_processes())
+    for(const auto& [process_key, profiler_process_info] : process_context_->profiler_processes())
     {
-        const auto& threads = process_context_->get_process_threads(process_id);
+        const auto* const process = process_context_->get_processes().find_at(process_key.id, process_key.time);
+        if(process == nullptr) continue;
+
+        assert(process->payload.unique_id);
+        const auto& threads = process_context_->get_process_threads(*process->payload.unique_id);
         total_thread_count += std::ranges::size(threads);
 
-        for(const auto& [thread_id, thread_start_timestamp] : threads)
+        for(const auto& thread_id : threads)
         {
-            const auto* const thread = process_context_->get_threads().find_at(thread_id, thread_start_timestamp);
+            const auto        thread_key = process_context_->id_to_key(thread_id);
+            const auto* const thread     = process_context_->get_threads().find_at(thread_key.id, thread_key.time);
             if(thread == nullptr) continue;
 
-            const auto samples = process_context_->thread_samples(thread_id, thread->timestamp, thread->payload.end_time);
+            const auto samples = process_context_->thread_samples(thread_key.id, thread->timestamp, thread->payload.end_time);
             total_sample_count += std::ranges::size(samples);
         }
     }
+
+    pointer_size_ = file.header().pointer_size;
 
     const auto runtime = file.header().end_time - file.header().start_time;
 
@@ -242,29 +262,32 @@ const analysis::system_info& etl_data_provider::system_info() const
     return *system_info_;
 }
 
-common::generator<common::process_id_t> etl_data_provider::sampling_processes() const
+common::generator<unique_process_id> etl_data_provider::sampling_processes() const
 {
     if(process_context_ == nullptr) co_return;
 
     const auto& process_context = *process_context_;
 
-    for(const auto& [process_id, profiler_process_info] : process_context.profiler_processes())
+    for(const auto& [process_key, profiler_process_info] : process_context.profiler_processes())
     {
-        co_yield common::process_id_t(process_id);
+        const auto* const process = process_context_->get_processes().find_at(process_key.id, process_key.time);
+        if(process == nullptr || process->payload.unique_id == std::nullopt) continue;
+
+        co_yield unique_process_id(*process->payload.unique_id);
     }
 }
 
-analysis::process_info etl_data_provider::process_info(common::process_id_t process_id) const
+analysis::process_info etl_data_provider::process_info(unique_process_id process_id) const
 {
     assert(process_context_ != nullptr);
 
-    const auto& profiler_process_info = process_context_->profiler_processes().at(process_id);
-
-    const auto* const process = process_context_->get_processes().find_at(process_id, profiler_process_info.start_timestamp);
-    if(process == nullptr) throw std::runtime_error(std::format("Invalid process {}", process_id));
+    const auto        process_key = process_context_->id_to_key(process_id);
+    const auto* const process     = process_context_->get_processes().find_at(process_key.id, process_key.time);
+    if(process == nullptr) throw std::runtime_error(std::format("Invalid process {} @{}", process_key.id, process_key.time));
 
     return analysis::process_info{
-        .id         = process_id,
+        .unique_id  = process_id,
+        .os_id      = process->id,
         .name       = process->payload.image_filename,
         .start_time = from_relative_qpc_ticks<std::chrono::nanoseconds>(process->timestamp, session_start_qpc_ticks_, qpc_frequency_),
         .end_time   = process->payload.end_time ?
@@ -272,21 +295,21 @@ analysis::process_info etl_data_provider::process_info(common::process_id_t proc
                           from_relative_qpc_ticks<std::chrono::nanoseconds>(session_end_qpc_ticks_, session_start_qpc_ticks_, qpc_frequency_)};
 }
 
-common::generator<analysis::thread_info> etl_data_provider::threads_info(common::process_id_t process_id) const
+common::generator<analysis::thread_info> etl_data_provider::threads_info(unique_process_id process_id) const
 {
     if(process_context_ == nullptr) co_return;
 
     const auto& process = process_info(process_id);
 
-    for(const auto& [thread_id, time] : process_context_->get_process_threads(process_id))
+    for(const auto& thread_id : process_context_->get_process_threads(process_id))
     {
-        const auto* const thread = process_context_->get_threads().find_at(thread_id, time);
-
-        assert(thread != nullptr);
-        if(thread == nullptr) continue; // fault tolerance in release mode
+        const auto        thread_key = process_context_->id_to_key(thread_id);
+        const auto* const thread     = process_context_->get_threads().find_at(thread_key.id, thread_key.time);
+        if(thread == nullptr) continue;
 
         co_yield analysis::thread_info{
-            .id         = thread->id,
+            .unique_id  = thread_id,
+            .os_id      = thread->id,
             .name       = std::nullopt,
             .start_time = from_relative_qpc_ticks<std::chrono::nanoseconds>(thread->timestamp, session_start_qpc_ticks_, qpc_frequency_),
             .end_time   = thread->payload.end_time ?
@@ -295,114 +318,172 @@ common::generator<analysis::thread_info> etl_data_provider::threads_info(common:
     }
 }
 
-common::generator<const sample_data&> etl_data_provider::samples(common::process_id_t process_id) const
+common::generator<const sample_data&> etl_data_provider::samples(unique_process_id    process_id,
+                                                                 const sample_filter& filter) const
 {
     if(process_context_ == nullptr) co_return;
+
+    if(filter.excluded_processes.contains(process_id)) co_return;
 
     assert(symbol_resolver_ != nullptr);
 
     const auto& process_context = *process_context_;
 
-    std::unordered_map<
-        detail::etl_file_process_context::thread_id_t,
-        std::vector<const detail::etl_file_process_context::sample_info*>>
-        remembered_kernel_samples;
+    const auto process_key = process_context_->id_to_key(process_id);
 
     etl_sample_data current_sample_data;
 
-    current_sample_data.process_id              = process_id;
+    current_sample_data.process_id              = process_key.id;
     current_sample_data.context                 = process_context_.get();
     current_sample_data.resolver                = symbol_resolver_.get();
     current_sample_data.session_start_qpc_ticks = session_start_qpc_ticks_;
     current_sample_data.qpc_frequency           = qpc_frequency_;
 
-    // FIXME: retrieve this!
-    const uint32_t pointer_size = 8;
+    const auto filter_min_timestamp = filter.min_time == std::nullopt ? std::nullopt :
+                                                                        std::make_optional(static_cast<detail::etl_file_process_context::timestamp_t>(session_start_qpc_ticks_ + std::max(to_qpc_ticks(*filter.min_time, qpc_frequency_), std::chrono::nanoseconds::rep(0))));
+
+    const auto filter_max_timestamp = filter.max_time == std::nullopt ? std::nullopt :
+                                                                        std::make_optional(static_cast<detail::etl_file_process_context::timestamp_t>(session_start_qpc_ticks_ + std::max(to_qpc_ticks(*filter.max_time, qpc_frequency_), std::chrono::nanoseconds::rep(0))));
 
     const auto& threads = process_context.get_process_threads(process_id);
 
-    for(const auto& [thread_id, thread_start_timestamp] : threads)
+    std::priority_queue<next_sample_priority_info> sample_queue;
+
+    std::vector<thread_sample_data> threads_samples;
+    threads_samples.reserve(threads.size());
+
+    for(const auto& thread_id : threads)
     {
-        const auto* const thread = process_context.get_threads().find_at(thread_id, thread_start_timestamp);
+        if(filter.excluded_threads.contains(thread_id)) continue;
+
+        const auto        thread_key = process_context.id_to_key(thread_id);
+        const auto* const thread     = process_context.get_threads().find_at(thread_key.id, thread_key.time);
         if(thread == nullptr) continue;
 
-        for(const auto& sample : process_context.thread_samples(thread_id, thread->timestamp, thread->payload.end_time))
+        const auto sample_min_time = filter_min_timestamp ?
+                                         std::max(*filter_min_timestamp, thread->timestamp) :
+                                         thread->timestamp;
+
+        const auto sample_max_time = filter_max_timestamp ?
+                                         (thread->payload.end_time ?
+                                              std::min(*filter_max_timestamp, *thread->payload.end_time) :
+                                              *filter_max_timestamp) :
+                                         thread->payload.end_time;
+
+        const auto samples = process_context.thread_samples(thread_key.id, sample_min_time, sample_max_time);
+
+        if(samples.empty()) continue;
+
+        sample_queue.push(next_sample_priority_info{
+            .next_sample_time = samples.front().timestamp,
+            .thread_index     = threads_samples.size()});
+
+        threads_samples.push_back(thread_sample_data{
+            .samples           = samples,
+            .next_sample_index = 0});
+    }
+
+    while(!sample_queue.empty())
+    {
+        // Get the thread that has the earliest sample to extract next.
+        const auto [_, thread_index] = sample_queue.top();
+        sample_queue.pop();
+
+        auto& thread_data = threads_samples[thread_index];
+
+        // Extract samples for this thread as long as possible
+        while(true)
         {
+            const auto current_sample_index = thread_data.next_sample_index;
+            ++thread_data.next_sample_index;
+
+            const auto& sample = thread_data.samples[current_sample_index];
+
             current_sample_data.sample_timestamp = sample.timestamp;
 
             if(sample.user_mode_stack)
             {
-                const auto&                 user_stack       = process_context.stack(*sample.user_mode_stack);
-                [[maybe_unused]] const auto starts_in_kernel = is_kernel_address(user_stack.back(), pointer_size);
-                const auto                  ends_in_kernel   = is_kernel_address(user_stack.front(), pointer_size);
-                assert(!starts_in_kernel);
-
-                if(ends_in_kernel)
-                {
-                    current_sample_data.user_stack     = &user_stack;
-                    current_sample_data.user_timestamp = sample.timestamp;
-                    current_sample_data.kernel_stack   = nullptr;
-                    co_yield current_sample_data;
-                }
-                else
-                {
-                    auto& remembered_samples = remembered_kernel_samples[sample.thread_id];
-                    for(const auto* const remembered_sample : remembered_samples)
-                    {
-                        assert(remembered_sample->kernel_mode_stack);
-                        const auto& kernel_stack = process_context.stack(*remembered_sample->kernel_mode_stack);
-
-                        current_sample_data.user_stack       = &user_stack;
-                        current_sample_data.user_timestamp   = sample.timestamp;
-                        current_sample_data.kernel_stack     = &kernel_stack;
-                        current_sample_data.kernel_timestamp = remembered_sample->timestamp;
-                        co_yield current_sample_data;
-                    }
-                    remembered_samples.clear();
-
-                    if(sample.kernel_mode_stack)
-                    {
-                        const auto& kernel_stack = process_context.stack(*sample.kernel_mode_stack);
-
-                        current_sample_data.user_stack       = &user_stack;
-                        current_sample_data.user_timestamp   = sample.timestamp;
-                        current_sample_data.kernel_stack     = &kernel_stack;
-                        current_sample_data.kernel_timestamp = sample.timestamp;
-                        co_yield current_sample_data;
-                    }
-                    else
-                    {
-                        current_sample_data.user_stack     = &user_stack;
-                        current_sample_data.user_timestamp = sample.timestamp;
-                        current_sample_data.kernel_stack   = nullptr;
-                        co_yield current_sample_data;
-                    }
-                }
-            }
-            else if(sample.kernel_mode_stack)
-            {
-                remembered_kernel_samples[sample.thread_id].push_back(&sample);
+                current_sample_data.user_stack     = &process_context.stack(*sample.user_mode_stack);
+                current_sample_data.user_timestamp = sample.user_timestamp;
             }
             else
             {
-                current_sample_data.user_stack   = nullptr;
-                current_sample_data.kernel_stack = nullptr;
-                co_yield current_sample_data;
+                current_sample_data.user_stack = nullptr;
             }
-        }
 
-        for(const auto& [remembered_thread_id, remembered_samples] : remembered_kernel_samples)
-        {
-            for(const auto* const remembered_sample : remembered_samples)
+            if(sample.kernel_mode_stack)
             {
-                assert(remembered_sample->kernel_mode_stack);
-                const auto& kernel_stack = process_context.stack(*remembered_sample->kernel_mode_stack);
+                current_sample_data.kernel_stack     = &process_context.stack(*sample.kernel_mode_stack);
+                current_sample_data.kernel_timestamp = sample.kernel_timestamp;
+            }
+            else
+            {
+                current_sample_data.kernel_stack = nullptr;
+            }
 
-                current_sample_data.user_stack       = nullptr;
-                current_sample_data.kernel_stack     = &kernel_stack;
-                current_sample_data.kernel_timestamp = remembered_sample->timestamp;
-                co_yield current_sample_data;
+            co_yield current_sample_data;
+
+            // There are no more samples for this thread
+            if(thread_data.next_sample_index >= thread_data.samples.size()) break;
+
+            const auto next_sample_time = thread_data.samples[thread_data.next_sample_index].timestamp;
+
+            if(!sample_queue.empty() && sample_queue.top().next_sample_time < next_sample_time)
+            {
+                // There is another thread which's next sample is earlier than the
+                // next sample for the current thread. Hence, insert the current thread
+                // sample into the priority queue and stop extracting samples for the current
+                // thread.
+                sample_queue.push(next_sample_priority_info{
+                    .next_sample_time = next_sample_time,
+                    .thread_index     = thread_index});
+                break;
             }
         }
     }
+}
+
+std::size_t etl_data_provider::count_samples(unique_process_id    process_id,
+                                             const sample_filter& filter) const
+{
+    if(process_context_ == nullptr) return 0;
+
+    if(filter.excluded_processes.contains(process_id)) return 0;
+
+    // TODO: remove code duplication
+
+    assert(symbol_resolver_ != nullptr);
+
+    const auto& process_context = *process_context_;
+
+    const auto filter_min_timestamp = filter.min_time == std::nullopt ? std::nullopt :
+                                                                        std::make_optional(static_cast<detail::etl_file_process_context::timestamp_t>(session_start_qpc_ticks_ + std::max(to_qpc_ticks(*filter.min_time, qpc_frequency_), std::chrono::nanoseconds::rep(0))));
+
+    const auto filter_max_timestamp = filter.max_time == std::nullopt ? std::nullopt :
+                                                                        std::make_optional(static_cast<detail::etl_file_process_context::timestamp_t>(session_start_qpc_ticks_ + std::max(to_qpc_ticks(*filter.max_time, qpc_frequency_), std::chrono::nanoseconds::rep(0))));
+
+    const auto& threads = process_context.get_process_threads(process_id);
+
+    std::size_t total_samples_count = 0;
+    for(const auto& thread_id : threads)
+    {
+        if(filter.excluded_threads.contains(thread_id)) continue;
+
+        const auto        thread_key = process_context.id_to_key(thread_id);
+        const auto* const thread     = process_context.get_threads().find_at(thread_key.id, thread_key.time);
+        if(thread == nullptr) continue;
+
+        const auto sample_min_time = filter_min_timestamp ?
+                                         std::max(*filter_min_timestamp, thread->timestamp) :
+                                         thread->timestamp;
+
+        const auto sample_max_time = filter_max_timestamp ?
+                                         (thread->payload.end_time ?
+                                              std::min(*filter_max_timestamp, *thread->payload.end_time) :
+                                              *filter_max_timestamp) :
+                                         thread->payload.end_time;
+
+        total_samples_count += process_context.thread_samples(thread_key.id, sample_min_time, sample_max_time).size();
+    }
+    return total_samples_count;
 }
