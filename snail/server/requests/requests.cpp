@@ -28,7 +28,7 @@ namespace {
 template<std::integral T, std::integral U>
 double make_percent(T value, U max_value)
 {
-    return static_cast<double>(value) * 100.0 / static_cast<double>(max_value);
+    return max_value == 0 ? 0.0 : (static_cast<double>(value) * 100.0 / static_cast<double>(max_value));
 }
 
 const analysis::call_tree_node* get_top_child(const analysis::stacks_analysis& stacks_analysis,
