@@ -141,10 +141,17 @@ TEST(JsonRpcV2Protocol, DumpError)
 {
     v2_protocol protocol;
 
+    const auto id = nlohmann::json("my-id"s);
+
     EXPECT_EQ(protocol.dump_error(rpc_error(123, "my error"), nullptr),
               R"({"jsonrpc":"2.0","error":{"code":123,"message":"my error"}})");
 
-    const auto id = nlohmann::json("my-id"s);
     EXPECT_EQ(protocol.dump_error(rpc_error(123, "my error"), &id),
               R"({"jsonrpc":"2.0","error":{"code":123,"message":"my error"},"id":"my-id"})");
+
+    EXPECT_EQ(protocol.dump_error(rpc_error(123, "error messages \"needs\\escaping\""), nullptr),
+              "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":123,\"message\":\"error messages \\\"needs\\\\escaping\\\"\"}}");
+
+    EXPECT_EQ(protocol.dump_error(rpc_error(123, "error messages \"needs\\escaping\""), &id),
+              "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":123,\"message\":\"error messages \\\"needs\\\\escaping\\\"\"},\"id\":\"my-id\"}");
 }
