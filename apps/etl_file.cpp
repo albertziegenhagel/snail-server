@@ -405,8 +405,11 @@ int main(int argc, char* argv[])
 
                 std::cout << std::format("@{} {:30}:\n", header.timestamp, event_name);
                 std::cout << std::format("    buffer_size:           {}\n", event.buffer_size());
-                std::cout << std::format("    version:               {}\n", event.version());
-                std::cout << std::format("    provider_version:      {}\n", event.provider_version());
+                std::cout << std::format("    os_version_major:      {}\n", event.os_version_major());
+                std::cout << std::format("    os_version_minor:      {}\n", event.os_version_minor());
+                std::cout << std::format("    sp_version_major:      {}\n", event.sp_version_major());
+                std::cout << std::format("    sp_version_minor:      {}\n", event.sp_version_minor());
+                std::cout << std::format("    build_number:          {}\n", event.provider_version());
                 std::cout << std::format("    number_of_processors:  {}\n", event.number_of_processors());
                 std::cout << std::format("    end_time:              {}\n", event.end_time());
                 std::cout << std::format("    timer_resolution:      {}\n", event.timer_resolution());
