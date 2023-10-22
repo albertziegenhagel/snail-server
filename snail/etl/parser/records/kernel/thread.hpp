@@ -33,6 +33,8 @@ struct thread_v2_set_name_event_view : private extract_view_dynamic_base
 
     inline auto thread_name() const { return extract_u16string(dynamic_offset(8, 0), thread_name_length); }
 
+    inline std::size_t dynamic_size() const { return dynamic_offset(8 + thread_name().size() * 2 + 2, 0); }
+
 private:
     mutable std::optional<std::size_t> thread_name_length;
 };
@@ -79,6 +81,8 @@ struct thread_v3_type_group1_event_view : private extract_view_dynamic_base
         return std::make_optional(extract_u16string(dynamic_offset(16, 7), thread_name_length));
     }
 
+    inline std::size_t dynamic_size() const { return dynamic_offset(16, 7) + (thread_name() ? (thread_name()->size() * 2 + 2) : 0); }
+
 private:
     mutable std::optional<std::size_t> thread_name_length;
 };
@@ -120,6 +124,8 @@ struct thread_v4_type_group1_event_view : private extract_view_dynamic_base
     inline auto flags() const { return extract<std::uint8_t>(dynamic_offset(15, 7)); }
 
     inline auto thread_name() const { return extract_u16string(dynamic_offset(16, 7), thread_name_length); }
+
+    inline std::size_t dynamic_size() const { return dynamic_offset(16 + thread_name().size() * 2 + 2, 7); }
 
 private:
     mutable std::optional<std::size_t> thread_name_length;

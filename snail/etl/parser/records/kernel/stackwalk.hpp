@@ -44,6 +44,8 @@ struct stackwalk_v2_stack_event_view : private extract_view_dynamic_base
         return extract_pointer(dynamic_offset(stack_base_offset, index));
     }
 
+    inline std::size_t dynamic_size() const { return dynamic_offset(stack_base_offset, stack_size()); }
+
     struct stack_iterator
     {
         using iterator_category = std::random_access_iterator_tag;
