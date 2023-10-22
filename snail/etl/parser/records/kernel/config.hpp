@@ -139,33 +139,18 @@ struct system_config_v5_pnp_event_view : private extract_view_dynamic_base
     using extract_view_dynamic_base::buffer;
     using extract_view_dynamic_base::extract_view_dynamic_base;
 
-    inline auto class_guid() const
-    {
-        return common::guid{
-            extract<std::uint32_t>(dynamic_offset(4, 0)),
-            extract<std::uint16_t>(dynamic_offset(6, 0)),
-            extract<std::uint16_t>(dynamic_offset(8, 0)),
-            {extract<std::uint8_t>(dynamic_offset(10, 0)),
-                                                   extract<std::uint8_t>(dynamic_offset(11, 0)),
-                                                   extract<std::uint8_t>(dynamic_offset(12, 0)),
-                                                   extract<std::uint8_t>(dynamic_offset(13, 0)),
-                                                   extract<std::uint8_t>(dynamic_offset(14, 0)),
-                                                   extract<std::uint8_t>(dynamic_offset(15, 0)),
-                                                   extract<std::uint8_t>(dynamic_offset(16, 0)),
-                                                   extract<std::uint8_t>(dynamic_offset(17, 0))},
-        };
-    }
-    inline auto upper_filters_count() const { return extract<std::uint32_t>(dynamic_offset(18, 0)); }
-    inline auto lower_filters_count() const { return extract<std::uint32_t>(dynamic_offset(22, 0)); }
-    inline auto dev_status() const { return extract<std::uint32_t>(dynamic_offset(26, 0)); }
-    inline auto dev_problem() const { return extract<std::uint32_t>(dynamic_offset(30, 0)); }
-    inline auto device_id() const { return extract_u16string(dynamic_offset(34, 0), device_id_length); }
-    inline auto device_description() const { return extract_u16string(dynamic_offset(34 + device_id().size() * 2 + 2, 0), device_description_length); }
-    inline auto friendly_name() const { return extract_u16string(dynamic_offset(34 + device_id().size() * 2 + device_description().size() * 2 + 4, 0), friendly_name_length); }
-    inline auto pdo_name() const { return extract_u16string(dynamic_offset(34 + device_id().size() * 2 + device_description().size() * 2 + friendly_name().size() * 2 + 6, 0), pdo_name_length); }
-    inline auto service_name() const { return extract_u16string(dynamic_offset(34 + device_id().size() * 2 + device_description().size() * 2 + friendly_name().size() * 2 + pdo_name().size() * 2 + 8, 0), service_name_length); }
-    // inline auto upper_filters() const { return extract_u16string(dynamic_offset(34, 0)); }
-    // inline auto lower_filters() const { return extract_u16string(dynamic_offset(34, 0)); }
+    inline auto class_guid() const { return guid_view(buffer().subspan(0, guid_view::static_size)); }
+    inline auto upper_filters_count() const { return extract<std::uint32_t>(dynamic_offset(16, 0)); }
+    inline auto lower_filters_count() const { return extract<std::uint32_t>(dynamic_offset(20, 0)); }
+    inline auto dev_status() const { return extract<std::uint32_t>(dynamic_offset(24, 0)); }
+    inline auto dev_problem() const { return extract<std::uint32_t>(dynamic_offset(28, 0)); }
+    inline auto device_id() const { return extract_u16string(dynamic_offset(32, 0), device_id_length); }
+    inline auto device_description() const { return extract_u16string(dynamic_offset(32 + device_id().size() * 2 + 2, 0), device_description_length); }
+    inline auto friendly_name() const { return extract_u16string(dynamic_offset(32 + device_id().size() * 2 + device_description().size() * 2 + 4, 0), friendly_name_length); }
+    inline auto pdo_name() const { return extract_u16string(dynamic_offset(32 + device_id().size() * 2 + device_description().size() * 2 + friendly_name().size() * 2 + 6, 0), pdo_name_length); }
+    inline auto service_name() const { return extract_u16string(dynamic_offset(32 + device_id().size() * 2 + device_description().size() * 2 + friendly_name().size() * 2 + pdo_name().size() * 2 + 8, 0), service_name_length); }
+    // inline auto upper_filters() const { return extract_u16string(dynamic_offset(32, 0)); }
+    // inline auto lower_filters() const { return extract_u16string(dynamic_offset(32, 0)); }
 
 private:
     mutable std::optional<std::size_t> device_id_length;
