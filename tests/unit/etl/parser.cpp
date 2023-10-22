@@ -232,7 +232,8 @@ TEST(EtlParser, Kernel_PerfinfoV2SampledProfileEventView)
 
     EXPECT_EQ(event.instruction_pointer(), 18446735291273262474ULL);
     EXPECT_EQ(event.thread_id(), 26400);
-    EXPECT_EQ(event.count(), 4718593);
+    EXPECT_EQ(event.count(), 1);
+    EXPECT_EQ(event.reserved(), 72);
 }
 
 TEST(EtlParser, Kernel_PerfinfoV2SampledProfileIntervalEventView)
