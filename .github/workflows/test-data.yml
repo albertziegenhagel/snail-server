@@ -38,7 +38,7 @@ jobs:
         run: ninja install-apps
 
       - name: Record
-        run: ninja -j1 record
+        run: ninja -j1 -v record
 
       - name: Install Records
         run: ninja install-records
