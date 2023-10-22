@@ -1,9 +1,14 @@
 
 #include <snail/analysis/diagsession_data_provider.hpp>
 
+#include <cassert>
+
+#include <array>
+#include <bit>
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <span>
 #include <stdexcept>
 
 #include <libzippp.h>
@@ -16,6 +21,52 @@ using namespace snail;
 using namespace snail::analysis;
 
 namespace {
+
+template<std::size_t MaxSize>
+struct file_magic
+{
+    char* data()
+    {
+        return reinterpret_cast<char*>(buffer_.data());
+    }
+
+    void set_size(std::size_t size)
+    {
+        assert(size <= MaxSize);
+        size_ = size;
+    }
+
+    bool equals(std::span<const std::byte> expected) const
+    {
+        if(size_ < expected.size()) return false;
+
+        return std::ranges::equal(std::span(buffer_).subspan(0, expected.size()), expected);
+    }
+
+private:
+    std::size_t                    size_;
+    std::array<std::byte, MaxSize> buffer_;
+};
+
+template<std::size_t MaxSize>
+file_magic<MaxSize> try_read_magic(const std::filesystem::path& file_path)
+{
+    std::ifstream file_stream(file_path, std::ios::in | std::ios::binary);
+    if(!file_stream.is_open())
+    {
+        throw std::runtime_error(std::format("Could not open file '{}'", file_path.string()));
+    }
+    assert(file_stream.tellg() == 0);
+
+    file_magic<MaxSize> magic;
+    file_stream.read(magic.data(), MaxSize);
+    if(!file_stream.good() && !file_stream.eof())
+    {
+        throw std::runtime_error(std::format("Failed to read magic from '{}'", file_path.string()));
+    }
+    magic.set_size(static_cast<std::size_t>(file_stream.tellg()));
+    return magic;
+}
 
 std::optional<std::string_view> extract_xml_attribute(std::string_view xml_node, std::string_view attribute_name)
 {
@@ -47,6 +98,20 @@ diagsession_data_provider::~diagsession_data_provider()
 
 void diagsession_data_provider::process(const std::filesystem::path& file_path)
 {
+    static constexpr std::array<std::uint8_t, 4> zip_magic           = {0x50, 0x4b, 0x03, 0x04};
+    static constexpr std::array<std::uint8_t, 8> compound_file_magic = {0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1};
+
+    const auto file_magic = try_read_magic<8>(file_path);
+    if(file_magic.equals(std::as_bytes(std::span(compound_file_magic))))
+    {
+        throw std::runtime_error(std::format("Could not open diagsession file '{}': Compound File Binary Format not yet supported", file_path.string()));
+    }
+
+    if(!file_magic.equals(std::as_bytes(std::span(zip_magic))))
+    {
+        throw std::runtime_error(std::format("Could not open diagsession file '{}': Invalid file format. It is neither a ZIP file, nor in Compound File Binary Format.", file_path.string()));
+    }
+
     libzippp::ZipArchive archive(file_path.string());
     if(!archive.open(libzippp::ZipArchive::ReadOnly))
     {
