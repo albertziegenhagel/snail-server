@@ -23,7 +23,7 @@ jobs:
 
     env:
       VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
-      VCPKG_GIT_COMMIT_ID: "f6a5d4e8eb7476b8d7fc12a56dff300c1c986131"
+      VCPKG_GIT_COMMIT_ID: "8eb57355a4ffb410a2e94c07b4dca2dffbee8e50"
 
     steps:
       - name: Install gcc-13
@@ -38,7 +38,7 @@ jobs:
           wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
           sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-17 main'
           sudo apt update
-          sudo apt install clang-17 llvm-17-dev
+          sudo apt install clang-17
           echo "CC=clang-17" >> $GITHUB_ENV
           echo "CXX=clang++-17" >> $GITHUB_ENV
 
@@ -60,7 +60,7 @@ jobs:
         uses: lukka/run-cmake@v10
         with:
           configurePreset: "coverage"
-          configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Debug', '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}', '-DLLVM_DIR=/usr/lib/llvm-17/lib/cmake/llvm/']"
+          configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Debug', '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}']"
           buildPreset: "coverage"
           testPreset: "coverage"
 

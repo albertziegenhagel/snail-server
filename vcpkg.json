@@ -16,10 +16,7 @@
             "dependencies": [
                 {
                     "name": "llvm",
-                    "default-features": false,
-                    "features": [
-                        "default-options"
-                    ]
+                    "default-features": false
                 }
             ]
         }
