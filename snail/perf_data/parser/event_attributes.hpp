@@ -119,7 +119,7 @@ struct event_attributes
 {
     attribute_type type;
     // std::uint64_t config;
-    // std::uint64_t sample_period / sample_freq;
+    std::uint64_t  sample_period_freq;
 
     sample_format_flags sample_format;
     read_format_flags   read_format;
@@ -217,12 +217,13 @@ struct event_attributes_view : protected common::parser::extract_view_base
     inline auto instantiate() const
     {
         return event_attributes{
-            .type          = type(),
-            .sample_format = sample_format(),
-            .read_format   = read_format(),
-            .flags         = flags(),
-            .precise_ip    = precise_ip(),
-            .name          = {},
+            .type               = type(),
+            .sample_period_freq = flags().test(attribute_flag::freq) ? sample_freq() : sample_period(),
+            .sample_format      = sample_format(),
+            .read_format        = read_format(),
+            .flags              = flags(),
+            .precise_ip         = precise_ip(),
+            .name               = {},
         };
     }
 };

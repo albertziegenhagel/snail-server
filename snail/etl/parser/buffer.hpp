@@ -90,8 +90,8 @@ struct wmi_buffer_header_view : private extract_view_base
     inline auto offset() const { return extract<std::uint32_t>(0 + wnode_header_view::static_size); }
     inline auto buffer_flag() const { return extract<std::underlying_type_t<etw_buffer_flag>>(4 + wnode_header_view::static_size); }
     inline auto buffer_type() const { return extract<etw_buffer_type>(6 + wnode_header_view::static_size); }
-    inline auto start_time() const { return extract<std::int64_t>(8 + wnode_header_view::static_size); }
-    inline auto start_perf_clock() const { return extract<std::int64_t>(16 + wnode_header_view::static_size); }
+    inline auto start_time() const { return extract<std::uint64_t>(8 + wnode_header_view::static_size); }
+    inline auto start_perf_clock() const { return extract<std::uint64_t>(16 + wnode_header_view::static_size); }
 
     static inline constexpr std::size_t static_size = 24 + wnode_header_view::static_size;
 };
