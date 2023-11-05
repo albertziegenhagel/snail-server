@@ -7,9 +7,17 @@
 #include <optional>
 
 #ifdef SNAIL_HAS_LLVM
+#    include <llvm/Config/llvm-config.h>
+#    if defined(_MSC_VER) && LLVM_VERSION_MAJOR == 17
+#        pragma warning(push)
+#        pragma warning(disable : 4244)
+#    endif
 #    include <llvm/DebugInfo/DWARF/DWARFContext.h>
 #    include <llvm/Demangle/Demangle.h>
 #    include <llvm/Object/ELFObjectFile.h>
+#    if defined(_MSC_VER) && LLVM_VERSION_MAJOR == 17
+#        pragma warning(pop)
+#    endif
 #endif // SNAIL_HAS_LLVM
 
 #include <snail/common/cast.hpp>
