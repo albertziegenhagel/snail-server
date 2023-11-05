@@ -16,7 +16,10 @@
             "dependencies": [
                 {
                     "name": "llvm",
-                    "default-features": false
+                    "default-features": false,
+                    "features": [
+                        "enable-rtti"
+                    ]
                 }
             ]
         }

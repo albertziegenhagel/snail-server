@@ -60,7 +60,7 @@ jobs:
         uses: lukka/run-cmake@v10
         with:
           configurePreset: "coverage"
-          configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Debug', '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}']"
+          configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Debug', '-DCMAKE_CXX_FLAGS=-gdwarf-4', '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}']"
           buildPreset: "coverage"
           testPreset: "coverage"
 
