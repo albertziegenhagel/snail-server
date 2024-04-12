@@ -17,12 +17,13 @@ namespace {
 
 static const auto event_attributes = perf_data::parser::event_attributes{
     // in the following, only sample_format is used.
-    .type          = {},
-    .sample_format = perf_data::parser::sample_format_flags(295),
-    .read_format   = {},
-    .flags         = {},
-    .precise_ip    = {},
-    .name          = {}};
+    .type               = {},
+    .sample_period_freq = {},
+    .sample_format      = perf_data::parser::sample_format_flags(295),
+    .read_format        = {},
+    .flags              = {},
+    .precise_ip         = {},
+    .name               = {}};
 
 void push_comm_event(perf_data::dispatching_event_observer& observer,
                      std::span<std::byte>                   buffer,

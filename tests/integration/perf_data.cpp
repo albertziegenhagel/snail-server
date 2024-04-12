@@ -60,6 +60,7 @@ TEST(PerfDataFile, ReadInner)
                                            "/tmp/build/inner/Debug/build/inner"}));
     EXPECT_EQ(file.metadata().event_desc.size(), 1);
     EXPECT_EQ(file.metadata().event_desc[0].attribute.type, perf_data::parser::attribute_type::hardware);
+    EXPECT_EQ(file.metadata().event_desc[0].attribute.sample_period_freq, 4000);
     EXPECT_EQ(file.metadata().event_desc[0].attribute.sample_format.data(), std::bitset<64>("0000000000000000000000000000000000000000000000000000000100100111"));
     EXPECT_EQ(file.metadata().event_desc[0].attribute.read_format.data(), std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100"));
     EXPECT_EQ(file.metadata().event_desc[0].attribute.flags.data(), std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011"));

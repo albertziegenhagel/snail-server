@@ -38,6 +38,8 @@ struct image_id_v2_info_event_view : private extract_view_dynamic_base
 
     inline auto original_file_name() const { return extract_u16string(dynamic_offset(8, 2), original_file_name_length); }
 
+    inline std::size_t dynamic_size() const { return dynamic_offset(8 + original_file_name().size() * 2 + 2, 2); }
+
 private:
     mutable std::optional<std::size_t> original_file_name_length;
 };
@@ -62,6 +64,8 @@ struct image_id_v2_dbg_id_pdb_info_event_view : private extract_view_dynamic_bas
     inline auto age() const { return extract<std::uint32_t>(dynamic_offset(20, 1)); }
 
     inline auto pdb_file_name() const { return extract_string(dynamic_offset(24, 1), pdb_file_name_length); }
+
+    inline std::size_t dynamic_size() const { return dynamic_offset(24 + pdb_file_name().size() + 1, 1); }
 
 private:
     mutable std::optional<std::size_t> pdb_file_name_length;

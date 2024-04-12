@@ -219,6 +219,7 @@ inline void dispatching_event_observer::register_event(const common::guid& guid,
                                                            std::span<const std::byte>   user_data)
             {
                 const auto event = EventType(user_data, file_header.pointer_size);
+                assert(event.dynamic_size() == event.buffer().size());
                 std::invoke(handler, file_header, trace_header_variant, event);
             });
     }
@@ -231,7 +232,8 @@ inline void dispatching_event_observer::register_event(const common::guid& guid,
                                                            const any_guid_trace_header& trace_header_variant,
                                                            std::span<const std::byte>   user_data)
             {
-                const auto event         = EventType(user_data, file_header.pointer_size);
+                const auto event = EventType(user_data, file_header.pointer_size);
+                assert(event.dynamic_size() == event.buffer().size());
                 const auto common_header = make_common_trace_header(trace_header_variant);
                 std::invoke(handler, file_header, common_header, event);
             });

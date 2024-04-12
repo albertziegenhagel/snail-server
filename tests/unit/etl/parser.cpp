@@ -175,8 +175,13 @@ TEST(EtlParser, Kernel_EventTraceV2HeaderEventView)
 
     const auto event = etl::parser::event_trace_v2_header_event_view(std::as_bytes(std::span(buffer)));
 
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
+
     EXPECT_EQ(event.buffer_size(), 65536);
-    EXPECT_EQ(event.version(), 83951626);
+    EXPECT_EQ(event.os_version_major(), 10);
+    EXPECT_EQ(event.os_version_minor(), 0);
+    EXPECT_EQ(event.sp_version_major(), 1);
+    EXPECT_EQ(event.sp_version_minor(), 5);
     EXPECT_EQ(event.provider_version(), 22621);
     EXPECT_EQ(event.number_of_processors(), 8);
     EXPECT_EQ(event.end_time(), 133171255616974395ULL);
@@ -190,7 +195,7 @@ TEST(EtlParser, Kernel_EventTraceV2HeaderEventView)
     EXPECT_EQ(event.cpu_speed(), 2808);
     EXPECT_EQ(event.logger_name(), 0);
     EXPECT_EQ(event.log_file_name(), 0);
-    EXPECT_EQ(event.time_zone_information().bias(), 4294967236);
+    EXPECT_EQ(event.time_zone_information().bias(), -60);
     EXPECT_EQ(event.time_zone_information().standard_name(), std::u16string(u"@tzres.dll,-322"));
     EXPECT_EQ(event.time_zone_information().standard_date().year(), 0);
     EXPECT_EQ(event.time_zone_information().standard_date().month(), 10);
@@ -227,9 +232,12 @@ TEST(EtlParser, Kernel_PerfinfoV2SampledProfileEventView)
 
     const auto event = etl::parser::perfinfo_v2_sampled_profile_event_view(std::as_bytes(std::span(buffer)), 8);
 
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
+
     EXPECT_EQ(event.instruction_pointer(), 18446735291273262474ULL);
     EXPECT_EQ(event.thread_id(), 26400);
-    EXPECT_EQ(event.count(), 4718593);
+    EXPECT_EQ(event.count(), 1);
+    EXPECT_EQ(event.reserved(), 72);
 }
 
 TEST(EtlParser, Kernel_PerfinfoV2SampledProfileIntervalEventView)
@@ -239,6 +247,8 @@ TEST(EtlParser, Kernel_PerfinfoV2SampledProfileIntervalEventView)
         0x6d, 0x00, 0x65, 0x00, 0x72, 0x00, 0x00, 0x00};
 
     const auto event = etl::parser::perfinfo_v3_sampled_profile_interval_event_view(std::as_bytes(std::span(buffer)), 8);
+
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
 
     EXPECT_EQ(event.source(), 0);
     EXPECT_EQ(event.old_interval(), 10000);
@@ -259,6 +269,8 @@ TEST(EtlParser, Kernel_StackwalkV2StackEventView)
         0xfe, 0xd4, 0x22, 0x2e, 0x03, 0xf8, 0xff, 0xff};
 
     const auto event = etl::parser::stackwalk_v2_stack_event_view(std::as_bytes(std::span(buffer)), 8);
+
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
 
     EXPECT_EQ(event.event_timestamp(), 3072011454521);
     EXPECT_EQ(event.process_id(), 0);
@@ -354,6 +366,8 @@ TEST(EtlParser, Kernel_ImageV2LoadEventView)
 
     const auto event = etl::parser::image_v3_load_event_view(std::as_bytes(std::span(buffer)), 8);
 
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
+
     EXPECT_EQ(event.image_base(), 18446735291271086080ULL);
     EXPECT_EQ(event.image_size(), 17068032);
     EXPECT_EQ(event.process_id(), 0);
@@ -382,6 +396,8 @@ TEST(EtlParser, Kernel_ProcessV4TypeGroup1EventView)
         0x00, 0x00, 0x00};
 
     const auto event = etl::parser::process_v4_type_group1_event_view(std::as_bytes(std::span(buffer)), 8);
+
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
 
     EXPECT_EQ(event.unique_process_key(), 18446672611278225600ULL);
     EXPECT_EQ(event.process_id(), 9584);
@@ -416,6 +432,8 @@ TEST(EtlParser, Kernel_ThreadV3TypeGroup1EventView)
 
     const auto event = etl::parser::thread_v3_type_group1_event_view(std::as_bytes(std::span(buffer)), 8);
 
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
+
     EXPECT_EQ(event.process_id(), 0);
     EXPECT_EQ(event.thread_id(), 0);
     EXPECT_EQ(event.stack_base(), 18446735291311304704ULL);
@@ -430,6 +448,8 @@ TEST(EtlParser, Kernel_ThreadV3TypeGroup1EventView)
     EXPECT_EQ(event.page_priority(), 5);
     EXPECT_EQ(event.io_priority(), 0);
     EXPECT_EQ(event.flags(), 0);
+    ASSERT_NE(event.thread_name(), std::nullopt);
+    EXPECT_EQ(*event.thread_name(), std::u16string(u"Idle Thread"));
 }
 
 TEST(EtlParser, Kernel_ThreadV4TypeGroup1EventView)
@@ -443,6 +463,8 @@ TEST(EtlParser, Kernel_ThreadV4TypeGroup1EventView)
         0x20, 0x00, 0x54, 0x00, 0x68, 0x00, 0x72, 0x00, 0x65, 0x00, 0x61, 0x00, 0x64, 0x00, 0x00, 0x00};
 
     const auto event = etl::parser::thread_v4_type_group1_event_view(std::as_bytes(std::span(buffer)), 8);
+
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
 
     EXPECT_EQ(event.process_id(), 0);
     EXPECT_EQ(event.thread_id(), 0);
@@ -471,6 +493,8 @@ TEST(EtlParser, Kernel_ThreadV2SetNameEventView)
         0x61, 0x00, 0x64, 0x00, 0x00, 0x00};
 
     const auto event = etl::parser::thread_v2_set_name_event_view(std::as_bytes(std::span(buffer)), 8);
+
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
 
     EXPECT_EQ(event.process_id(), 20236);
     EXPECT_EQ(event.thread_id(), 18508);
@@ -535,6 +559,8 @@ TEST(EtlParser, Kernel_SystemConfigV3CpuEventView)
 
     const auto event = etl::parser::system_config_v3_cpu_event_view(std::as_bytes(std::span(buffer)), 8);
 
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
+
     EXPECT_EQ(event.mhz(), 2808);
     EXPECT_EQ(event.number_of_processors(), 8);
     EXPECT_EQ(event.mem_size(), 16236);
@@ -594,6 +620,8 @@ TEST(EtlParser, Kernel_SystemConfigV2PhysicalDiskEventView)
 
     const auto event = etl::parser::system_config_v2_physical_disk_event_view(std::as_bytes(std::span(buffer)), 8);
 
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
+
     EXPECT_EQ(event.disk_number(), 1);
     EXPECT_EQ(event.bytes_per_sector(), 512);
     EXPECT_EQ(event.sectors_per_track(), 63);
@@ -622,6 +650,8 @@ TEST(EtlParser, Kernel_SystemConfigV2LogicalDiskEventView)
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
     const auto event = etl::parser::system_config_v2_logical_disk_event_view(std::as_bytes(std::span(buffer)), 8);
+
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
 
     EXPECT_EQ(event.start_offset(), 525336576);
     EXPECT_EQ(event.partition_size(), 274353618944);
@@ -669,14 +699,16 @@ TEST(EtlParser, Kernel_SystemConfigV5PnpEventView)
 
     const auto event = etl::parser::system_config_v5_pnp_event_view(std::as_bytes(std::span(buffer)), 8);
 
-    EXPECT_EQ(event.class_guid(), (common::guid{
-                                      0x415E0F36, 0x415E, 0xCCA6, {0x4C, 0xB3, 0xBE, 0x91, 0x0B, 0x65, 0x00, 0x00}
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
+
+    EXPECT_EQ(event.class_guid().instantiate(), (common::guid{
+                                                    0x50127DC3, 0x0F36, 0x415E, {0xA6, 0xCC, 0x4C, 0xB3, 0xBE, 0x91, 0x0B, 0x65}
     }));
     EXPECT_EQ(event.upper_filters_count(), 0);
-    EXPECT_EQ(event.lower_filters_count(), 655360);
-    EXPECT_EQ(event.dev_status(), 384);
-    EXPECT_EQ(event.dev_problem(), 4259840);
-    EXPECT_EQ(event.device_id(), std::u16string(u"CPI\\GENUINEINTEL_-_INTEL64_FAMILY_6_MODEL_158_-_INTEL(R)_CORE(TM)_I7-7700HQ_CPU_@_2.80GHZ\\_1"));
+    EXPECT_EQ(event.lower_filters_count(), 0);
+    EXPECT_EQ(event.dev_status(), 25165834);
+    EXPECT_EQ(event.dev_problem(), 0);
+    EXPECT_EQ(event.device_id(), std::u16string(u"ACPI\\GENUINEINTEL_-_INTEL64_FAMILY_6_MODEL_158_-_INTEL(R)_CORE(TM)_I7-7700HQ_CPU_@_2.80GHZ\\_1"));
     EXPECT_EQ(event.device_description(), std::u16string(u"Intel Processor"));
     EXPECT_EQ(event.friendly_name(), std::u16string(u"Intel(R) Core(TM) i7-7700HQ CPU @ 2.80GHz"));
     EXPECT_EQ(event.pdo_name(), std::u16string(u"\\Device\\00000018"));
@@ -692,6 +724,8 @@ TEST(EtlParser, Xperf_ImageIdV2InfoEventView)
         0x00, 0x00};
 
     const auto event = etl::parser::image_id_v2_info_event_view(std::as_bytes(std::span(buffer)), 8);
+
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
 
     EXPECT_EQ(event.image_base(), 18446735291271086080ULL);
     EXPECT_EQ(event.image_size(), 17068032);
@@ -711,6 +745,8 @@ TEST(EtlParser, Xperf_ImageIdV2DbgIdPdbInfoEventView)
         0x5c, 0x69, 0x6e, 0x6e, 0x65, 0x72, 0x2e, 0x70, 0x64, 0x62, 0x00};
 
     const auto event = etl::parser::image_id_v2_dbg_id_pdb_info_event_view(std::as_bytes(std::span(buffer)), 8);
+
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
 
     EXPECT_EQ(event.process_id(), 4140);
     EXPECT_EQ(event.image_base(), 140699366785024);
@@ -737,6 +773,8 @@ TEST(EtlParser, Xperf_SysConfigExV0BuildInfoEventView)
 
     const auto event = etl::parser::system_config_ex_v0_build_info_event_view(std::as_bytes(std::span(buffer)), 8);
 
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
+
     EXPECT_EQ(event.install_date(), 133325113400000000ULL);
     EXPECT_EQ(event.build_lab(), std::u16string(u"20348.1.amd64fre.fe_release.210507-1500"));
     EXPECT_EQ(event.product_name(), std::u16string(u"Windows Server 2022 Datacenter"));
@@ -752,6 +790,8 @@ TEST(EtlParser, Xperf_SysConfigExV0SysPathsEventView)
 
     const auto event = etl::parser::system_config_ex_v0_system_paths_event_view(std::as_bytes(std::span(buffer)), 8);
 
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
+
     EXPECT_EQ(event.system_directory(), std::u16string(u"C:\\Windows\\system32"));
     EXPECT_EQ(event.system_windows_directory(), std::u16string(u"C:\\Windows\\"));
 }
@@ -766,6 +806,8 @@ TEST(EtlParser, Xperf_SysConfigExV0VolumeMappingEventView)
 
     const auto event = etl::parser::system_config_ex_v0_volume_mapping_event_view(std::as_bytes(std::span(buffer)), 8);
 
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
+
     EXPECT_EQ(event.nt_path(), std::u16string(u"\\Device\\HarddiskVolume2\\"));
     EXPECT_EQ(event.dos_path(), std::u16string(u"C:\\"));
 }
@@ -776,6 +818,8 @@ TEST(EtlParser, VsDiagHub_TargetProfilingStartedV2EventView)
         0x2c, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xb7, 0x4e, 0x90, 0xad, 0x00, 0x00, 0x00, 0x00};
 
     const auto event = etl::parser::vs_diagnostics_hub_target_profiling_started_event_view(std::as_bytes(std::span(buffer)), 8);
+
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
 
     EXPECT_EQ(event.process_id(), 4140);
     EXPECT_EQ(event.start_reason(), etl::parser::target_start_reason::app_package_launch);
@@ -788,6 +832,8 @@ TEST(EtlParser, VsDiagHub_TargetProfilingStoppedV1EventView)
         0x2c, 0x10, 0x00, 0x00, 0xb7, 0x4e, 0x90, 0xad, 0x00, 0x00, 0x00, 0x00};
 
     const auto event = etl::parser::vs_diagnostics_hub_target_profiling_stopped_event_view(std::as_bytes(std::span(buffer)), 8);
+
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
 
     EXPECT_EQ(event.process_id(), 4140);
     EXPECT_EQ(event.timestamp(), 2911915703);
@@ -803,6 +849,8 @@ TEST(EtlParser, VsDiagHub_MachineInfoV0EventView)
 
     const auto event = etl::parser::vs_diagnostics_hub_machine_info_event_view(std::as_bytes(std::span(buffer)), 8);
 
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
+
     EXPECT_EQ(event.name(), std::u16string(u"fv-az448-164"));
     EXPECT_EQ(event.os_description(), std::u16string(u"Windows (64-bit)"));
     EXPECT_EQ(event.architecture(), etl::parser::machine_architecture::amd64);
@@ -815,6 +863,8 @@ TEST(EtlParser, VsDiagHub_CounterInfoV0EventView)
         0xb6, 0x6d, 0x35, 0x40};
 
     const auto event = etl::parser::vs_diagnostics_hub_counter_info_event_view(std::as_bytes(std::span(buffer)), 8);
+
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
 
     EXPECT_EQ(event.counter(), etl::parser::counter_type::CPU);
     EXPECT_EQ(event.timestamp(), 2925795820);

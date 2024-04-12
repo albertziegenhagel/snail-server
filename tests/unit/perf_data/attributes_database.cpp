@@ -73,12 +73,13 @@ TEST(EventAttributesDatabase, InvalidReadFormat)
 
     database.all_attributes = {
         parser::event_attributes{
-                                 .type          = parser::attribute_type::hardware,
-                                 .sample_format = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000100110111")),
-                                 .read_format   = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000000")),
-                                 .flags         = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
-                                 .precise_ip    = parser::skid_constraint_type::can_have_arbitrary_skid,
-                                 .name          = {}}
+                                 .type               = parser::attribute_type::hardware,
+                                 .sample_period_freq = {},
+                                 .sample_format      = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000100110111")),
+                                 .read_format        = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000000")),
+                                 .flags              = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
+                                 .precise_ip         = parser::skid_constraint_type::can_have_arbitrary_skid,
+                                 .name               = {}}
     };
 
     EXPECT_THROW(database.validate(), std::runtime_error);
@@ -90,12 +91,13 @@ TEST(EventAttributesDatabase, ValidSingle)
 
     database.all_attributes = {
         parser::event_attributes{
-                                 .type          = parser::attribute_type::hardware,
-                                 .sample_format = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000100100111")),
-                                 .read_format   = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
-                                 .flags         = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
-                                 .precise_ip    = parser::skid_constraint_type::can_have_arbitrary_skid,
-                                 .name          = {}}
+                                 .type               = parser::attribute_type::hardware,
+                                 .sample_period_freq = {},
+                                 .sample_format      = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000100100111")),
+                                 .read_format        = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
+                                 .flags              = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
+                                 .precise_ip         = parser::skid_constraint_type::can_have_arbitrary_skid,
+                                 .name               = {}}
     };
 
     EXPECT_NO_THROW(database.validate());
@@ -107,19 +109,21 @@ TEST(EventAttributesDatabase, NonMatchingOffset)
 
     database.all_attributes = {
         parser::event_attributes{
-                                 .type          = parser::attribute_type::hardware,
-                                 .sample_format = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000100100111")),
-                                 .read_format   = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
-                                 .flags         = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
-                                 .precise_ip    = parser::skid_constraint_type::can_have_arbitrary_skid,
-                                 .name          = {}},
+                                 .type               = parser::attribute_type::hardware,
+                                 .sample_period_freq = {},
+                                 .sample_format      = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000100100111")),
+                                 .read_format        = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
+                                 .flags              = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
+                                 .precise_ip         = parser::skid_constraint_type::can_have_arbitrary_skid,
+                                 .name               = {}},
         parser::event_attributes{
-                                 .type          = parser::attribute_type::hardware,
-                                 .sample_format = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000001000010")),
-                                 .read_format   = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
-                                 .flags         = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
-                                 .precise_ip    = parser::skid_constraint_type::can_have_arbitrary_skid,
-                                 .name          = {}}
+                                 .type               = parser::attribute_type::hardware,
+                                 .sample_period_freq = {},
+                                 .sample_format      = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000001000010")),
+                                 .read_format        = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
+                                 .flags              = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
+                                 .precise_ip         = parser::skid_constraint_type::can_have_arbitrary_skid,
+                                 .name               = {}}
     };
 
     EXPECT_THROW(database.validate(), std::runtime_error);
@@ -131,19 +135,21 @@ TEST(EventAttributesDatabase, NonMatchingBackOffset)
 
     database.all_attributes = {
         parser::event_attributes{
-                                 .type          = parser::attribute_type::hardware,
-                                 .sample_format = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000001000000")),
-                                 .read_format   = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
-                                 .flags         = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
-                                 .precise_ip    = parser::skid_constraint_type::can_have_arbitrary_skid,
-                                 .name          = {}},
+                                 .type               = parser::attribute_type::hardware,
+                                 .sample_period_freq = {},
+                                 .sample_format      = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000001000000")),
+                                 .read_format        = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
+                                 .flags              = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
+                                 .precise_ip         = parser::skid_constraint_type::can_have_arbitrary_skid,
+                                 .name               = {}},
         parser::event_attributes{
-                                 .type          = parser::attribute_type::hardware,
-                                 .sample_format = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000001011000000")),
-                                 .read_format   = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
-                                 .flags         = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
-                                 .precise_ip    = parser::skid_constraint_type::can_have_arbitrary_skid,
-                                 .name          = {}}
+                                 .type               = parser::attribute_type::hardware,
+                                 .sample_period_freq = {},
+                                 .sample_format      = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000001011000000")),
+                                 .read_format        = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
+                                 .flags              = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
+                                 .precise_ip         = parser::skid_constraint_type::can_have_arbitrary_skid,
+                                 .name               = {}}
     };
 
     EXPECT_THROW(database.validate(), std::runtime_error);
@@ -155,19 +161,21 @@ TEST(EventAttributesDatabase, NonMatchingSampleAll)
 
     database.all_attributes = {
         parser::event_attributes{
-                                 .type          = parser::attribute_type::hardware,
-                                 .sample_format = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000100100111")),
-                                 .read_format   = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
-                                 .flags         = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
-                                 .precise_ip    = parser::skid_constraint_type::can_have_arbitrary_skid,
-                                 .name          = {}},
+                                 .type               = parser::attribute_type::hardware,
+                                 .sample_period_freq = {},
+                                 .sample_format      = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000100100111")),
+                                 .read_format        = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
+                                 .flags              = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
+                                 .precise_ip         = parser::skid_constraint_type::can_have_arbitrary_skid,
+                                 .name               = {}},
         parser::event_attributes{
-                                 .type          = parser::attribute_type::hardware,
-                                 .sample_format = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000100100111")),
-                                 .read_format   = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
-                                 .flags         = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100100000011011100100011")),
-                                 .precise_ip    = parser::skid_constraint_type::can_have_arbitrary_skid,
-                                 .name          = {}}
+                                 .type               = parser::attribute_type::hardware,
+                                 .sample_period_freq = {},
+                                 .sample_format      = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000100100111")),
+                                 .read_format        = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
+                                 .flags              = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100100000011011100100011")),
+                                 .precise_ip         = parser::skid_constraint_type::can_have_arbitrary_skid,
+                                 .name               = {}}
     };
 
     EXPECT_THROW(database.validate(), std::runtime_error);
@@ -179,19 +187,21 @@ TEST(EventAttributesDatabase, NonMatchingReadFormat)
 
     database.all_attributes = {
         parser::event_attributes{
-                                 .type          = parser::attribute_type::hardware,
-                                 .sample_format = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000100100111")),
-                                 .read_format   = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
-                                 .flags         = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
-                                 .precise_ip    = parser::skid_constraint_type::can_have_arbitrary_skid,
-                                 .name          = {}},
+                                 .type               = parser::attribute_type::hardware,
+                                 .sample_period_freq = {},
+                                 .sample_format      = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000100100111")),
+                                 .read_format        = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
+                                 .flags              = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
+                                 .precise_ip         = parser::skid_constraint_type::can_have_arbitrary_skid,
+                                 .name               = {}},
         parser::event_attributes{
-                                 .type          = parser::attribute_type::hardware,
-                                 .sample_format = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000100100111")),
-                                 .read_format   = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000101")),
-                                 .flags         = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
-                                 .precise_ip    = parser::skid_constraint_type::can_have_arbitrary_skid,
-                                 .name          = {}}
+                                 .type               = parser::attribute_type::hardware,
+                                 .sample_period_freq = {},
+                                 .sample_format      = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000100100111")),
+                                 .read_format        = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000101")),
+                                 .flags              = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
+                                 .precise_ip         = parser::skid_constraint_type::can_have_arbitrary_skid,
+                                 .name               = {}}
     };
 
     EXPECT_THROW(database.validate(), std::runtime_error);
@@ -203,19 +213,21 @@ TEST(EventAttributesDatabase, ValidMultiple)
 
     database.all_attributes = {
         parser::event_attributes{
-                                 .type          = parser::attribute_type::hardware,
-                                 .sample_format = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000001000100")),
-                                 .read_format   = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
-                                 .flags         = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
-                                 .precise_ip    = parser::skid_constraint_type::can_have_arbitrary_skid,
-                                 .name          = {}},
+                                 .type               = parser::attribute_type::hardware,
+                                 .sample_period_freq = {},
+                                 .sample_format      = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000001000100")),
+                                 .read_format        = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
+                                 .flags              = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
+                                 .precise_ip         = parser::skid_constraint_type::can_have_arbitrary_skid,
+                                 .name               = {}},
         parser::event_attributes{
-                                 .type          = parser::attribute_type::hardware,
-                                 .sample_format = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000001001000")),
-                                 .read_format   = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
-                                 .flags         = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100000000")),
-                                 .precise_ip    = parser::skid_constraint_type::can_have_arbitrary_skid,
-                                 .name          = {}}
+                                 .type               = parser::attribute_type::hardware,
+                                 .sample_period_freq = {},
+                                 .sample_format      = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000001001000")),
+                                 .read_format        = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
+                                 .flags              = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100000000")),
+                                 .precise_ip         = parser::skid_constraint_type::can_have_arbitrary_skid,
+                                 .name               = {}}
     };
 
     EXPECT_NO_THROW(database.validate());
@@ -227,12 +239,13 @@ TEST(EventAttributesDatabase, GetMainOnly)
 
     database.all_attributes = {
         parser::event_attributes{
-                                 .type          = parser::attribute_type::hardware,
-                                 .sample_format = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000100100111")),
-                                 .read_format   = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
-                                 .flags         = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
-                                 .precise_ip    = parser::skid_constraint_type::can_have_arbitrary_skid,
-                                 .name          = "attr-1"}
+                                 .type               = parser::attribute_type::hardware,
+                                 .sample_period_freq = {},
+                                 .sample_format      = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000100100111")),
+                                 .read_format        = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
+                                 .flags              = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
+                                 .precise_ip         = parser::skid_constraint_type::can_have_arbitrary_skid,
+                                 .name               = "attr-1"}
     };
 
     EXPECT_NO_THROW(database.validate());
@@ -253,19 +266,21 @@ TEST(EventAttributesDatabase, GetNonSampleNoId)
 
     database.all_attributes = {
         parser::event_attributes{
-                                 .type          = parser::attribute_type::hardware,
-                                 .sample_format = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000001000100")),
-                                 .read_format   = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
-                                 .flags         = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100100000011011100100011")),
-                                 .precise_ip    = parser::skid_constraint_type::can_have_arbitrary_skid,
-                                 .name          = "attr-1"},
+                                 .type               = parser::attribute_type::hardware,
+                                 .sample_period_freq = {},
+                                 .sample_format      = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000001000100")),
+                                 .read_format        = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
+                                 .flags              = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100100000011011100100011")),
+                                 .precise_ip         = parser::skid_constraint_type::can_have_arbitrary_skid,
+                                 .name               = "attr-1"},
         parser::event_attributes{
-                                 .type          = parser::attribute_type::hardware,
-                                 .sample_format = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000001001000")),
-                                 .read_format   = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
-                                 .flags         = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100100000011011100000000")),
-                                 .precise_ip    = parser::skid_constraint_type::can_have_arbitrary_skid,
-                                 .name          = "attr-2"}
+                                 .type               = parser::attribute_type::hardware,
+                                 .sample_period_freq = {},
+                                 .sample_format      = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000001001000")),
+                                 .read_format        = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
+                                 .flags              = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100100000011011100000000")),
+                                 .precise_ip         = parser::skid_constraint_type::can_have_arbitrary_skid,
+                                 .name               = "attr-2"}
     };
 
     EXPECT_NO_THROW(database.validate());
@@ -286,19 +301,21 @@ TEST(EventAttributesDatabase, GetNonSampleAllId)
 
     database.all_attributes = {
         parser::event_attributes{
-                                 .type          = parser::attribute_type::hardware,
-                                 .sample_format = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000010000000100100111")),
-                                 .read_format   = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
-                                 .flags         = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
-                                 .precise_ip    = parser::skid_constraint_type::can_have_arbitrary_skid,
-                                 .name          = "attr-1"},
+                                 .type               = parser::attribute_type::hardware,
+                                 .sample_period_freq = {},
+                                 .sample_format      = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000010000000100100111")),
+                                 .read_format        = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
+                                 .flags              = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
+                                 .precise_ip         = parser::skid_constraint_type::can_have_arbitrary_skid,
+                                 .name               = "attr-1"},
         parser::event_attributes{
-                                 .type          = parser::attribute_type::hardware,
-                                 .sample_format = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000010000000100100111")),
-                                 .read_format   = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
-                                 .flags         = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
-                                 .precise_ip    = parser::skid_constraint_type::can_have_arbitrary_skid,
-                                 .name          = "attr-2"}
+                                 .type               = parser::attribute_type::hardware,
+                                 .sample_period_freq = {},
+                                 .sample_format      = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000010000000100100111")),
+                                 .read_format        = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
+                                 .flags              = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
+                                 .precise_ip         = parser::skid_constraint_type::can_have_arbitrary_skid,
+                                 .name               = "attr-2"}
     };
 
     database.id_to_attributes[1] = &database.all_attributes[0];
@@ -347,19 +364,21 @@ TEST(EventAttributesDatabase, GetSampleAllId)
 
     database.all_attributes = {
         parser::event_attributes{
-                                 .type          = parser::attribute_type::hardware,
-                                 .sample_format = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000010000000100100111")),
-                                 .read_format   = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
-                                 .flags         = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
-                                 .precise_ip    = parser::skid_constraint_type::can_have_arbitrary_skid,
-                                 .name          = "attr-1"},
+                                 .type               = parser::attribute_type::hardware,
+                                 .sample_period_freq = {},
+                                 .sample_format      = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000010000000100100111")),
+                                 .read_format        = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
+                                 .flags              = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
+                                 .precise_ip         = parser::skid_constraint_type::can_have_arbitrary_skid,
+                                 .name               = "attr-1"},
         parser::event_attributes{
-                                 .type          = parser::attribute_type::hardware,
-                                 .sample_format = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000010000000100100111")),
-                                 .read_format   = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
-                                 .flags         = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
-                                 .precise_ip    = parser::skid_constraint_type::can_have_arbitrary_skid,
-                                 .name          = "attr-2"}
+                                 .type               = parser::attribute_type::hardware,
+                                 .sample_period_freq = {},
+                                 .sample_format      = parser::sample_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000010000000100100111")),
+                                 .read_format        = parser::read_format_flags(std::bitset<64>("0000000000000000000000000000000000000000000000000000000000000100")),
+                                 .flags              = parser::attribute_flags(std::bitset<64>("0000000000000000000000000000000001100001100101000011011100100011")),
+                                 .precise_ip         = parser::skid_constraint_type::can_have_arbitrary_skid,
+                                 .name               = "attr-2"}
     };
 
     database.id_to_attributes[1] = &database.all_attributes[0];

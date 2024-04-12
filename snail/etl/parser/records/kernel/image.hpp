@@ -55,6 +55,8 @@ struct image_v3_load_event_view : private extract_view_dynamic_base
 
     inline auto file_name() const { return extract_u16string(dynamic_offset(32, 3), file_name_length); }
 
+    inline std::size_t dynamic_size() const { return dynamic_offset(32 + file_name().size() * 2 + 2, 3); }
+
 private:
     mutable std::optional<std::size_t> file_name_length;
 };
