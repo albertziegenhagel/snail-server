@@ -119,7 +119,7 @@ struct event_attributes
 {
     attribute_type type;
     // std::uint64_t config;
-    // std::uint64_t sample_period / sample_freq;
+    std::uint64_t  sample_period_freq; // either the sample period or the sample frequency, depending on the `attribute_flag::freq` flag is set.
 
     sample_format_flags sample_format;
     read_format_flags   read_format;
@@ -156,7 +156,7 @@ struct event_attributes_view : protected common::parser::extract_view_base
     inline attribute_flags flags() const { return attribute_flags(extract<std::uint64_t>(40)); }
     inline auto            precise_ip() const
     {
-        const auto precise_ip_type = (extract<std::uint64_t>(40) >> 15) & 0x03;
+        const auto precise_ip_type = (extract<std::uint64_t>(40) >> 15) & 0b11; // extract bits 15 & 16
         switch(precise_ip_type)
         {
         case 0: return skid_constraint_type::can_have_arbitrary_skid;
@@ -217,12 +217,13 @@ struct event_attributes_view : protected common::parser::extract_view_base
     inline auto instantiate() const
     {
         return event_attributes{
-            .type          = type(),
-            .sample_format = sample_format(),
-            .read_format   = read_format(),
-            .flags         = flags(),
-            .precise_ip    = precise_ip(),
-            .name          = {},
+            .type               = type(),
+            .sample_period_freq = flags().test(attribute_flag::freq) ? sample_freq() : sample_period(),
+            .sample_format      = sample_format(),
+            .read_format        = read_format(),
+            .flags              = flags(),
+            .precise_ip         = precise_ip(),
+            .name               = {},
         };
     }
 };
