@@ -434,6 +434,8 @@ TEST(EtlParser, Kernel_ThreadV3TypeGroup1EventView)
     EXPECT_EQ(event.page_priority(), 5);
     EXPECT_EQ(event.io_priority(), 0);
     EXPECT_EQ(event.flags(), 0);
+    ASSERT_NE(event.thread_name(), std::nullopt);
+    EXPECT_EQ(*event.thread_name(), std::u16string(u"Idle Thread"));
 }
 
 TEST(EtlParser, Kernel_ThreadV4TypeGroup1EventView)
