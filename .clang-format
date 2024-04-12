@@ -99,6 +99,10 @@ IndentExternBlock: NoIndent
 IndentRequiresClause: true
 IndentWidth:     4
 IndentWrappedFunctionNames: false
+IntegerLiteralSeparator:
+  Binary: 4
+  Decimal: 0
+  Hex: 4
 InsertBraces:    false
 KeepEmptyLinesAtTheStartOfBlocks: false
 LambdaBodyIndentation: Signature

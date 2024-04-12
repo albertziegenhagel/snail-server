@@ -38,8 +38,8 @@ TEST(DwarfResolver, ResolveSymbol)
     dwarf_resolver::module_info module = {
         .image_filename = std::string_view(exe_path_str),
         .build_id       = {},
-        .image_base     = 0x00402000,
-        .page_offset    = 0x00002000,
+        .image_base     = 0x0040'2000,
+        .page_offset    = 0x0000'2000,
         .process_id     = 456,
         .load_timestamp = 789};
 
@@ -62,7 +62,7 @@ TEST(DwarfResolver, ResolveSymbol)
         EXPECT_EQ(symbol.instruction_line_number, 73);
     }
     {
-        const auto symbol = resolver.resolve_symbol(module, module.image_base + 0xFFAAFFAA + 0);
+        const auto symbol = resolver.resolve_symbol(module, module.image_base + 0xFFAA'FFAA + 0);
 
         EXPECT_TRUE(symbol.is_generic);
         EXPECT_EQ(symbol.name, "inner!0x00000000ffeb1faa");
@@ -71,7 +71,7 @@ TEST(DwarfResolver, ResolveSymbol)
         EXPECT_EQ(symbol.instruction_line_number, 0);
     }
     {
-        const auto symbol = resolver.make_generic_symbol(0xFFAAFFAA);
+        const auto symbol = resolver.make_generic_symbol(0xFFAA'FFAA);
 
         EXPECT_TRUE(symbol.is_generic);
         EXPECT_EQ(symbol.name, "0x00000000ffaaffaa");

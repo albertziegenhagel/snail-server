@@ -357,8 +357,8 @@ void perf_data_file::open(const std::filesystem::path& file_path)
 
     // This is actually the string "PERFILE2" encoded as 64-bit integer
     // and it's corresponding byte swapped value.
-    constexpr std::uint64_t magic_v2         = 0x32454c4946524550ULL;
-    constexpr std::uint64_t magic_v2_swapped = 0x50455246494c4532ULL;
+    constexpr std::uint64_t magic_v2         = 0x3245'4c49'4652'4550ULL;
+    constexpr std::uint64_t magic_v2_swapped = 0x5045'5246'494c'4532ULL;
 
     const auto magic = common::parser::extract<std::uint64_t>(file_buffer, 0, std::endian::native);
 

@@ -680,7 +680,7 @@ TEST(EtlFileProcessContext, Images)
                      10, 123, 0xAABB, 1000, 4567, u"\\Device\\HarddiskVolume2\\a.dll", false);
 
     const auto b_guid = common::guid{
-        0xc26e6ef3, 0x76ab, 0x4f0d, {0xa7, 0x98, 0x63, 0x3e, 0x15, 0xb6, 0x2, 0x1d}
+        0xc26e'6ef3, 0x76ab, 0x4f0d, {0xa7, 0x98, 0x63, 0x3e, 0x15, 0xb6, 0x2, 0x1d}
     };
     push_pdb_info_event(file_header, context.observer(), writable_bytes_buffer,
                         12, 456, 0xCCDD, b_guid, 1, "b.pdb");
@@ -688,12 +688,12 @@ TEST(EtlFileProcessContext, Images)
                      12, 456, 0xCCDD, 2000, 8910, u"\\Device\\HarddiskVolume2\\b.dll", false);
 
     const auto c_guid = common::guid{
-        0x93f20298, 0x6828, 0x4dce, {0x90, 0xf2, 0x80, 0x4d, 0x99, 0x66, 0x5, 0x1a}
+        0x93f2'0298, 0x6828, 0x4dce, {0x90, 0xf2, 0x80, 0x4d, 0x99, 0x66, 0x5, 0x1a}
     };
     push_pdb_info_event(file_header, context.observer(), writable_bytes_buffer,
                         15, 789, 0xEEFF, c_guid, 3, "c.pdb");
     const auto d_guid = common::guid{
-        0x93f20298, 0x6828, 0x4dce, {0x90, 0xf2, 0x80, 0x4d, 0x99, 0x66, 0x5, 0x1a}
+        0x93f2'0298, 0x6828, 0x4dce, {0x90, 0xf2, 0x80, 0x4d, 0x99, 0x66, 0x5, 0x1a}
     };
     push_pdb_info_event(file_header, context.observer(), writable_bytes_buffer,
                         15, 789, 0x77FF, d_guid, 5, "d.pdb");
@@ -887,7 +887,7 @@ TEST(EtlFileProcessContext, Samples)
 
     // Fault tolerant: The first sample comes in before the thread it belongs to
     push_sample_event(file_header, context.observer(), writable_bytes_buffer,
-                      10, 111, 0x1234A);
+                      10, 111, 0x1'234A);
 
     // Now the thread is started (in this test we do not care about the process)
     push_thread_event(file_header, context.observer(), writable_bytes_buffer,
@@ -895,7 +895,7 @@ TEST(EtlFileProcessContext, Samples)
 
     // Another sample for this thread
     push_sample_event(file_header, context.observer(), writable_bytes_buffer,
-                      12, 111, 0x1234B);
+                      12, 111, 0x1'234B);
 
     // The thread ends...
     push_thread_event(file_header, context.observer(), writable_bytes_buffer,
@@ -906,7 +906,7 @@ TEST(EtlFileProcessContext, Samples)
 
     // Now there is a sample for the second thread
     push_sample_event(file_header, context.observer(), writable_bytes_buffer,
-                      22, 111, 0x1234C);
+                      22, 111, 0x1'234C);
 
     context.finish();
 
@@ -915,17 +915,17 @@ TEST(EtlFileProcessContext, Samples)
     EXPECT_EQ(thread_1_samples.size(), 2);
     EXPECT_EQ(thread_1_samples[0].timestamp, 10);
     EXPECT_EQ(thread_1_samples[0].thread_id, 111);
-    EXPECT_EQ(thread_1_samples[0].instruction_pointer, 0x1234A);
+    EXPECT_EQ(thread_1_samples[0].instruction_pointer, 0x1'234A);
     EXPECT_EQ(thread_1_samples[1].timestamp, 12);
     EXPECT_EQ(thread_1_samples[1].thread_id, 111);
-    EXPECT_EQ(thread_1_samples[1].instruction_pointer, 0x1234B);
+    EXPECT_EQ(thread_1_samples[1].instruction_pointer, 0x1'234B);
 
     // Check samples for the second thread
     const auto thread_2_samples = context.thread_samples(111, 20, std::nullopt);
     EXPECT_EQ(thread_2_samples.size(), 1);
     EXPECT_EQ(thread_2_samples[0].timestamp, 22);
     EXPECT_EQ(thread_2_samples[0].thread_id, 111);
-    EXPECT_EQ(thread_2_samples[0].instruction_pointer, 0x1234C);
+    EXPECT_EQ(thread_2_samples[0].instruction_pointer, 0x1'234C);
 
     // Check samples for non existing threads
     EXPECT_EQ(context.thread_samples(222, 0, std::nullopt).size(), 0);
@@ -946,16 +946,16 @@ TEST(EtlFileProcessContext, Stacks)
                       10, 123, 111, true);
 
     push_sample_event(file_header, context.observer(), writable_bytes_buffer,
-                      10, 111, 0x1234A);
+                      10, 111, 0x1'234A);
     push_stack_event(file_header, context.observer(), writable_bytes_buffer,
-                     11, 111, 10, {0x1234B, 0x1234C, 0x1234D});
+                     11, 111, 10, {0x1'234B, 0x1'234C, 0x1'234D});
     push_stack_event(file_header, context.observer(), writable_bytes_buffer,
-                     11, 111, 10, {0x1234B00000000000, 0x1234C00000000000, 0x1234D00000000000});
+                     11, 111, 10, {0x1234'B000'0000'0000, 0x1234'C000'0000'0000, 0x1234'D000'0000'0000});
 
     push_sample_event(file_header, context.observer(), writable_bytes_buffer,
-                      20, 111, 0x5678A);
+                      20, 111, 0x5'678A);
     push_stack_event(file_header, context.observer(), writable_bytes_buffer,
-                     20, 111, 20, {0x5678B, 0x5678C, 0x5678D});
+                     20, 111, 20, {0x5'678B, 0x5'678C, 0x5'678D});
 
     // Fault tolerance: stack for non existing thread
     push_stack_event(file_header, context.observer(), writable_bytes_buffer,
@@ -975,17 +975,17 @@ TEST(EtlFileProcessContext, Stacks)
     EXPECT_EQ(thread_1_samples.size(), 2);
     EXPECT_EQ(thread_1_samples[0].timestamp, 10);
     EXPECT_EQ(thread_1_samples[0].thread_id, 111);
-    EXPECT_EQ(thread_1_samples[0].instruction_pointer, 0x1234A);
+    EXPECT_EQ(thread_1_samples[0].instruction_pointer, 0x1'234A);
     EXPECT_NE(thread_1_samples[0].user_mode_stack, std::nullopt);
-    EXPECT_EQ(context.stack(*thread_1_samples[0].user_mode_stack), (std::vector<std::uint64_t>{0x1234B, 0x1234C, 0x1234D}));
+    EXPECT_EQ(context.stack(*thread_1_samples[0].user_mode_stack), (std::vector<std::uint64_t>{0x1'234B, 0x1'234C, 0x1'234D}));
     EXPECT_NE(thread_1_samples[0].kernel_mode_stack, std::nullopt);
-    EXPECT_EQ(context.stack(*thread_1_samples[0].kernel_mode_stack), (std::vector<std::uint64_t>{0x1234B00000000000, 0x1234C00000000000, 0x1234D00000000000}));
+    EXPECT_EQ(context.stack(*thread_1_samples[0].kernel_mode_stack), (std::vector<std::uint64_t>{0x1234'B000'0000'0000, 0x1234'C000'0000'0000, 0x1234'D000'0000'0000}));
 
     EXPECT_EQ(thread_1_samples[1].timestamp, 20);
     EXPECT_EQ(thread_1_samples[1].thread_id, 111);
-    EXPECT_EQ(thread_1_samples[1].instruction_pointer, 0x5678A);
+    EXPECT_EQ(thread_1_samples[1].instruction_pointer, 0x5'678A);
     EXPECT_NE(thread_1_samples[1].user_mode_stack, std::nullopt);
-    EXPECT_EQ(context.stack(*thread_1_samples[1].user_mode_stack), (std::vector<std::uint64_t>{0x5678B, 0x5678C, 0x5678D}));
+    EXPECT_EQ(context.stack(*thread_1_samples[1].user_mode_stack), (std::vector<std::uint64_t>{0x5'678B, 0x5'678C, 0x5'678D}));
     EXPECT_EQ(thread_1_samples[1].kernel_mode_stack, std::nullopt);
 }
 

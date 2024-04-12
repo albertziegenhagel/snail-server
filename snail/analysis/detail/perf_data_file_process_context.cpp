@@ -68,7 +68,7 @@ void perf_data_file_process_context::finish()
     }
 
     // Assign unique IDs to processes and threads.
-    unique_process_id next_process_id{.key = 0x100000000};
+    unique_process_id next_process_id{.key = 0x1'0000'0000};
     for(auto& [id, entries] : processes.all_entries())
     {
         process_info* prev = nullptr;
@@ -87,7 +87,7 @@ void perf_data_file_process_context::finish()
             prev = &entry;
         }
     }
-    unique_thread_id next_thread_id{.key = 0x200000000};
+    unique_thread_id next_thread_id{.key = 0x2'0000'0000};
     for(auto& [id, entries] : threads.all_entries())
     {
         thread_info* prev = nullptr;
