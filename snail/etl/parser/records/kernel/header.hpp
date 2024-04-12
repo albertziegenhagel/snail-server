@@ -35,8 +35,11 @@ struct event_trace_v2_header_event_view : private extract_view_dynamic_base
     // start_time, end_time and boot_time are 100 nanosecond intervals since midnight, January 1, 1601.
 
     inline auto buffer_size() const { return extract<std::uint32_t>(dynamic_offset(0, 0)); }
-    inline auto version() const { return extract<std::uint32_t>(dynamic_offset(4, 0)); }
-    inline auto provider_version() const { return extract<std::uint32_t>(dynamic_offset(8, 0)); }
+    inline auto os_version_major() const { return extract<std::uint8_t>(dynamic_offset(4, 0)); }
+    inline auto os_version_minor() const { return extract<std::uint8_t>(dynamic_offset(5, 0)); }
+    inline auto sp_version_major() const { return extract<std::uint8_t>(dynamic_offset(6, 0)); }
+    inline auto sp_version_minor() const { return extract<std::uint8_t>(dynamic_offset(7, 0)); }
+    inline auto provider_version() const { return extract<std::uint32_t>(dynamic_offset(8, 0)); } // OS build number
     inline auto number_of_processors() const { return extract<std::uint32_t>(dynamic_offset(12, 0)); }
     inline auto end_time() const { return extract<std::uint64_t>(dynamic_offset(16, 0)); }
     inline auto timer_resolution() const { return extract<std::uint32_t>(dynamic_offset(24, 0)); }

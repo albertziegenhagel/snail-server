@@ -176,7 +176,10 @@ TEST(EtlParser, Kernel_EventTraceV2HeaderEventView)
     const auto event = etl::parser::event_trace_v2_header_event_view(std::as_bytes(std::span(buffer)));
 
     EXPECT_EQ(event.buffer_size(), 65536);
-    EXPECT_EQ(event.version(), 83951626);
+    EXPECT_EQ(event.os_version_major(), 10);
+    EXPECT_EQ(event.os_version_minor(), 0);
+    EXPECT_EQ(event.sp_version_major(), 1);
+    EXPECT_EQ(event.sp_version_minor(), 5);
     EXPECT_EQ(event.provider_version(), 22621);
     EXPECT_EQ(event.number_of_processors(), 8);
     EXPECT_EQ(event.end_time(), 133171255616974395ULL);
