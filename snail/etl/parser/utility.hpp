@@ -34,7 +34,7 @@ struct time_zone_information_view : private extract_view_base
 
     using extract_view_base::extract_view_base;
 
-    inline auto bias() const { return extract<std::uint32_t>(0); }
+    inline auto bias() const { return extract<std::int32_t>(0); }
 
     inline auto standard_name() const { return extract_u16string(4, standard_name_length); }
     inline auto standard_date() const { return system_time_view(buffer().subspan(68)); }

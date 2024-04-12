@@ -195,7 +195,7 @@ TEST(EtlParser, Kernel_EventTraceV2HeaderEventView)
     EXPECT_EQ(event.cpu_speed(), 2808);
     EXPECT_EQ(event.logger_name(), 0);
     EXPECT_EQ(event.log_file_name(), 0);
-    EXPECT_EQ(event.time_zone_information().bias(), 4294967236);
+    EXPECT_EQ(event.time_zone_information().bias(), -60);
     EXPECT_EQ(event.time_zone_information().standard_name(), std::u16string(u"@tzres.dll,-322"));
     EXPECT_EQ(event.time_zone_information().standard_date().year(), 0);
     EXPECT_EQ(event.time_zone_information().standard_date().month(), 10);
