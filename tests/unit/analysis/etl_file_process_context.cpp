@@ -319,9 +319,9 @@ void push_pnp_event(const etl::etl_file::header_data& file_header,
 
     const auto event_data = buffer.subspan(etl::parser::system_trace_header_view::static_size);
 
-    set_at(event_data, 36, device_description);
-    set_at(event_data, 36 + device_description.size() * 2 + 2, friendly_name);
-    const auto event_data_size = 36 + device_description.size() * 2 + 2 + friendly_name.size() * 2 + 2 + 4;
+    set_at(event_data, 34, device_description);
+    set_at(event_data, 34 + device_description.size() * 2 + 2, friendly_name);
+    const auto event_data_size = 34 + device_description.size() * 2 + 2 + friendly_name.size() * 2 + 2 + 4;
 
     assert(etl::parser::system_config_v5_pnp_event_view(event_data, file_header.pointer_size).device_description() == device_description);
     assert(etl::parser::system_config_v5_pnp_event_view(event_data, file_header.pointer_size).friendly_name() == friendly_name);

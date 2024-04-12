@@ -673,14 +673,14 @@ TEST(EtlParser, Kernel_SystemConfigV5PnpEventView)
 
     const auto event = etl::parser::system_config_v5_pnp_event_view(std::as_bytes(std::span(buffer)), 8);
 
-    EXPECT_EQ(event.class_guid(), (common::guid{
-                                      0x415E0F36, 0x415E, 0xCCA6, {0x4C, 0xB3, 0xBE, 0x91, 0x0B, 0x65, 0x00, 0x00}
+    EXPECT_EQ(event.class_guid().instantiate(), (common::guid{
+                                                    0x50127DC3, 0x0F36, 0x415E, {0xA6, 0xCC, 0x4C, 0xB3, 0xBE, 0x91, 0x0B, 0x65}
     }));
     EXPECT_EQ(event.upper_filters_count(), 0);
-    EXPECT_EQ(event.lower_filters_count(), 655360);
-    EXPECT_EQ(event.dev_status(), 384);
-    EXPECT_EQ(event.dev_problem(), 4259840);
-    EXPECT_EQ(event.device_id(), std::u16string(u"CPI\\GENUINEINTEL_-_INTEL64_FAMILY_6_MODEL_158_-_INTEL(R)_CORE(TM)_I7-7700HQ_CPU_@_2.80GHZ\\_1"));
+    EXPECT_EQ(event.lower_filters_count(), 0);
+    EXPECT_EQ(event.dev_status(), 25165834);
+    EXPECT_EQ(event.dev_problem(), 0);
+    EXPECT_EQ(event.device_id(), std::u16string(u"ACPI\\GENUINEINTEL_-_INTEL64_FAMILY_6_MODEL_158_-_INTEL(R)_CORE(TM)_I7-7700HQ_CPU_@_2.80GHZ\\_1"));
     EXPECT_EQ(event.device_description(), std::u16string(u"Intel Processor"));
     EXPECT_EQ(event.friendly_name(), std::u16string(u"Intel(R) Core(TM) i7-7700HQ CPU @ 2.80GHz"));
     EXPECT_EQ(event.pdo_name(), std::u16string(u"\\Device\\00000018"));
