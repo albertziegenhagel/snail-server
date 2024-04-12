@@ -26,8 +26,8 @@ bool is_kernel_address(std::uint64_t address, std::uint32_t pointer_size)
 {
     // See https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/user-space-and-system-space
     return pointer_size == 4 ?
-               address >= 0x80000000 :        // 32bit
-               address >= 0x0000800000000000; // 64bit
+               address >= 0x8000'0000 :          // 32bit
+               address >= 0x0000'8000'0000'0000; // 64bit
 }
 
 } // namespace
@@ -65,7 +65,7 @@ void etl_file_process_context::finish()
     static constexpr std::string_view default_system_root = "C:\\WINDOWS\\";
 
     // Assign unique IDs to processes and threads.
-    unique_process_id next_process_id{.key = 0x100000000};
+    unique_process_id next_process_id{.key = 0x1'0000'0000};
     for(auto& [id, entries] : processes.all_entries())
     {
         for(auto& entry : entries)
@@ -76,7 +76,7 @@ void etl_file_process_context::finish()
             unique_process_id_to_key_[*entry.payload.unique_id] = process_key{id, entry.timestamp};
         }
     }
-    unique_thread_id next_thread_id{.key = 0x200000000};
+    unique_thread_id next_thread_id{.key = 0x2'0000'0000};
     for(auto& [id, entries] : threads.all_entries())
     {
         for(auto& entry : entries)

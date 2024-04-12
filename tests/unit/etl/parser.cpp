@@ -108,7 +108,7 @@ TEST(EtlParser, FullHeaderTraceHeader)
     EXPECT_EQ(trace_header.process_id(), 0);
     EXPECT_EQ(trace_header.timestamp(), 3072009312284);
     EXPECT_EQ(trace_header.guid().instantiate(), (common::guid{
-                                                     0xb3e675d7, 0x2554, 0x4f18, {0x83, 0x0b, 0x27, 0x62, 0x73, 0x25, 0x60, 0xde}
+                                                     0xb3e6'75d7, 0x2554, 0x4f18, {0x83, 0x0b, 0x27, 0x62, 0x73, 0x25, 0x60, 0xde}
     }));
     EXPECT_EQ(trace_header.processor_time(), 0);
 }
@@ -133,7 +133,7 @@ TEST(EtlParser, EventHeaderTraceHeader)
     EXPECT_EQ(trace_header.process_id(), 0);
     EXPECT_EQ(trace_header.timestamp(), 3072041514673);
     EXPECT_EQ(trace_header.provider_id().instantiate(), (common::guid{
-                                                            0x9e5f9046, 0x43c6, 0x4f62, {0xba, 0x13, 0x7b, 0x19, 0x89, 0x62, 0x53, 0xff}
+                                                            0x9e5f'9046, 0x43c6, 0x4f62, {0xba, 0x13, 0x7b, 0x19, 0x89, 0x62, 0x53, 0xff}
     }));
     EXPECT_EQ(trace_header.event_descriptor().id(), 6);
     EXPECT_EQ(trace_header.event_descriptor().version(), 0);
@@ -144,7 +144,7 @@ TEST(EtlParser, EventHeaderTraceHeader)
     EXPECT_EQ(trace_header.event_descriptor().keyword(), 0);
     EXPECT_EQ(trace_header.processor_time(), 0);
     EXPECT_EQ(trace_header.activity_id().instantiate(), (common::guid{
-                                                            0x00000000, 0x0000, 0x0000, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+                                                            0x0000'0000, 0x0000, 0x0000, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
     }));
 }
 
@@ -408,7 +408,7 @@ TEST(EtlParser, Kernel_ProcessV4TypeGroup1EventView)
     EXPECT_EQ(event.flags(), 0);
 
     EXPECT_TRUE(event.has_sid());
-    EXPECT_EQ(event.user_sid_token_user(), (std::array<std::uint64_t, 2>{0xffffd00dd2ecabc0, 0}));
+    EXPECT_EQ(event.user_sid_token_user(), (std::array<std::uint64_t, 2>{0xffff'd00d'd2ec'abc0, 0}));
     EXPECT_EQ(event.user_sid().revision(), 1);
     EXPECT_EQ(event.user_sid().sub_authority_count(), 1);
     // EXPECT_EQ(event.user_sid().identifier_authority(), 0);
@@ -569,7 +569,7 @@ TEST(EtlParser, Kernel_SystemConfigV3CpuEventView)
     EXPECT_EQ(event.computer_name(), std::u16string(u"DESKTOP"));
     EXPECT_EQ(event.domain_name(), std::u16string(u""));
     EXPECT_EQ(event.hyper_threading_flag(), 0xFF);
-    EXPECT_EQ(event.highest_user_address(), 0x7FFFFFFEFFFF);
+    EXPECT_EQ(event.highest_user_address(), 0x7FFF'FFFE'FFFF);
     EXPECT_EQ(event.processor_architecture(), 9);
     EXPECT_EQ(event.processor_level(), 6);
     EXPECT_EQ(event.processor_revision(), 40457);
@@ -702,7 +702,7 @@ TEST(EtlParser, Kernel_SystemConfigV5PnpEventView)
     EXPECT_EQ(event.dynamic_size(), event.buffer().size());
 
     EXPECT_EQ(event.class_guid().instantiate(), (common::guid{
-                                                    0x50127DC3, 0x0F36, 0x415E, {0xA6, 0xCC, 0x4C, 0xB3, 0xBE, 0x91, 0x0B, 0x65}
+                                                    0x5012'7DC3, 0x0F36, 0x415E, {0xA6, 0xCC, 0x4C, 0xB3, 0xBE, 0x91, 0x0B, 0x65}
     }));
     EXPECT_EQ(event.upper_filters_count(), 0);
     EXPECT_EQ(event.lower_filters_count(), 0);
@@ -751,7 +751,7 @@ TEST(EtlParser, Xperf_ImageIdV2DbgIdPdbInfoEventView)
     EXPECT_EQ(event.process_id(), 4140);
     EXPECT_EQ(event.image_base(), 140699366785024);
     EXPECT_EQ(event.guid().instantiate(), (common::guid{
-                                              0x3895ed1e, 0xc302, 0x41de, {0xb2, 0xc3, 0x20, 0x4b, 0x23, 0x39, 0x0c, 0xd0}
+                                              0x3895'ed1e, 0xc302, 0x41de, {0xb2, 0xc3, 0x20, 0x4b, 0x23, 0x39, 0x0c, 0xd0}
     }));
     EXPECT_EQ(event.age(), 2);
     EXPECT_EQ(event.pdb_file_name(), "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.pdb");

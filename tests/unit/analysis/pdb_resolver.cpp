@@ -26,14 +26,14 @@ TEST(PdbResolver, ResolveSymbol)
 
     pdb_resolver::module_info module = {
         .image_filename = std::string_view(exe_path_str),
-        .image_base     = 0x00402000,
+        .image_base     = 0x0040'2000,
         .checksum       = 0,
         .pdb_info       = {},
         .process_id     = 456,
         .load_timestamp = 789};
 
     {
-        const auto symbol = resolver.resolve_symbol(module, module.image_base + 0x00001BF0 + 150); // function ends at 0x00001CCB
+        const auto symbol = resolver.resolve_symbol(module, module.image_base + 0x0000'1BF0 + 150); // function ends at 0x00001CCB
 
         EXPECT_FALSE(symbol.is_generic);
         EXPECT_EQ(symbol.name, "double __cdecl compute_inner_product(class std::vector<double, class std::allocator<double>> const &, class std::vector<double, class std::allocator<double>> const &)");
@@ -42,7 +42,7 @@ TEST(PdbResolver, ResolveSymbol)
         EXPECT_EQ(symbol.instruction_line_number, 35);
     }
     {
-        const auto symbol = resolver.resolve_symbol(module, module.image_base + 0x00001A80 + 0); // function ends at 0x00001BE2
+        const auto symbol = resolver.resolve_symbol(module, module.image_base + 0x0000'1A80 + 0); // function ends at 0x00001BE2
 
         EXPECT_FALSE(symbol.is_generic);
         EXPECT_EQ(symbol.name, "void __cdecl make_random_vector(class std::vector<double, class std::allocator<double>> &, unsigned __int64)");
@@ -51,7 +51,7 @@ TEST(PdbResolver, ResolveSymbol)
         EXPECT_EQ(symbol.instruction_line_number, 11);
     }
     {
-        const auto symbol = resolver.resolve_symbol(module, module.image_base + 0xFFAAFFAA + 0);
+        const auto symbol = resolver.resolve_symbol(module, module.image_base + 0xFFAA'FFAA + 0);
 
         EXPECT_TRUE(symbol.is_generic);
         EXPECT_EQ(symbol.name, "inner.exe!0x00000000ffeb1faa");
@@ -60,7 +60,7 @@ TEST(PdbResolver, ResolveSymbol)
         EXPECT_EQ(symbol.instruction_line_number, 0);
     }
     {
-        const auto symbol = resolver.make_generic_symbol(0xFFAAFFAA);
+        const auto symbol = resolver.make_generic_symbol(0xFFAA'FFAA);
 
         EXPECT_TRUE(symbol.is_generic);
         EXPECT_EQ(symbol.name, "0x00000000ffaaffaa");
@@ -87,7 +87,7 @@ TEST(PdbResolver, Filter)
     module.image_filename = exe_path_str;
 
     {
-        const auto symbol = resolver.resolve_symbol(module, module.image_base + 0x00001BF0 + 150);
+        const auto symbol = resolver.resolve_symbol(module, module.image_base + 0x0000'1BF0 + 150);
 
         EXPECT_TRUE(symbol.is_generic);
         EXPECT_EQ(symbol.name, "inner.exe!0x0000000000001c86");

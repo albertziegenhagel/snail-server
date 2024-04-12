@@ -25,7 +25,7 @@ TEST(PerfDataParser, Header)
 
     const auto header = perf_data::parser::header_view(std::as_bytes(std::span(buffer)), std::endian::little);
 
-    EXPECT_EQ(header.magic(), 0x32454c4946524550);
+    EXPECT_EQ(header.magic(), 0x3245'4c49'4652'4550);
     EXPECT_EQ(header.size(), 104);
     EXPECT_EQ(header.attributes_size(), 144);
     EXPECT_EQ(header.attributes().offset(), 168);
@@ -50,7 +50,7 @@ TEST(PerfDataParser, HeaderBigEndian64)
 
     const auto header = perf_data::parser::header_view(std::as_bytes(std::span(buffer)), std::endian::big);
 
-    EXPECT_EQ(header.magic(), 0x32454c4946524550);
+    EXPECT_EQ(header.magic(), 0x3245'4c49'4652'4550);
     EXPECT_EQ(header.size(), 104);
     EXPECT_EQ(header.attributes_size(), 144);
     EXPECT_EQ(header.attributes().offset(), 168);
@@ -75,7 +75,7 @@ TEST(PerfDataParser, HeaderBigEndian32)
 
     const auto header = perf_data::parser::header_view(std::as_bytes(std::span(buffer)), std::endian::big);
 
-    EXPECT_EQ(header.magic(), 0x32454c4946524550);
+    EXPECT_EQ(header.magic(), 0x3245'4c49'4652'4550);
     EXPECT_EQ(header.size(), 104);
     EXPECT_EQ(header.attributes_size(), 144);
     EXPECT_EQ(header.attributes().offset(), 168);
@@ -458,7 +458,7 @@ TEST(PerfDataParser, PerfHeaderBuildIdEvent)
     EXPECT_EQ(event_view.header().misc(), 32770);
     EXPECT_EQ(event_view.header().size(), 100);
 
-    EXPECT_EQ(event_view.pid(), 0xffffffff);
+    EXPECT_EQ(event_view.pid(), 0xffff'ffff);
     EXPECT_EQ(event_view.build_id().size(), 20);
     EXPECT_EQ(event_view.filename(), "/tmp/build/inner/Debug/build/inner");
 }
