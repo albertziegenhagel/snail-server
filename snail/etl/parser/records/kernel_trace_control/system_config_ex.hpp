@@ -33,6 +33,8 @@ struct system_config_ex_v0_build_info_event_view : private extract_view_dynamic_
 
     inline auto product_name() const { return extract_u16string(dynamic_offset(8, 0) + build_lab().size() * 2 + 2, product_name_name_length); }
 
+    inline std::size_t dynamic_size() const { return dynamic_offset(8, 0) + build_lab().size() * 2 + 2 + product_name().size() * 2 + 2; }
+
 private:
     mutable std::optional<std::size_t> build_lab_name_length;
     mutable std::optional<std::size_t> product_name_name_length;
@@ -52,6 +54,8 @@ struct system_config_ex_v0_system_paths_event_view : private extract_view_dynami
 
     inline auto system_windows_directory() const { return extract_u16string(dynamic_offset(0, 0) + system_directory().size() * 2 + 2, system_windows_directory_name_length); }
 
+    inline std::size_t dynamic_size() const { return dynamic_offset(0, 0) + system_directory().size() * 2 + 2 + system_windows_directory().size() * 2 + 2; }
+
 private:
     mutable std::optional<std::size_t> system_directory_name_length;
     mutable std::optional<std::size_t> system_windows_directory_name_length;
@@ -70,6 +74,8 @@ struct system_config_ex_v0_volume_mapping_event_view : private extract_view_dyna
     inline auto nt_path() const { return extract_u16string(dynamic_offset(0, 0), nt_path_name_length); }
 
     inline auto dos_path() const { return extract_u16string(dynamic_offset(0, 0) + nt_path().size() * 2 + 2, dos_path_name_length); }
+
+    inline std::size_t dynamic_size() const { return dynamic_offset(0, 0) + nt_path().size() * 2 + 2 + dos_path().size() * 2 + 2; }
 
 private:
     mutable std::optional<std::size_t> nt_path_name_length;

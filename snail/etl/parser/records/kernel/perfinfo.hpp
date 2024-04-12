@@ -32,6 +32,8 @@ struct perfinfo_v2_sampled_profile_event_view : private extract_view_dynamic_bas
     inline auto thread_id() const { return extract<std::uint32_t>(dynamic_offset(0, 1)); }
     inline auto count() const { return extract<std::uint16_t>(dynamic_offset(4, 1)); }
     inline auto reserved() const { return extract<std::uint16_t>(dynamic_offset(6, 1)); }
+
+    inline std::size_t dynamic_size() const { return dynamic_offset(8, 1); }
 };
 
 // `SampledProfileInterval_V3:PerfInfo` from wmicore.mof in WDK 10.0.22621.0
@@ -51,6 +53,8 @@ struct perfinfo_v3_sampled_profile_interval_event_view : private extract_view_dy
     inline auto old_interval() const { return extract<std::uint32_t>(dynamic_offset(8, 0)); }
 
     inline auto source_name() const { return extract_u16string(dynamic_offset(12, 0), source_name_length); }
+
+    inline std::size_t dynamic_size() const { return dynamic_offset(12 + source_name().size() * 2 + 2, 0); }
 
 private:
     mutable std::optional<std::size_t> source_name_length;

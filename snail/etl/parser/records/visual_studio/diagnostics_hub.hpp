@@ -59,6 +59,10 @@ struct vs_diagnostics_hub_target_profiling_started_event_view : private extract_
     inline auto process_id() const { return extract<std::uint32_t>(dynamic_offset(0, 0)); }
     inline auto start_reason() const { return extract<target_start_reason>(dynamic_offset(4, 0)); }
     inline auto timestamp() const { return extract<std::uint64_t>(dynamic_offset(8, 0)); }
+
+    static inline constexpr std::size_t static_size = 16;
+
+    inline std::size_t dynamic_size() const { return static_size; }
 };
 
 struct vs_diagnostics_hub_target_profiling_stopped_event_view : private extract_view_dynamic_base
@@ -73,6 +77,10 @@ struct vs_diagnostics_hub_target_profiling_stopped_event_view : private extract_
 
     inline auto process_id() const { return extract<std::uint32_t>(dynamic_offset(0, 0)); }
     inline auto timestamp() const { return extract<std::uint64_t>(dynamic_offset(4, 0)); }
+
+    static inline constexpr std::size_t static_size = 12;
+
+    inline std::size_t dynamic_size() const { return static_size; }
 };
 
 struct vs_diagnostics_hub_machine_info_event_view : private extract_view_dynamic_base
@@ -88,6 +96,8 @@ struct vs_diagnostics_hub_machine_info_event_view : private extract_view_dynamic
     inline auto name() const { return extract_u16string(dynamic_offset(0, 0), name_length); }
     inline auto os_description() const { return extract_u16string(dynamic_offset(name().size() * 2 + 2, 0), os_description_length); }
     inline auto architecture() const { return extract<machine_architecture>(dynamic_offset(name().size() * 2 + 2 + os_description().size() * 2 + 2, 0)); }
+
+    inline std::size_t dynamic_size() const { return dynamic_offset(4 + name().size() * 2 + 2 + os_description().size() * 2 + 2, 0); }
 
 private:
     mutable std::optional<std::size_t> name_length;
@@ -107,6 +117,10 @@ struct vs_diagnostics_hub_counter_info_event_view : private extract_view_dynamic
     inline auto counter() const { return extract<counter_type>(dynamic_offset(0, 0)); }
     inline auto timestamp() const { return extract<std::uint64_t>(dynamic_offset(4, 0)); }
     inline auto value() const { return extract<double>(dynamic_offset(12, 0)); }
+
+    static inline constexpr std::size_t static_size = 20;
+
+    inline std::size_t dynamic_size() const { return static_size; }
 };
 
 struct vs_diagnostics_hub_mark_info_event_view : private extract_view_dynamic_base
@@ -120,6 +134,8 @@ struct vs_diagnostics_hub_mark_info_event_view : private extract_view_dynamic_ba
     using extract_view_dynamic_base::extract_view_dynamic_base;
 
     inline auto message() const { return extract_u16string(dynamic_offset(0, 0), message_length); }
+
+    inline std::size_t dynamic_size() const { return dynamic_offset(0, 0) + message().size() * 2 + 2; }
 
 private:
     mutable std::optional<std::size_t> message_length;

@@ -51,6 +51,8 @@ struct system_config_v3_cpu_event_view : private extract_view_dynamic_base
     inline auto nx_enabled() const { return extract<std::uint8_t>(dynamic_offset(807, 2)); }
     inline auto memory_speed() const { return extract<std::uint32_t>(dynamic_offset(808, 2)); }
 
+    inline std::size_t dynamic_size() const { return dynamic_offset(812, 2); }
+
 private:
     mutable std::optional<std::size_t> computer_name_length;
     mutable std::optional<std::size_t> domain_name_length;
@@ -85,6 +87,8 @@ struct system_config_v2_physical_disk_event_view : private extract_view_dynamic_
     inline auto spare() const { return extract_u16string(dynamic_offset(564, 0), spare_length); }                         // length = 2
 
     static inline constexpr std::size_t static_size = 568;
+
+    inline std::size_t dynamic_size() const { return static_size; }
 
 private:
     mutable std::optional<std::size_t> manufacturer_length;
@@ -123,6 +127,8 @@ struct system_config_v2_logical_disk_event_view : private extract_view_dynamic_b
 
     static inline constexpr std::size_t static_size = 112;
 
+    inline std::size_t dynamic_size() const { return static_size; }
+
 private:
     mutable std::optional<std::size_t> drive_letter_length;
     mutable std::optional<std::size_t> file_system_length;
@@ -151,6 +157,20 @@ struct system_config_v5_pnp_event_view : private extract_view_dynamic_base
     inline auto service_name() const { return extract_u16string(dynamic_offset(32 + device_id().size() * 2 + device_description().size() * 2 + friendly_name().size() * 2 + pdo_name().size() * 2 + 8, 0), service_name_length); }
     // inline auto upper_filters() const { return extract_u16string(dynamic_offset(32, 0)); }
     // inline auto lower_filters() const { return extract_u16string(dynamic_offset(32, 0)); }
+
+    inline std::size_t dynamic_size() const
+    {
+        auto offset = dynamic_offset(32 + device_id().size() * 2 + device_description().size() * 2 + friendly_name().size() * 2 + pdo_name().size() * 2 + service_name().size() * 2 + 10, 0);
+        for(std::uint32_t i = 0; i < upper_filters_count(); ++i)
+        {
+            offset += (common::parser::detect_string_size<char16_t>(buffer(), offset) * 2 + 2);
+        }
+        for(std::uint32_t i = 0; i < lower_filters_count(); ++i)
+        {
+            offset += (common::parser::detect_string_size<char16_t>(buffer(), offset) * 2 + 2);
+        }
+        return offset;
+    }
 
 private:
     mutable std::optional<std::size_t> device_id_length;
