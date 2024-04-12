@@ -30,7 +30,8 @@ struct perfinfo_v2_sampled_profile_event_view : private extract_view_dynamic_bas
 
     inline auto instruction_pointer() const { return extract_pointer(dynamic_offset(0, 0)); }
     inline auto thread_id() const { return extract<std::uint32_t>(dynamic_offset(0, 1)); }
-    inline auto count() const { return extract<std::uint32_t>(dynamic_offset(4, 1)); }
+    inline auto count() const { return extract<std::uint16_t>(dynamic_offset(4, 1)); }
+    inline auto reserved() const { return extract<std::uint16_t>(dynamic_offset(6, 1)); }
 };
 
 // `SampledProfileInterval_V3:PerfInfo` from wmicore.mof in WDK 10.0.22621.0
