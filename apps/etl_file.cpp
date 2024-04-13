@@ -7,6 +7,7 @@
 #    include <Windows.h>
 #endif
 
+#include <algorithm>
 #include <optional>
 #include <stdexcept>
 #include <string_view>
@@ -14,6 +15,8 @@
 #include <utf8/cpp17.h>
 
 #include <snail/etl/dispatching_event_observer.hpp>
+
+#include <snail/etl/parser/buffer.hpp>
 
 #include <snail/etl/parser/records/kernel/config.hpp>
 #include <snail/etl/parser/records/kernel/header.hpp>
@@ -73,37 +76,6 @@ std::string_view group_to_string(etl::parser::event_trace_group group)
     return "UNKNOWN";
 }
 
-template<typename T>
-    requires std::same_as<T, etl::parser::system_trace_header_view> ||
-             std::same_as<T, etl::parser::compact_trace_header_view> ||
-             std::same_as<T, etl::parser::perfinfo_trace_header_view>
-auto make_key(const T& trace_header)
-{
-    return etl::detail::group_handler_key{
-        trace_header.packet().group(),
-        trace_header.packet().type(),
-        trace_header.version()};
-}
-
-template<typename T>
-    requires std::same_as<T, etl::parser::full_header_trace_header_view> ||
-             std::same_as<T, etl::parser::instance_trace_header_view>
-auto make_key(const T& trace_header)
-{
-    return etl::detail::guid_handler_key{
-        trace_header.guid().instantiate(),
-        trace_header.trace_class().type(),
-        trace_header.trace_class().version()};
-}
-
-auto make_key(const etl::parser::event_header_trace_header_view& trace_header)
-{
-    return etl::detail::guid_handler_key{
-        trace_header.provider_id().instantiate(),
-        trace_header.event_descriptor().id(),
-        trace_header.event_descriptor().version()};
-}
-
 std::string extract_application_name(std::string_view application_path)
 {
     if(application_path.empty()) return "etl_file";
@@ -118,13 +90,16 @@ void print_usage(std::string_view application_path)
               << "  Path to the *.etl file to be read.\n"
               << "Options:\n"
               << "  --help, -h       Show this help text.\n"
-              << "  --unsupported    Print unsupported events summary.\n"
+              << "  --summary        Print event count summary.\n"
               << "  --dump-headers   Dump event buffers.\n"
               << "  --dump-events    Dump event buffers.\n"
               << "  --dump           Dump event buffers.\n"
+              << "  --buffers        Print buffer headers.\n"
               << "  --header         Print header event.\n"
               << "  --config         Print kernel config events.\n"
               << "  --perfinfo       Print kernel perfinfo events (does not include samples).\n"
+              << "  --samples        Print kernel sample events.\n"
+              << "  --stacks         Print stack events.\n"
               << "  --config-ex      Print XPerf extended config events.\n"
               << "  --vs-diag        Print events from the VS Diagnostics Hub.\n"
               << "  --pid <pid>      Process ID of the process of interest. Pass 'any' to show\n"
@@ -150,14 +125,17 @@ struct options
 {
     std::filesystem::path file_path;
 
-    bool show_unsupported_summary = false;
+    bool show_events_summary = false;
 
     bool dump_trace_headers = false;
     bool dump_events        = false;
 
+    bool show_buffers   = false;
     bool show_header    = false;
     bool show_config    = false;
     bool show_perfinfo  = false;
+    bool show_samples   = false;
+    bool show_stacks    = false;
     bool show_config_ex = false;
     bool show_vs_diag   = false;
 
@@ -182,9 +160,9 @@ options parse_command_line(int argc, char* argv[]) // NOLINT(modernize-avoid-c-a
         {
             help = true;
         }
-        else if(current_arg == "--unsupported")
+        else if(current_arg == "--summary")
         {
-            result.show_unsupported_summary = true;
+            result.show_events_summary = true;
         }
         else if(current_arg == "--dump-headers")
         {
@@ -199,6 +177,10 @@ options parse_command_line(int argc, char* argv[]) // NOLINT(modernize-avoid-c-a
             result.dump_trace_headers = true;
             result.dump_events        = true;
         }
+        else if(current_arg == "--buffers")
+        {
+            result.show_buffers = true;
+        }
         else if(current_arg == "--header")
         {
             result.show_header = true;
@@ -210,6 +192,14 @@ options parse_command_line(int argc, char* argv[]) // NOLINT(modernize-avoid-c-a
         else if(current_arg == "--perfinfo")
         {
             result.show_perfinfo = true;
+        }
+        else if(current_arg == "--samples")
+        {
+            result.show_samples = true;
+        }
+        else if(current_arg == "--stacks")
+        {
+            result.show_stacks = true;
         }
         else if(current_arg == "--config-ex")
         {
@@ -229,7 +219,9 @@ options parse_command_line(int argc, char* argv[]) // NOLINT(modernize-avoid-c-a
             }
             else
             {
-                result.process_of_interest = atoi(next_arg.data()); // We know that this is actually null-terminated
+                result.process_of_interest.emplace();
+                auto chars_result = std::from_chars(next_arg.data(), next_arg.data() + next_arg.size(), result.process_of_interest.value());
+                if(chars_result.ec != std::errc{}) print_error_and_exit(application_path, "Invalid argument for --pid.");
             }
         }
         else if(current_arg == "--only")
@@ -303,6 +295,123 @@ bool should_ignore(const options& opts, std::string_view event_name)
     return false;
 }
 
+constexpr std::string_view get_guid_provider_name(const common::guid& guid)
+{
+    if(guid == etl::parser::image_id_guid ||
+       guid == etl::parser::system_config_ex_guid) return "XPerf";
+    if(guid == etl::parser::vs_diagnostics_hub_guid) return "VS";
+    return "Unknown";
+}
+
+template<typename EventType>
+void register_known_event_names(std::unordered_map<etl::detail::group_handler_key, std::string>& known_event_names)
+{
+    // static_assert(is_group_event<EventType>);
+    for(const auto& event_identifier : EventType::event_types)
+    {
+        const auto key = etl::detail::group_handler_key{event_identifier.group, event_identifier.type, EventType::event_version};
+
+        if constexpr(EventType::event_types.size() == 1)
+        {
+            known_event_names[key] = std::format("Kernel:{}-V{}", EventType::event_name, EventType::event_version);
+        }
+        else
+        {
+            known_event_names[key] = std::format("Kernel:{}:{}-V{}", EventType::event_name, event_identifier.name, EventType::event_version);
+        }
+    }
+}
+
+template<typename EventType>
+void register_known_event_names(std::unordered_map<etl::detail::guid_handler_key, std::string>& known_event_names)
+{
+    // static_assert(!is_group_event<EventType>);
+    for(const auto& event_identifier : EventType::event_types)
+    {
+        const auto key           = etl::detail::guid_handler_key{event_identifier.guid, event_identifier.type, EventType::event_version};
+        const auto provider_name = get_guid_provider_name(key.guid);
+
+        if constexpr(EventType::event_types.size() == 1)
+        {
+            known_event_names[key] = std::format("{}:{}-V{}", provider_name, EventType::event_name, EventType::event_version);
+        }
+        else
+        {
+            known_event_names[key] = std::format("{}:{}:{}-V{}", provider_name, EventType::event_name, event_identifier.name, EventType::event_version);
+        }
+    }
+}
+
+std::string try_get_known_event_name(const etl::detail::group_handler_key&                                  key,
+                                     const std::unordered_map<etl::detail::group_handler_key, std::string>& known_event_names)
+{
+    const auto iter = known_event_names.find(key);
+    if(iter != known_event_names.end()) return iter->second;
+
+    return std::format("Unknown event: group {} ; type {} ; version {}", group_to_string(key.group), (int)key.type, key.version);
+}
+
+std::string try_get_known_event_name(const etl::detail::guid_handler_key&                                  key,
+                                     const std::unordered_map<etl::detail::guid_handler_key, std::string>& known_event_names)
+{
+    const auto iter = known_event_names.find(key);
+    if(iter != known_event_names.end()) return iter->second;
+
+    return std::format("Unknown event: guid {} ; type {} ; version {}", key.guid.to_string(true), key.type, key.version);
+}
+
+class counting_event_observer : public etl::dispatching_event_observer
+{
+public:
+    std::function<void(const etl::etl_file::header_data&, const etl::parser::wmi_buffer_header_view&)> buffer_header_callback_;
+
+    std::unordered_map<etl::detail::group_handler_key, std::size_t> handled_group_event_counts;
+    std::unordered_map<etl::detail::guid_handler_key, std::size_t>  handled_guid_event_counts;
+    std::unordered_map<etl::detail::group_handler_key, std::size_t> unknown_group_event_counts;
+    std::unordered_map<etl::detail::guid_handler_key, std::size_t>  unknown_guid_event_counts;
+
+    std::unordered_map<etl::detail::group_handler_key, std::string> known_group_event_names;
+    std::unordered_map<etl::detail::guid_handler_key, std::string>  known_guid_event_names;
+
+    std::string_view current_event_name; // hacky way to sneak the event name into the handler routines.
+
+    virtual void handle(const etl::etl_file::header_data&          file_header,
+                        const etl::parser::wmi_buffer_header_view& buffer_header) override
+    {
+        if(!buffer_header_callback_) return;
+        buffer_header_callback_(file_header, buffer_header);
+    }
+
+protected:
+    virtual void pre_handle([[maybe_unused]] const etl::etl_file::header_data&  file_header,
+                            const etl::detail::group_handler_key&               key,
+                            [[maybe_unused]] const etl::any_group_trace_header& trace_header,
+                            [[maybe_unused]] std::span<const std::byte>         user_data,
+                            bool                                                has_known_handler) override
+    {
+        if(has_known_handler)
+        {
+            ++handled_group_event_counts[key];
+            current_event_name = known_group_event_names.at(key);
+        }
+        else ++unknown_group_event_counts[key];
+    }
+
+    virtual void pre_handle([[maybe_unused]] const etl::etl_file::header_data& file_header,
+                            const etl::detail::guid_handler_key&               key,
+                            [[maybe_unused]] const etl::any_guid_trace_header& trace_header,
+                            [[maybe_unused]] std::span<const std::byte>        user_data,
+                            bool                                               has_known_handler) override
+    {
+        if(has_known_handler)
+        {
+            ++handled_guid_event_counts[key];
+            current_event_name = known_guid_event_names.at(key);
+        }
+        else ++unknown_guid_event_counts[key];
+    }
+};
+
 } // namespace
 
 int main(int argc, char* argv[])
@@ -326,84 +435,113 @@ int main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
 
-    etl::dispatching_event_observer observer;
+    counting_event_observer observer;
 
-    std::unordered_map<etl::detail::guid_handler_key, std::size_t>  unprocessed_guid_event_counts;
-    std::unordered_map<etl::detail::group_handler_key, std::size_t> unprocessed_group_event_counts;
-    std::size_t                                                     sample_count = 0;
-    std::size_t                                                     stack_count  = 0;
+    std::size_t sample_count = 0;
+    std::size_t stack_count  = 0;
 
-    const std::unordered_map<etl::detail::guid_handler_key, std::string> known_guid_event_names = {
-        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 32, 2},         "XPerf:ImageIdV2-DbgIdNone"        },
-        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 38, 2},         "XPerf:ImageIdV2-DbgIdPPdb"        },
-        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 40, 1},         "XPerf:ImageIdV2-DbgIdDeterm"      },
-        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 64, 0},         "XPerf:ImageIdV2-DbgIdFileVersion" },
-        {etl::detail::guid_handler_key{etl::parser::system_config_ex_guid, 34, 0}, "XPerf:SysConfigExV0-UnknownVolume"}
+    std::unordered_map<std::uint32_t, std::uint32_t> thread_to_process;
+
+    // Pre-populate with names of events that we know, but which we do not support (yet).
+    // Most of those events should not be important for the functionality of a performance profiler,
+    // so we will probably never implement them.
+    observer.known_group_event_names = std::unordered_map<etl::detail::group_handler_key, std::string>{
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::header, 8, 2},   "Kernel:EventTrace-RDComplete-V2"      },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::header, 64, 2},  "Kernel:EventTrace-DbgIdRSDS-V2"       },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::header, 66, 2},  "Kernel:EventTrace-BuildInfo-V2"       },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::process, 11, 2}, "Kernel:Process-Terminate-V2"          },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::process, 39, 5}, "Kernel:Process-TypeGroup1:Defunct-V5" },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::image, 33, 2},   "Kernel:Image-KernelImageBase-V2"      },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::image, 34, 2},   "Kernel:Image-HypercallPage-V2"        },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 13, 2},  "Kernel:SystemConfig-Nic-V2"           },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 14, 2},  "Kernel:SystemConfig-Video-V2"         },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 15, 3},  "Kernel:SystemConfig-Services-V3"      },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 16, 2},  "Kernel:SystemConfig-Power-V2"         },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 21, 3},  "Kernel:SystemConfig-Irq-V3"           },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 23, 2},  "Kernel:SystemConfig-IDEChannel-V2"    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 24, 2},  "Kernel:SystemConfig-NumaNode-V2"      },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 25, 2},  "Kernel:SystemConfig-Platform-V2"      },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 26, 2},  "Kernel:SystemConfig-ProcGroup-V2"     },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 27, 2},  "Kernel:SystemConfig-ProcNumber-V2"    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 28, 2},  "Kernel:SystemConfig-Dpi-V2"           },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 29, 2},  "Kernel:SystemConfig-CodeIntegrity-V2" },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 30, 2},  "Kernel:SystemConfig-TelemetryInfo-V2" },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 31, 2},  "Kernel:SystemConfig-Defrag-V2"        },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 33, 2},  "Kernel:SystemConfig-DeviceFamily-V2"  },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 34, 2},  "Kernel:SystemConfig-FlightIds-V2"     },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 35, 2},  "Kernel:SystemConfig-Processors-V2"    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 36, 2},  "Kernel:SystemConfig-Virtualization-V2"},
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 37, 2},  "Kernel:SystemConfig-Boot-V2"          },
     };
-    const std::unordered_map<etl::detail::group_handler_key, std::string> known_group_event_names = {
-        {etl::detail::group_handler_key{etl::parser::event_trace_group::header, 5, 2},   "Kernel:EventTraceV2-ExtensionTypeGroup-5:Extension"    },
-        {etl::detail::group_handler_key{etl::parser::event_trace_group::header, 32, 2},  "Kernel:EventTraceV2-ExtensionTypeGroup-32:EndExtension"},
-        {etl::detail::group_handler_key{etl::parser::event_trace_group::header, 8, 2},   "Kernel:EventTraceV2-RDComplete"                        },
-        {etl::detail::group_handler_key{etl::parser::event_trace_group::header, 64, 2},  "Kernel:EventTraceV2-DbgIdRSDS"                         },
-        {etl::detail::group_handler_key{etl::parser::event_trace_group::header, 66, 2},  "Kernel:EventTraceV2-BuildInfo"                         },
-        {etl::detail::group_handler_key{etl::parser::event_trace_group::process, 11, 2}, "Kernel:ProcessV2-Terminate"                            },
-        {etl::detail::group_handler_key{etl::parser::event_trace_group::process, 39, 5}, "Kernel:ProcessV5-Defunct"                              },
-        {etl::detail::group_handler_key{etl::parser::event_trace_group::image, 33, 2},   "Kernel:ImageV2-KernelImageBase"                        },
-        {etl::detail::group_handler_key{etl::parser::event_trace_group::image, 34, 2},   "Kernel:ImageV2-HypercallPage"                          },
-        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 10, 3},  "Kernel:SysConfigV3-Cpu"                                },
-        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 13, 2},  "Kernel:SysConfigV2-Nic"                                },
-        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 14, 2},  "Kernel:SysConfigV2-Video"                              },
-        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 15, 3},  "Kernel:SysConfigV3-Services"                           },
-        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 16, 2},  "Kernel:SysConfigV2-Power"                              },
-        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 21, 3},  "Kernel:SysConfigV3-Irq"                                },
-        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 25, 2},  "Kernel:SysConfigV2-Platform"                           },
-        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 28, 2},  "Kernel:SysConfigV2-Dpi"                                },
-        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 29, 2},  "Kernel:SysConfigV2-CodeIntegrity"                      },
-        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 30, 2},  "Kernel:SysConfigV2-TelemetryInfo"                      },
-        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 31, 2},  "Kernel:SysConfigV2-Defrag"                             },
-        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 33, 2},  "Kernel:SysConfigV2-DeviceFamily"                       },
-        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 34, 2},  "Kernel:SysConfigV2-FlightIds"                          },
-        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 35, 2},  "Kernel:SysConfigV2-Processors"                         },
-        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 36, 2},  "Kernel:SysConfigV2-Virtualization"                     },
-        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 37, 2},  "Kernel:SysConfigV2-Boot"                               }
+    observer.known_guid_event_names = std::unordered_map<etl::detail::guid_handler_key, std::string>{
+        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 32, 2},         "XPerf:ImageId-DbgIdNone-V2"           },
+        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 34, 2},         "XPerf:ImageId-34?-V2"                 },
+        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 38, 2},         "XPerf:ImageId-DbgIdPPdb-V2"           },
+        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 39, 1},         "XPerf:ImageId-39?-V1"                 }, // Error / Embedded PDB?
+        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 40, 1},         "XPerf:ImageId-DbgIdDeterm-V1"         },
+        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 41, 1},         "XPerf:ImageId-41?-V1"                 }, // Error / Embedded PDB?
+        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 64, 0},         "XPerf:ImageId-DbgIdFileVersion-V0"    },
+        {etl::detail::guid_handler_key{etl::parser::system_config_ex_guid, 34, 0}, "XPerf:SystemConfigEx-UnknownVolume-V0"},
+        {etl::detail::guid_handler_key{etl::parser::system_config_ex_guid, 36, 0}, "XPerf:SystemConfigEx-36?-V0"          }, // NetworkInterface?
     };
 
     // Unknown events
     {
         observer.register_unknown_event(
-            [&unprocessed_guid_event_counts]([[maybe_unused]] const etl::etl_file::header_data& file_header,
-                                             const etl::any_guid_trace_header&                  header,
-                                             [[maybe_unused]] const std::span<const std::byte>& event_data)
+            [&options]([[maybe_unused]] const etl::etl_file::header_data& file_header,
+                       [[maybe_unused]] const etl::any_guid_trace_header& header,
+                       const std::span<const std::byte>&                  event_data)
             {
-                const auto header_key = std::visit([](const auto& header)
-                                                   { return make_key(header); },
-                                                   header);
-                ++unprocessed_guid_event_counts[header_key];
+                if(options.dump_events) common::detail::dump_buffer(event_data, 0, event_data.size(), "event");
             });
         observer.register_unknown_event(
-            [&unprocessed_group_event_counts]([[maybe_unused]] const etl::etl_file::header_data& file_header,
-                                              const etl::any_group_trace_header&                 header,
-                                              [[maybe_unused]] const std::span<const std::byte>& event_data)
+            [&options]([[maybe_unused]] const etl::etl_file::header_data&  file_header,
+                       [[maybe_unused]] const etl::any_group_trace_header& header,
+                       const std::span<const std::byte>&                   event_data)
             {
-                const auto header_key = std::visit([](const auto& header)
-                                                   { return make_key(header); },
-                                                   header);
-                ++unprocessed_group_event_counts[header_key];
+                if(options.dump_events) common::detail::dump_buffer(event_data, 0, event_data.size(), "event");
             });
     }
 
+    // Buffer
+    observer.buffer_header_callback_ = [&options]([[maybe_unused]] const etl::etl_file::header_data& file_header,
+                                                  const etl::parser::wmi_buffer_header_view&         buffer_header)
+    {
+        if(!options.show_buffers) return;
+
+        std::cout << "Buffer Header:\n";
+
+        std::cout << std::format("    buffer_size:      {}\n", buffer_header.wnode().buffer_size());
+        std::cout << std::format("    saved_offset:     {}\n", buffer_header.wnode().saved_offset());
+        std::cout << std::format("    current_offset:   {}\n", buffer_header.wnode().current_offset());
+        std::cout << std::format("    reference_count:  {}\n", buffer_header.wnode().reference_count());
+        std::cout << std::format("    timestamp:        {}\n", buffer_header.wnode().timestamp());
+        std::cout << std::format("    sequence_number:  {}\n", buffer_header.wnode().sequence_number());
+        std::cout << std::format("    clock:            {}\n", buffer_header.wnode().clock());
+        std::cout << std::format("    processor_index:  {}\n", buffer_header.wnode().client_context().processor_index());
+        std::cout << std::format("    logger_id:        {}\n", buffer_header.wnode().client_context().logger_id());
+        std::cout << std::format("    state:            {}\n", (int)buffer_header.wnode().state());
+        std::cout << std::format("    offset:           {}\n", buffer_header.offset());
+        std::cout << std::format("    buffer_flag:      {}\n", buffer_header.buffer_flag());
+        std::cout << std::format("    buffer_type:      {}\n", (int)buffer_header.buffer_type());
+        std::cout << std::format("    start_time:       {}\n", buffer_header.start_time());
+        std::cout << std::format("    start_perf_clock: {}\n", buffer_header.start_perf_clock());
+    };
+
     // Kernel: header
     {
+        register_known_event_names<etl::parser::event_trace_v2_header_event_view>(observer.known_group_event_names);
         observer.register_event<etl::parser::event_trace_v2_header_event_view>(
-            [&options]([[maybe_unused]] const etl::etl_file::header_data&   file_header,
-                       [[maybe_unused]] const etl::common_trace_header&     header,
-                       const etl::parser::event_trace_v2_header_event_view& event)
+            [&options, &observer]([[maybe_unused]] const etl::etl_file::header_data&   file_header,
+                                  [[maybe_unused]] const etl::common_trace_header&     header,
+                                  const etl::parser::event_trace_v2_header_event_view& event)
             {
-                if(!options.show_header) return;
-                const auto event_name = "Kernel:EventTraceV2-Header";
-                if(should_ignore(options, event_name)) return;
+                assert(event.dynamic_size() == event.buffer().size());
 
-                std::cout << std::format("@{} {:30}:\n", header.timestamp, event_name);
+                if(!options.show_header) return;
+                if(should_ignore(options, observer.current_event_name)) return;
+
+                std::cout << std::format("@{} {:30}:\n", header.timestamp, observer.current_event_name);
                 std::cout << std::format("    buffer_size:           {}\n", event.buffer_size());
                 std::cout << std::format("    os_version_major:      {}\n", event.os_version_major());
                 std::cout << std::format("    os_version_minor:      {}\n", event.os_version_minor());
@@ -421,7 +559,7 @@ int main(int argc, char* argv[])
                 std::cout << std::format("    events_lost:           {}\n", event.events_lost());
                 std::cout << std::format("    logger_name:           {}\n", event.logger_name());
                 std::cout << std::format("    log_file_name:         {}\n", event.log_file_name());
-                // std::cout << std::format("    time_zone_information: {}\n", event.time_zone_information());
+                std::cout << std::format("    time_zone.bias:        {}\n", event.time_zone_information().bias());
                 std::cout << std::format("    boot_time:             {}\n", event.boot_time());
                 std::cout << std::format("    perf_freq:             {}\n", event.perf_freq());
                 std::cout << std::format("    start_time:            {}\n", event.start_time());
@@ -437,58 +575,66 @@ int main(int argc, char* argv[])
 
     // Kernel: config
     {
+        register_known_event_names<etl::parser::system_config_v3_cpu_event_view>(observer.known_group_event_names);
         observer.register_event<etl::parser::system_config_v3_cpu_event_view>(
-            [&options]([[maybe_unused]] const etl::etl_file::header_data&  file_header,
-                       [[maybe_unused]] const etl::common_trace_header&    header,
-                       const etl::parser::system_config_v3_cpu_event_view& event)
+            [&options, &observer]([[maybe_unused]] const etl::etl_file::header_data&  file_header,
+                                  [[maybe_unused]] const etl::common_trace_header&    header,
+                                  const etl::parser::system_config_v3_cpu_event_view& event)
             {
-                if(!options.show_config) return;
-                const auto event_name = "Kernel:SysConfigV3-CPU";
-                if(should_ignore(options, event_name)) return;
+                assert(event.dynamic_size() == event.buffer().size());
 
-                std::cout << std::format("@{} {:30}: computer_name '{}' architecture {}...\n", header.timestamp, event_name, utf8::utf16to8(event.computer_name()), event.processor_architecture());
+                if(!options.show_config) return;
+                if(should_ignore(options, observer.current_event_name)) return;
+
+                std::cout << std::format("@{} {:30}: computer_name '{}' architecture {}...\n", header.timestamp, observer.current_event_name, utf8::utf16to8(event.computer_name()), event.processor_architecture());
 
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
+        register_known_event_names<etl::parser::system_config_v2_physical_disk_event_view>(observer.known_group_event_names);
         observer.register_event<etl::parser::system_config_v2_physical_disk_event_view>(
-            [&options]([[maybe_unused]] const etl::etl_file::header_data&            file_header,
-                       [[maybe_unused]] const etl::common_trace_header&              header,
-                       const etl::parser::system_config_v2_physical_disk_event_view& event)
+            [&options, &observer]([[maybe_unused]] const etl::etl_file::header_data&            file_header,
+                                  [[maybe_unused]] const etl::common_trace_header&              header,
+                                  const etl::parser::system_config_v2_physical_disk_event_view& event)
             {
-                if(!options.show_config) return;
-                const auto event_name = "Kernel:SysConfigV2-PhyDisk";
-                if(should_ignore(options, event_name)) return;
+                assert(event.dynamic_size() == event.buffer().size());
 
-                std::cout << std::format("@{} {:30}: disk_number {} partition_count {} ...\n", header.timestamp, event_name, event.disk_number(), event.partition_count());
+                if(!options.show_config) return;
+                if(should_ignore(options, observer.current_event_name)) return;
+
+                std::cout << std::format("@{} {:30}: disk_number {} partition_count {} ...\n", header.timestamp, observer.current_event_name, event.disk_number(), event.partition_count());
 
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
+        register_known_event_names<etl::parser::system_config_v2_logical_disk_event_view>(observer.known_group_event_names);
         observer.register_event<etl::parser::system_config_v2_logical_disk_event_view>(
-            [&options]([[maybe_unused]] const etl::etl_file::header_data&           file_header,
-                       [[maybe_unused]] const etl::common_trace_header&             header,
-                       const etl::parser::system_config_v2_logical_disk_event_view& event)
+            [&options, &observer]([[maybe_unused]] const etl::etl_file::header_data&           file_header,
+                                  [[maybe_unused]] const etl::common_trace_header&             header,
+                                  const etl::parser::system_config_v2_logical_disk_event_view& event)
             {
-                if(!options.show_config) return;
-                const auto event_name = "Kernel:SysConfigV2-LogDisk";
-                if(should_ignore(options, event_name)) return;
+                assert(event.dynamic_size() == event.buffer().size());
 
-                std::cout << std::format("@{} {:30}: disk_number {} partition_number {} drive_letter {} ...\n", header.timestamp, event_name, event.disk_number(), event.partition_number(), utf8::utf16to8(event.drive_letter()));
+                if(!options.show_config) return;
+                if(should_ignore(options, observer.current_event_name)) return;
+
+                std::cout << std::format("@{} {:30}: disk_number {} partition_number {} drive_letter {} ...\n", header.timestamp, observer.current_event_name, event.disk_number(), event.partition_number(), utf8::utf16to8(event.drive_letter()));
 
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
+        register_known_event_names<etl::parser::system_config_v5_pnp_event_view>(observer.known_group_event_names);
         observer.register_event<etl::parser::system_config_v5_pnp_event_view>(
-            [&options]([[maybe_unused]] const etl::etl_file::header_data&  file_header,
-                       [[maybe_unused]] const etl::common_trace_header&    header,
-                       const etl::parser::system_config_v5_pnp_event_view& event)
+            [&options, &observer]([[maybe_unused]] const etl::etl_file::header_data&  file_header,
+                                  [[maybe_unused]] const etl::common_trace_header&    header,
+                                  const etl::parser::system_config_v5_pnp_event_view& event)
             {
-                if(!options.show_config) return;
-                const auto event_name = "Kernel:SysConfigV5-PNP";
-                if(should_ignore(options, event_name)) return;
+                assert(event.dynamic_size() == event.buffer().size());
 
-                std::cout << std::format("@{} {:30}: device_description '{}' friendly_name '{}' ...\n", header.timestamp, event_name, utf8::utf16to8(event.device_description()), utf8::utf16to8(event.friendly_name()));
+                if(!options.show_config) return;
+                if(should_ignore(options, observer.current_event_name)) return;
+
+                std::cout << std::format("@{} {:30}: device_description '{}' friendly_name '{}' ...\n", header.timestamp, observer.current_event_name, utf8::utf16to8(event.device_description()), utf8::utf16to8(event.friendly_name()));
 
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
@@ -497,38 +643,46 @@ int main(int argc, char* argv[])
 
     // Kernel: perfinfo/stack
     {
+        register_known_event_names<etl::parser::stackwalk_v2_stack_event_view>(observer.known_group_event_names);
         observer.register_event<etl::parser::stackwalk_v2_stack_event_view>(
-            [&options, &stack_count]([[maybe_unused]] const etl::etl_file::header_data& file_header,
-                                     [[maybe_unused]] const etl::common_trace_header&   header,
-                                     const etl::parser::stackwalk_v2_stack_event_view&  event)
+            [&options, &observer, &stack_count]([[maybe_unused]] const etl::etl_file::header_data& file_header,
+                                                [[maybe_unused]] const etl::common_trace_header&   header,
+                                                const etl::parser::stackwalk_v2_stack_event_view&  event)
             {
+                assert(event.dynamic_size() == event.buffer().size());
+
                 const auto process_id = event.process_id();
                 if(!options.all_processes && process_id != options.process_of_interest) return;
 
                 ++stack_count;
+
+                if(!options.show_stacks) return;
+
+                if(should_ignore(options, observer.current_event_name)) return;
+
+                std::cout << std::format("@{} {:30}: event time {} pid {} tid {} count {}\n", header.timestamp, observer.current_event_name, event.event_timestamp(), event.process_id(), event.thread_id(), event.stack_size());
+
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
+        register_known_event_names<etl::parser::perfinfo_v2_sampled_profile_event_view>(observer.known_group_event_names);
         observer.register_event<etl::parser::perfinfo_v2_sampled_profile_event_view>(
-            [&options, &sample_count]([[maybe_unused]] const etl::etl_file::header_data&         file_header,
-                                      [[maybe_unused]] const etl::common_trace_header&           header,
-                                      const etl::parser::perfinfo_v2_sampled_profile_event_view& event)
+            [&options, &observer, &sample_count, &thread_to_process]([[maybe_unused]] const etl::etl_file::header_data&                          file_header,
+                                                                     [[maybe_unused]] const etl::common_trace_header&                            header,
+                                                                     [[maybe_unused]] const etl::parser::perfinfo_v2_sampled_profile_event_view& event)
             {
-                const auto thread_id  = event.thread_id();
-                const auto process_id = thread_id; // TODO: map thread to process
-                if(!options.all_processes && process_id != options.process_of_interest) return;
+                assert(event.dynamic_size() == event.buffer().size());
+
+                auto process_id = thread_to_process.find(event.thread_id());
+                if(!options.all_processes && (process_id != thread_to_process.end() && process_id->second != options.process_of_interest)) return;
 
                 ++sample_count;
-            });
-        observer.register_event<etl::parser::perfinfo_v3_sampled_profile_interval_event_view>(
-            [&options]([[maybe_unused]] const etl::etl_file::header_data&                  file_header,
-                       [[maybe_unused]] const etl::common_trace_header&                    header,
-                       const etl::parser::perfinfo_v3_sampled_profile_interval_event_view& event)
-            {
-                if(!options.show_perfinfo) return;
 
-                const auto event_name = std::format("Kernel:PerfInfoV3-SampledProfileInterval-{}", header.type);
-                if(should_ignore(options, event_name)) return;
+                if(!options.show_samples) return;
 
-                std::cout << std::format("@{} {:30}: source {} new-interval {} old-interval {} source-name '{}'\n", header.timestamp, event_name, event.source(), event.new_interval(), event.old_interval(), utf8::utf16to8(event.source_name()));
+                if(should_ignore(options, observer.current_event_name)) return;
+
+                std::cout << std::format("@{} {:30}: thread {} count {} ip {:#018x}\n", header.timestamp, observer.current_event_name, event.thread_id(), event.count(), event.instruction_pointer());
 
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
@@ -537,66 +691,80 @@ int main(int argc, char* argv[])
 
     // Kernel: process/thread
     {
+        register_known_event_names<etl::parser::process_v4_type_group1_event_view>(observer.known_group_event_names);
         observer.register_event<etl::parser::process_v4_type_group1_event_view>(
-            [&options]([[maybe_unused]] const etl::etl_file::header_data&    file_header,
-                       const etl::common_trace_header&                       header,
-                       const etl::parser::process_v4_type_group1_event_view& event)
+            [&options, &observer]([[maybe_unused]] const etl::etl_file::header_data&    file_header,
+                                  const etl::common_trace_header&                       header,
+                                  const etl::parser::process_v4_type_group1_event_view& event)
             {
+                assert(event.dynamic_size() == event.buffer().size());
+
+                assert(event.dynamic_size() == event.buffer().size());
+
                 const auto process_id = event.process_id();
                 if(!options.all_processes && process_id != options.process_of_interest) return;
 
-                const auto event_name = std::format("Kernel:ProcessV4-Group1-{}", header.type);
-                if(should_ignore(options, event_name)) return;
+                if(should_ignore(options, observer.current_event_name)) return;
 
-                std::cout << std::format("@{} {:30}: pid {} filename '{}' cmd '{}' unique {} flags {} ...\n", header.timestamp, event_name, process_id, event.image_filename(), utf8::utf16to8(event.command_line()), event.unique_process_key(), event.flags());
+                std::cout << std::format("@{} {:30}: pid {} filename '{}' cmd '{}' unique {} flags {} ...\n", header.timestamp, observer.current_event_name, process_id, event.image_filename(), utf8::utf16to8(event.command_line()), event.unique_process_key(), event.flags());
 
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
+        register_known_event_names<etl::parser::thread_v3_type_group1_event_view>(observer.known_group_event_names);
         observer.register_event<etl::parser::thread_v3_type_group1_event_view>(
-            [&options]([[maybe_unused]] const etl::etl_file::header_data&   file_header,
-                       const etl::common_trace_header&                      header,
-                       const etl::parser::thread_v3_type_group1_event_view& event)
+            [&options, &observer, &thread_to_process]([[maybe_unused]] const etl::etl_file::header_data&   file_header,
+                                                      const etl::common_trace_header&                      header,
+                                                      const etl::parser::thread_v3_type_group1_event_view& event)
             {
-                const auto process_id = event.process_id();
+                assert(event.dynamic_size() == event.buffer().size());
+
+                const auto process_id                = event.process_id();
+                thread_to_process[event.thread_id()] = process_id;
+
                 if(!options.all_processes && process_id != options.process_of_interest) return;
 
-                const auto event_name = std::format("Kernel:ThreadV3-Group1-{}", header.type);
-                if(should_ignore(options, event_name)) return;
+                if(should_ignore(options, observer.current_event_name)) return;
 
-                std::cout << std::format("@{} {:30}: pid {} tid {} ...\n", header.timestamp, event_name, process_id, event.thread_id());
+                std::cout << std::format("@{} {:30}: pid {} tid {} ...\n", header.timestamp, observer.current_event_name, process_id, event.thread_id());
 
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
+        register_known_event_names<etl::parser::thread_v4_type_group1_event_view>(observer.known_group_event_names);
         observer.register_event<etl::parser::thread_v4_type_group1_event_view>(
-            [&options]([[maybe_unused]] const etl::etl_file::header_data&   file_header,
-                       const etl::common_trace_header&                      header,
-                       const etl::parser::thread_v4_type_group1_event_view& event)
+            [&options, &observer, &thread_to_process]([[maybe_unused]] const etl::etl_file::header_data&   file_header,
+                                                      const etl::common_trace_header&                      header,
+                                                      const etl::parser::thread_v4_type_group1_event_view& event)
             {
-                const auto process_id = event.process_id();
+                assert(event.dynamic_size() == event.buffer().size());
+
+                const auto process_id                = event.process_id();
+                thread_to_process[event.thread_id()] = process_id;
+
                 if(!options.all_processes && process_id != options.process_of_interest) return;
 
-                const auto event_name = std::format("Kernel:ThreadV4-Group1-{}", header.type);
-                if(should_ignore(options, event_name)) return;
+                if(should_ignore(options, observer.current_event_name)) return;
 
-                std::cout << std::format("@{} {:30}: pid {} tid {} name {}...\n", header.timestamp, event_name, process_id, event.thread_id(), utf8::utf16to8(event.thread_name()));
+                std::cout << std::format("@{} {:30}: pid {} tid {} name {}...\n", header.timestamp, observer.current_event_name, process_id, event.thread_id(), utf8::utf16to8(event.thread_name()));
 
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
+        register_known_event_names<etl::parser::thread_v2_set_name_event_view>(observer.known_group_event_names);
         observer.register_event<etl::parser::thread_v2_set_name_event_view>(
-            [&options]([[maybe_unused]] const etl::etl_file::header_data& file_header,
-                       const etl::common_trace_header&                    header,
-                       const etl::parser::thread_v2_set_name_event_view&  event)
+            [&options, &observer]([[maybe_unused]] const etl::etl_file::header_data& file_header,
+                                  const etl::common_trace_header&                    header,
+                                  const etl::parser::thread_v2_set_name_event_view&  event)
             {
+                assert(event.dynamic_size() == event.buffer().size());
+
                 const auto process_id = event.process_id();
                 if(!options.all_processes && process_id != options.process_of_interest) return;
 
-                const auto event_name = "Kernel:ThreadV2-SetName";
-                if(should_ignore(options, event_name)) return;
+                if(should_ignore(options, observer.current_event_name)) return;
 
-                std::cout << std::format("@{} {:30}: pid {} tid {} name '{}'\n", header.timestamp, event_name, process_id, event.thread_id(), utf8::utf16to8(event.thread_name()));
+                std::cout << std::format("@{} {:30}: pid {} tid {} name '{}'\n", header.timestamp, observer.current_event_name, process_id, event.thread_id(), utf8::utf16to8(event.thread_name()));
 
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
@@ -605,18 +773,20 @@ int main(int argc, char* argv[])
 
     // Kernel: image
     {
+        register_known_event_names<etl::parser::image_v3_load_event_view>(observer.known_group_event_names);
         observer.register_event<etl::parser::image_v3_load_event_view>(
-            [&options]([[maybe_unused]] const etl::etl_file::header_data& file_header,
-                       const etl::common_trace_header&                    header,
-                       const etl::parser::image_v3_load_event_view&       event)
+            [&options, &observer]([[maybe_unused]] const etl::etl_file::header_data& file_header,
+                                  const etl::common_trace_header&                    header,
+                                  const etl::parser::image_v3_load_event_view&       event)
             {
+                assert(event.dynamic_size() == event.buffer().size());
+
                 const auto process_id = event.process_id();
                 if(!options.all_processes && process_id != options.process_of_interest) return;
 
-                const auto event_name = std::format("Kernel:ImageV3-Load-{}", header.type);
-                if(should_ignore(options, event_name)) return;
+                if(should_ignore(options, observer.current_event_name)) return;
 
-                std::cout << std::format("@{} {:30}: pid {} name '{}' image-base {:#0x} checksum {} time-date-stamp {}\n", header.timestamp, event_name, process_id, utf8::utf16to8(event.file_name()), event.image_base(), event.image_checksum(), event.time_date_stamp());
+                std::cout << std::format("@{} {:30}: pid {} name '{}' image-base {:#0x} checksum {} time-date-stamp {}\n", header.timestamp, observer.current_event_name, process_id, utf8::utf16to8(event.file_name()), event.image_base(), event.image_checksum(), event.time_date_stamp());
 
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
@@ -625,34 +795,38 @@ int main(int argc, char* argv[])
 
     // Kernel-trace-control (Xperf): image
     {
+        register_known_event_names<etl::parser::image_id_v2_info_event_view>(observer.known_guid_event_names);
         observer.register_event<etl::parser::image_id_v2_info_event_view>(
-            [&options]([[maybe_unused]] const etl::etl_file::header_data& file_header,
-                       const etl::common_trace_header&                    header,
-                       const etl::parser::image_id_v2_info_event_view&    event)
+            [&options, &observer]([[maybe_unused]] const etl::etl_file::header_data& file_header,
+                                  const etl::common_trace_header&                    header,
+                                  const etl::parser::image_id_v2_info_event_view&    event)
             {
+                assert(event.dynamic_size() == event.buffer().size());
+
                 const auto process_id = event.process_id();
                 if(!options.all_processes && process_id != options.process_of_interest) return;
 
-                const auto event_name = "XPerf:ImageIdV2-Info";
-                if(should_ignore(options, event_name)) return;
+                if(should_ignore(options, observer.current_event_name)) return;
 
-                std::cout << std::format("@{} {:30}: pid {} name '{}' image_base {:#0x} time_stamp {}\n", header.timestamp, event_name, process_id, utf8::utf16to8(event.original_file_name()), event.image_base(), event.time_date_stamp());
+                std::cout << std::format("@{} {:30}: pid {} name '{}' image_base {:#0x} time_stamp {}\n", header.timestamp, observer.current_event_name, process_id, utf8::utf16to8(event.original_file_name()), event.image_base(), event.time_date_stamp());
 
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
+        register_known_event_names<etl::parser::image_id_v2_dbg_id_pdb_info_event_view>(observer.known_guid_event_names);
         observer.register_event<etl::parser::image_id_v2_dbg_id_pdb_info_event_view>(
-            [&options]([[maybe_unused]] const etl::etl_file::header_data&         file_header,
-                       const etl::common_trace_header&                            header,
-                       const etl::parser::image_id_v2_dbg_id_pdb_info_event_view& event)
+            [&options, &observer]([[maybe_unused]] const etl::etl_file::header_data&         file_header,
+                                  const etl::common_trace_header&                            header,
+                                  const etl::parser::image_id_v2_dbg_id_pdb_info_event_view& event)
             {
+                assert(event.dynamic_size() == event.buffer().size());
+
                 const auto process_id = event.process_id();
                 if(!options.all_processes && process_id != options.process_of_interest) return;
 
-                const auto event_name = "XPerf:ImageIdV2-DbgIdPdbInfo";
-                if(should_ignore(options, event_name)) return;
+                if(should_ignore(options, observer.current_event_name)) return;
 
-                std::cout << std::format("@{} {:30}: pid {} image-base {:#0x} guid {} age {} pdb '{}'\n", header.timestamp, event_name, process_id, event.image_base(), event.guid().instantiate().to_string(), event.age(), event.pdb_file_name());
+                std::cout << std::format("@{} {:30}: pid {} image-base {:#0x} guid {} age {} pdb '{}'\n", header.timestamp, observer.current_event_name, process_id, event.image_base(), event.guid().instantiate().to_string(), event.age(), event.pdb_file_name());
 
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
@@ -661,44 +835,50 @@ int main(int argc, char* argv[])
 
     // Kernel-trace-control (Xperf): system-config-ex
     {
+        register_known_event_names<etl::parser::system_config_ex_v0_build_info_event_view>(observer.known_guid_event_names);
         observer.register_event<etl::parser::system_config_ex_v0_build_info_event_view>(
-            [&options]([[maybe_unused]] const etl::etl_file::header_data&            file_header,
-                       const etl::common_trace_header&                               header,
-                       const etl::parser::system_config_ex_v0_build_info_event_view& event)
+            [&options, &observer]([[maybe_unused]] const etl::etl_file::header_data&            file_header,
+                                  const etl::common_trace_header&                               header,
+                                  const etl::parser::system_config_ex_v0_build_info_event_view& event)
             {
-                if(!options.show_config_ex) return;
-                const auto event_name = "XPerf:SysConfigExV0-BuildInfo";
-                if(should_ignore(options, event_name)) return;
+                assert(event.dynamic_size() == event.buffer().size());
 
-                std::cout << std::format("@{} {:30}: install-date {} build-lab '{}' product-name '{}'\n", header.timestamp, event_name, event.install_date(), utf8::utf16to8(event.build_lab()), utf8::utf16to8(event.product_name()));
+                if(!options.show_config_ex) return;
+                if(should_ignore(options, observer.current_event_name)) return;
+
+                std::cout << std::format("@{} {:30}: install-date {} build-lab '{}' product-name '{}'\n", header.timestamp, observer.current_event_name, event.install_date(), utf8::utf16to8(event.build_lab()), utf8::utf16to8(event.product_name()));
 
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
+        register_known_event_names<etl::parser::system_config_ex_v0_system_paths_event_view>(observer.known_guid_event_names);
         observer.register_event<etl::parser::system_config_ex_v0_system_paths_event_view>(
-            [&options]([[maybe_unused]] const etl::etl_file::header_data&              file_header,
-                       const etl::common_trace_header&                                 header,
-                       const etl::parser::system_config_ex_v0_system_paths_event_view& event)
+            [&options, &observer]([[maybe_unused]] const etl::etl_file::header_data&              file_header,
+                                  const etl::common_trace_header&                                 header,
+                                  const etl::parser::system_config_ex_v0_system_paths_event_view& event)
             {
-                if(!options.show_config_ex) return;
-                const auto event_name = "XPerf:SysConfigExV0-SysPaths";
-                if(should_ignore(options, event_name)) return;
+                assert(event.dynamic_size() == event.buffer().size());
 
-                std::cout << std::format("@{} {:30}: sys-dir '{}' sys-win-dir '{}'\n", header.timestamp, event_name, utf8::utf16to8(event.system_directory()), utf8::utf16to8(event.system_windows_directory()));
+                if(!options.show_config_ex) return;
+                if(should_ignore(options, observer.current_event_name)) return;
+
+                std::cout << std::format("@{} {:30}: sys-dir '{}' sys-win-dir '{}'\n", header.timestamp, observer.current_event_name, utf8::utf16to8(event.system_directory()), utf8::utf16to8(event.system_windows_directory()));
 
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
+        register_known_event_names<etl::parser::system_config_ex_v0_volume_mapping_event_view>(observer.known_guid_event_names);
         observer.register_event<etl::parser::system_config_ex_v0_volume_mapping_event_view>(
-            [&options]([[maybe_unused]] const etl::etl_file::header_data&                file_header,
-                       const etl::common_trace_header&                                   header,
-                       const etl::parser::system_config_ex_v0_volume_mapping_event_view& event)
+            [&options, &observer]([[maybe_unused]] const etl::etl_file::header_data&                file_header,
+                                  const etl::common_trace_header&                                   header,
+                                  const etl::parser::system_config_ex_v0_volume_mapping_event_view& event)
             {
-                if(!options.show_config_ex) return;
-                const auto event_name = "XPerf:SysConfigExV0-VolumeMapping";
-                if(should_ignore(options, event_name)) return;
+                assert(event.dynamic_size() == event.buffer().size());
 
-                std::cout << std::format("@{} {:30}: nt-path '{}' dos-path '{}'\n", header.timestamp, event_name, utf8::utf16to8(event.nt_path()), utf8::utf16to8(event.dos_path()));
+                if(!options.show_config_ex) return;
+                if(should_ignore(options, observer.current_event_name)) return;
+
+                std::cout << std::format("@{} {:30}: nt-path '{}' dos-path '{}'\n", header.timestamp, observer.current_event_name, utf8::utf16to8(event.nt_path()), utf8::utf16to8(event.dos_path()));
 
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
@@ -707,58 +887,66 @@ int main(int argc, char* argv[])
 
     // VS-Diagnostics-Hub
     {
+        register_known_event_names<etl::parser::vs_diagnostics_hub_target_profiling_started_event_view>(observer.known_guid_event_names);
         observer.register_event<etl::parser::vs_diagnostics_hub_target_profiling_started_event_view>(
-            [&options]([[maybe_unused]] const etl::etl_file::header_data&                         file_header,
-                       const etl::common_trace_header&                                            header,
-                       const etl::parser::vs_diagnostics_hub_target_profiling_started_event_view& event)
+            [&options, &observer]([[maybe_unused]] const etl::etl_file::header_data&                         file_header,
+                                  const etl::common_trace_header&                                            header,
+                                  const etl::parser::vs_diagnostics_hub_target_profiling_started_event_view& event)
             {
-                if(!options.show_vs_diag) return;
-                const auto event_name = "VsDiagHub:TargetProfilingStarted";
-                if(should_ignore(options, event_name)) return;
+                assert(event.dynamic_size() == event.buffer().size());
 
-                std::cout << std::format("@{} {:30}: pid {} timestamp {}\n", header.timestamp, event_name, event.process_id(), event.timestamp());
+                if(!options.show_vs_diag) return;
+                if(should_ignore(options, observer.current_event_name)) return;
+
+                std::cout << std::format("@{} {:30}: pid {} timestamp {}\n", header.timestamp, observer.current_event_name, event.process_id(), event.timestamp());
 
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
+        register_known_event_names<etl::parser::vs_diagnostics_hub_target_profiling_stopped_event_view>(observer.known_guid_event_names);
         observer.register_event<etl::parser::vs_diagnostics_hub_target_profiling_stopped_event_view>(
-            [&options]([[maybe_unused]] const etl::etl_file::header_data&                         file_header,
-                       const etl::common_trace_header&                                            header,
-                       const etl::parser::vs_diagnostics_hub_target_profiling_stopped_event_view& event)
+            [&options, &observer]([[maybe_unused]] const etl::etl_file::header_data&                         file_header,
+                                  const etl::common_trace_header&                                            header,
+                                  const etl::parser::vs_diagnostics_hub_target_profiling_stopped_event_view& event)
             {
-                if(!options.show_vs_diag) return;
-                const auto event_name = "VsDiagHub:TargetProfilingStopped";
-                if(should_ignore(options, event_name)) return;
+                assert(event.dynamic_size() == event.buffer().size());
 
-                std::cout << std::format("@{} {:30}: pid {} timestamp {}\n", header.timestamp, event_name, event.process_id(), event.timestamp());
+                if(!options.show_vs_diag) return;
+                if(should_ignore(options, observer.current_event_name)) return;
+
+                std::cout << std::format("@{} {:30}: pid {} timestamp {}\n", header.timestamp, observer.current_event_name, event.process_id(), event.timestamp());
 
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
+        register_known_event_names<etl::parser::vs_diagnostics_hub_machine_info_event_view>(observer.known_guid_event_names);
         observer.register_event<etl::parser::vs_diagnostics_hub_machine_info_event_view>(
-            [&options]([[maybe_unused]] const etl::etl_file::header_data&             file_header,
-                       [[maybe_unused]] const etl::common_trace_header&               header,
-                       const etl::parser::vs_diagnostics_hub_machine_info_event_view& event)
+            [&options, &observer]([[maybe_unused]] const etl::etl_file::header_data&             file_header,
+                                  [[maybe_unused]] const etl::common_trace_header&               header,
+                                  const etl::parser::vs_diagnostics_hub_machine_info_event_view& event)
             {
-                if(!options.show_vs_diag) return;
-                const auto event_name = "VsDiagHub:MachineInfo";
-                if(should_ignore(options, event_name)) return;
+                assert(event.dynamic_size() == event.buffer().size());
 
-                std::cout << std::format("@{} {:30}: architecture {} os '{}' name '{}'\n", header.timestamp, event_name, (int)event.architecture(), utf8::utf16to8(event.os_description()), utf8::utf16to8(event.name()));
+                if(!options.show_vs_diag) return;
+                if(should_ignore(options, observer.current_event_name)) return;
+
+                std::cout << std::format("@{} {:30}: architecture {} os '{}' name '{}'\n", header.timestamp, observer.current_event_name, (int)event.architecture(), utf8::utf16to8(event.os_description()), utf8::utf16to8(event.name()));
 
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
+        register_known_event_names<etl::parser::vs_diagnostics_hub_counter_info_event_view>(observer.known_guid_event_names);
         observer.register_event<etl::parser::vs_diagnostics_hub_counter_info_event_view>(
-            [&options]([[maybe_unused]] const etl::etl_file::header_data&             file_header,
-                       [[maybe_unused]] const etl::common_trace_header&               header,
-                       const etl::parser::vs_diagnostics_hub_counter_info_event_view& event)
+            [&options, &observer]([[maybe_unused]] const etl::etl_file::header_data&             file_header,
+                                  [[maybe_unused]] const etl::common_trace_header&               header,
+                                  const etl::parser::vs_diagnostics_hub_counter_info_event_view& event)
             {
-                if(!options.show_vs_diag) return;
-                const auto event_name = "VsDiagHub:CounterInfo";
-                if(should_ignore(options, event_name)) return;
+                assert(event.dynamic_size() == event.buffer().size());
 
-                std::cout << std::format("@{} {:30}: Count {} timestamp {} value {}\n", header.timestamp, event_name, (int)event.counter(), event.timestamp(), event.value());
+                if(!options.show_vs_diag) return;
+                if(should_ignore(options, observer.current_event_name)) return;
+
+                std::cout << std::format("@{} {:30}: Count {} timestamp {} value {}\n", header.timestamp, observer.current_event_name, (int)event.counter(), event.timestamp(), event.value());
 
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
@@ -769,34 +957,42 @@ int main(int argc, char* argv[])
     file.process(observer);
 
     std::cout << "\n";
-    std::cout << std::format("Number of samples: {}\n", sample_count);
+    std::cout << "Number of samples:\n";
+    std::cout << std::format("  Regular Profile: {}\n", sample_count);
     std::cout << std::format("Number of stacks:  {}\n", stack_count);
 
-    if(options.show_unsupported_summary)
+    if(options.show_events_summary)
     {
         std::cout << "\n";
-        std::cout << "Unsupported events:\n";
-        for(const auto& [key, count] : unprocessed_group_event_counts)
+        std::cout << "Supported Events:\n";
+        std::vector<std::pair<std::string, std::size_t>> event_counts;
+        for(const auto& [key, count] : observer.handled_group_event_counts)
         {
-            if(known_group_event_names.contains(key))
-            {
-                std::cout << std::format("  Unsupported: '{}' | count {}\n", known_group_event_names.at(key), count);
-            }
-            else
-            {
-                std::cout << std::format("  Unknown    : GROUP {} ; type {} ; version {} | count {}\n", group_to_string(key.group), (int)key.type, key.version, count);
-            }
+            event_counts.emplace_back(try_get_known_event_name(key, observer.known_group_event_names), count);
         }
-        for(const auto& [key, count] : unprocessed_guid_event_counts)
+        for(const auto& [key, count] : observer.handled_guid_event_counts)
         {
-            if(known_guid_event_names.contains(key))
-            {
-                std::cout << std::format("  Unsupported: '{}' | count {}\n", known_guid_event_names.at(key), count);
-            }
-            else
-            {
-                std::cout << std::format("  Unknown    : GUID {} ; type {} ; version {} | count {}\n", key.guid.to_string(true), key.type, key.version, count);
-            }
+            event_counts.emplace_back(try_get_known_event_name(key, observer.known_guid_event_names), count);
+        }
+        std::ranges::sort(event_counts);
+        for(const auto& [name, count] : event_counts)
+        {
+            std::cout << std::format("  {:60} : {}\n", name, count);
+        }
+        std::cout << "Unsupported Events:\n";
+        event_counts.clear();
+        for(const auto& [key, count] : observer.unknown_group_event_counts)
+        {
+            event_counts.emplace_back(try_get_known_event_name(key, observer.known_group_event_names), count);
+        }
+        for(const auto& [key, count] : observer.unknown_guid_event_counts)
+        {
+            event_counts.emplace_back(try_get_known_event_name(key, observer.known_guid_event_names), count);
+        }
+        std::ranges::sort(event_counts);
+        for(const auto& [name, count] : event_counts)
+        {
+            std::cout << std::format("  {:60} : {}\n", name, count);
         }
     }
 }
