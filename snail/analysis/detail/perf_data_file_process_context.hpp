@@ -169,9 +169,9 @@ struct perf_data_file_process_context::sample_info
 
     timestamp_t timestamp;
 
-    instruction_pointer_t instruction_pointer;
+    std::optional<instruction_pointer_t> instruction_pointer;
 
-    std::size_t stack_index;
+    std::optional<std::size_t> stack_index;
 };
 
 } // namespace snail::analysis::detail

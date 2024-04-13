@@ -48,62 +48,65 @@ Duration from_relative_qpc_ticks(std::uint64_t ticks, std::uint64_t start, std::
 
 struct etl_sample_data : public sample_data
 {
+    static constexpr detail::etl_file_process_context::os_pid_t kernel_process_id  = 0;
+    static constexpr std::string_view                           unkown_module_name = "[unknown]";
+
+    stack_frame resolve_frame(detail::etl_file_process_context::os_pid_t pid,
+                              std::uint64_t                              instruction_pointer,
+                              std::uint64_t                              timestamp) const
+    {
+        const auto [module, load_timestamp] = context->get_modules(pid).find(instruction_pointer, timestamp);
+
+        const auto& symbol = (module == nullptr) ?
+                                 resolver->make_generic_symbol(instruction_pointer) :
+                                 resolver->resolve_symbol(detail::pdb_resolver::module_info{
+                                                              .image_filename = module->payload.filename,
+                                                              .image_base     = module->base,
+                                                              .checksum       = module->payload.checksum,
+                                                              .pdb_info       = module->payload.pdb_info,
+                                                              .process_id     = pid,
+                                                              .load_timestamp = load_timestamp},
+                                                          instruction_pointer);
+
+        return stack_frame{
+            .symbol_name             = symbol.name,
+            .module_name             = module == nullptr ? unkown_module_name : module->payload.filename,
+            .file_path               = symbol.file_path,
+            .function_line_number    = symbol.function_line_number,
+            .instruction_line_number = symbol.instruction_line_number};
+    }
+
+    bool has_frame() const override
+    {
+        return true;
+    }
+
+    bool has_stack() const override
+    {
+        return user_stack != nullptr || kernel_stack != nullptr;
+    }
+
     common::generator<stack_frame> reversed_stack() const override
     {
-        static const std::string unkown_module_name = "[unknown]";
-
         if(user_stack != nullptr)
         {
             for(const auto instruction_pointer : std::views::reverse(*user_stack))
             {
-                const auto [module, load_timestamp] = context->get_modules(process_id).find(instruction_pointer, user_timestamp);
-
-                const auto& symbol = (module == nullptr) ?
-                                         resolver->make_generic_symbol(instruction_pointer) :
-                                         resolver->resolve_symbol(detail::pdb_resolver::module_info{
-                                                                      .image_filename = module->payload.filename,
-                                                                      .image_base     = module->base,
-                                                                      .checksum       = module->payload.checksum,
-                                                                      .pdb_info       = module->payload.pdb_info,
-                                                                      .process_id     = process_id,
-                                                                      .load_timestamp = load_timestamp},
-                                                                  instruction_pointer);
-
-                co_yield stack_frame{
-                    .symbol_name             = symbol.name,
-                    .module_name             = module == nullptr ? unkown_module_name : module->payload.filename,
-                    .file_path               = symbol.file_path,
-                    .function_line_number    = symbol.function_line_number,
-                    .instruction_line_number = symbol.instruction_line_number};
+                co_yield resolve_frame(process_id, instruction_pointer, user_timestamp);
             }
         }
         if(kernel_stack != nullptr)
         {
-            static constexpr detail::etl_file_process_context::os_pid_t kernel_process_id = 0;
             for(const auto instruction_pointer : std::views::reverse(*kernel_stack))
             {
-                auto [module, load_timestamp] = context->get_modules(kernel_process_id).find(instruction_pointer, kernel_timestamp);
-
-                const auto& symbol = (module == nullptr) ?
-                                         resolver->make_generic_symbol(instruction_pointer) :
-                                         resolver->resolve_symbol(detail::pdb_resolver::module_info{
-                                                                      .image_filename = module->payload.filename,
-                                                                      .image_base     = module->base,
-                                                                      .checksum       = module->payload.checksum,
-                                                                      .pdb_info       = module->payload.pdb_info,
-                                                                      .process_id     = kernel_process_id,
-                                                                      .load_timestamp = load_timestamp,
-                                                                  },
-                                                                  instruction_pointer);
-
-                co_yield stack_frame{
-                    .symbol_name             = symbol.name,
-                    .module_name             = module == nullptr ? unkown_module_name : module->payload.filename,
-                    .file_path               = symbol.file_path,
-                    .function_line_number    = symbol.function_line_number,
-                    .instruction_line_number = symbol.instruction_line_number};
+                co_yield resolve_frame(kernel_process_id, instruction_pointer, kernel_timestamp);
             }
         }
+    }
+
+    stack_frame frame() const override
+    {
+        return resolve_frame(process_id, instruction_pointer_, sample_timestamp);
     }
 
     std::chrono::nanoseconds timestamp() const override
@@ -120,9 +123,12 @@ struct etl_sample_data : public sample_data
     detail::pdb_resolver*                      resolver;
     detail::etl_file_process_context*          context;
 
+    std::uint64_t instruction_pointer_;
+
     detail::etl_file_process_context::timestamp_t sample_timestamp;
-    std::uint64_t                                 session_start_qpc_ticks;
-    std::uint64_t                                 qpc_frequency;
+
+    std::uint64_t session_start_qpc_ticks;
+    std::uint64_t qpc_frequency;
 };
 
 std::string win_architecture_to_str(std::uint16_t arch)
@@ -399,7 +405,8 @@ common::generator<const sample_data&> etl_data_provider::samples(unique_process_
 
             const auto& sample = thread_data.samples[current_sample_index];
 
-            current_sample_data.sample_timestamp = sample.timestamp;
+            current_sample_data.sample_timestamp     = sample.timestamp;
+            current_sample_data.instruction_pointer_ = sample.instruction_pointer;
 
             if(sample.user_mode_stack)
             {

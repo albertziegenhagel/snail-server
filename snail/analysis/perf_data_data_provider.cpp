@@ -39,6 +39,8 @@ detail::perf_data_file_process_context::timestamp_t to_relative_timestamp(std::c
 
 struct perf_data_sample_data : public sample_data
 {
+    static constexpr std::string_view unkown_module_name = "[unknown]";
+
     std::optional<perf_data::build_id> try_get_module_build_id(const detail::perf_data_file_process_context::module_data& module) const
     {
         if(module.build_id) return module.build_id;
@@ -50,9 +52,42 @@ struct perf_data_sample_data : public sample_data
         return iter->second;
     }
 
+    stack_frame resolve_frame(std::uint64_t instruction_pointer) const
+    {
+        const auto [module, load_timestamp] = context->get_modules(process_id).find(instruction_pointer, timestamp_);
+
+        const auto& symbol = (module == nullptr) ?
+                                 resolver->make_generic_symbol(instruction_pointer) :
+                                 resolver->resolve_symbol(detail::dwarf_resolver::module_info{
+                                                              .image_filename = module->payload.filename,
+                                                              .build_id       = try_get_module_build_id(module->payload),
+                                                              .image_base     = module->base,
+                                                              .page_offset    = module->payload.page_offset,
+                                                              .process_id     = process_id,
+                                                              .load_timestamp = load_timestamp},
+                                                          instruction_pointer);
+
+        return stack_frame{
+            .symbol_name             = symbol.name,
+            .module_name             = module == nullptr ? unkown_module_name : module->payload.filename,
+            .file_path               = symbol.file_path,
+            .function_line_number    = symbol.function_line_number,
+            .instruction_line_number = symbol.instruction_line_number};
+    }
+
+    bool has_frame() const override
+    {
+        return instruction_pointer_ != std::nullopt;
+    }
+
+    bool has_stack() const override
+    {
+        return stack != nullptr;
+    }
+
     common::generator<stack_frame> reversed_stack() const override
     {
-        static const std::string unkown_module_name = "[unknown]";
+        if(stack == nullptr) co_return;
 
         for(const auto instruction_pointer : std::views::reverse(*stack))
         {
@@ -62,26 +97,13 @@ struct perf_data_sample_data : public sample_data
                 continue;
             }
 
-            const auto [module, load_timestamp] = context->get_modules(process_id).find(instruction_pointer, timestamp_);
-
-            const auto& symbol = (module == nullptr) ?
-                                     resolver->make_generic_symbol(instruction_pointer) :
-                                     resolver->resolve_symbol(detail::dwarf_resolver::module_info{
-                                                                  .image_filename = module->payload.filename,
-                                                                  .build_id       = try_get_module_build_id(module->payload),
-                                                                  .image_base     = module->base,
-                                                                  .page_offset    = module->payload.page_offset,
-                                                                  .process_id     = process_id,
-                                                                  .load_timestamp = load_timestamp},
-                                                              instruction_pointer);
-
-            co_yield stack_frame{
-                .symbol_name             = symbol.name,
-                .module_name             = module == nullptr ? unkown_module_name : module->payload.filename,
-                .file_path               = symbol.file_path,
-                .function_line_number    = symbol.function_line_number,
-                .instruction_line_number = symbol.instruction_line_number};
+            co_yield resolve_frame(instruction_pointer);
         }
+    }
+
+    stack_frame frame() const override
+    {
+        return resolve_frame(*instruction_pointer_);
     }
 
     std::chrono::nanoseconds timestamp() const override
@@ -95,6 +117,7 @@ struct perf_data_sample_data : public sample_data
     detail::perf_data_file_process_context::os_pid_t                                  process_id;
     const std::vector<detail::perf_data_file_process_context::instruction_pointer_t>* stack;
     detail::perf_data_file_process_context::timestamp_t                               timestamp_;
+    std::optional<std::uint64_t>                                                      instruction_pointer_;
     detail::perf_data_file_process_context::timestamp_t                               session_start_time;
 };
 
@@ -375,8 +398,9 @@ common::generator<const sample_data&> perf_data_data_provider::samples(unique_pr
 
             const auto& sample = thread_data.samples[current_sample_index];
 
-            current_sample_data.stack      = &process_context.stack(sample.stack_index);
-            current_sample_data.timestamp_ = sample.timestamp;
+            current_sample_data.stack                = sample.stack_index ? &process_context.stack(*sample.stack_index) : nullptr;
+            current_sample_data.timestamp_           = sample.timestamp;
+            current_sample_data.instruction_pointer_ = sample.instruction_pointer;
 
             co_yield current_sample_data;
 

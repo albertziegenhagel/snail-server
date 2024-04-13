@@ -255,11 +255,6 @@ void perf_data_file_process_context::handle_event(const perf_data::parser::sampl
     if(event.tid == std::nullopt ||
        event.time == std::nullopt) return;
 
-    assert(event.ip);
-    assert(event.ips);
-
-    const auto stack_index = stacks.insert(*event.ips);
-
     auto& storage = samples_per_thread_id_[*event.tid];
 
     storage.first_sample_time = std::min(storage.first_sample_time, *event.time);
@@ -268,8 +263,8 @@ void perf_data_file_process_context::handle_event(const perf_data::parser::sampl
     storage.samples.push_back(sample_info{
         .thread_id           = *event.tid,
         .timestamp           = *event.time,
-        .instruction_pointer = *event.ip,
-        .stack_index         = stack_index});
+        .instruction_pointer = event.ip,
+        .stack_index         = event.ips ? std::make_optional(stacks.insert(*event.ips)) : std::nullopt});
 }
 
 const std::unordered_map<perf_data_file_process_context::process_key, perf_data_file_process_context::sampled_process_info>& perf_data_file_process_context::sampled_processes() const

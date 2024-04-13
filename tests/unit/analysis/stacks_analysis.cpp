@@ -9,16 +9,34 @@ using namespace snail::analysis;
 
 struct test_sample_data : public sample_data
 {
-    test_sample_data(std::vector<stack_frame> frames) :
+    test_sample_data(std::optional<stack_frame> frame, std::optional<std::vector<stack_frame>> frames) :
+        frame_(std::move(frame)),
         frames_(std::move(frames))
     {}
 
+    bool has_frame() const override
+    {
+        return frame_.has_value();
+    }
+
+    bool has_stack() const override
+    {
+        return frames_.has_value();
+    }
+
     common::generator<stack_frame> reversed_stack() const override
     {
-        for(const auto& frame : frames_)
+        if(!frames_) co_return;
+        for(const auto& frame : *frames_)
         {
             co_yield stack_frame{frame};
         }
+    }
+
+    stack_frame frame() const override
+    {
+        if(!frame_) throw std::runtime_error("sample has no regular frame");
+        return *frame_;
     }
 
     std::chrono::nanoseconds timestamp() const override
@@ -26,7 +44,8 @@ struct test_sample_data : public sample_data
         return std::chrono::nanoseconds(0); // not used in this test
     }
 
-    std::vector<stack_frame> frames_;
+    std::optional<stack_frame>              frame_;
+    std::optional<std::vector<stack_frame>> frames_;
 };
 
 class test_samples_provider : public samples_provider
@@ -74,41 +93,44 @@ TEST(Analysis, SampleStacksFullInfo)
     samples_provider.expected_process_id_ = process_id;
     samples_provider.samples_             = {
         test_sample_data(
-            {stack_frame{
-                             .symbol_name             = function_a_name,
-                             .module_name             = module_a_name,
-                             .file_path               = file_a_path,
-                             .function_line_number    = 10,
-                             .instruction_line_number = 15},
-              stack_frame{
-                             .symbol_name             = function_b_name,
-                             .module_name             = module_b_name,
-                             .file_path               = file_b_path,
-                             .function_line_number    = 100,
-                             .instruction_line_number = 100}}
+            std::nullopt,
+            std::vector{stack_frame{
+                                        .symbol_name             = function_a_name,
+                                        .module_name             = module_a_name,
+                                        .file_path               = file_a_path,
+                                        .function_line_number    = 10,
+                                        .instruction_line_number = 15},
+                        stack_frame{
+                                        .symbol_name             = function_b_name,
+                                        .module_name             = module_b_name,
+                                        .file_path               = file_b_path,
+                                        .function_line_number    = 100,
+                                        .instruction_line_number = 100}}
             ),
         test_sample_data(
-            {stack_frame{
-                             .symbol_name             = function_a_name,
-                             .module_name             = module_a_name,
-                             .file_path               = file_a_path,
-                             .function_line_number    = 10,
-                             .instruction_line_number = 15},
-              stack_frame{
-                             .symbol_name             = function_c_name,
-                             .module_name             = module_a_name,
-                             .file_path               = file_a_path,
-                             .function_line_number    = 50,
-                             .instruction_line_number = 60},
-              stack_frame{
-                             .symbol_name             = function_b_name,
-                             .module_name             = module_b_name,
-                             .file_path               = file_b_path,
-                             .function_line_number    = 100,
-                             .instruction_line_number = 110}}
+            std::nullopt,
+            std::vector{stack_frame{
+                                        .symbol_name             = function_a_name,
+                                        .module_name             = module_a_name,
+                                        .file_path               = file_a_path,
+                                        .function_line_number    = 10,
+                                        .instruction_line_number = 15},
+                        stack_frame{
+                                        .symbol_name             = function_c_name,
+                                        .module_name             = module_a_name,
+                                        .file_path               = file_a_path,
+                                        .function_line_number    = 50,
+                                        .instruction_line_number = 60},
+                        stack_frame{
+                                        .symbol_name             = function_b_name,
+                                        .module_name             = module_b_name,
+                                        .file_path               = file_b_path,
+                                        .function_line_number    = 100,
+                                        .instruction_line_number = 110}}
             ),
         test_sample_data(
-            {}
+            std::nullopt,
+            std::vector<stack_frame>{}
             )
     };
 
@@ -307,32 +329,34 @@ TEST(Analysis, SampleStacksMissingFile)
     samples_provider.expected_process_id_ = process_id;
     samples_provider.samples_             = {
         test_sample_data(
-            {stack_frame{
-                             .symbol_name             = function_a_name,
-                             .module_name             = module_a_name,
-                             .file_path               = file_a_path,
-                             .function_line_number    = 10,
-                             .instruction_line_number = 15},
-              stack_frame{
-                             .symbol_name             = function_b_name,
-                             .module_name             = module_a_name,
-                             .file_path               = {},
-                             .function_line_number    = {},
-                             .instruction_line_number = {}}}
+            std::nullopt,
+            std::vector{stack_frame{
+                                        .symbol_name             = function_a_name,
+                                        .module_name             = module_a_name,
+                                        .file_path               = file_a_path,
+                                        .function_line_number    = 10,
+                                        .instruction_line_number = 15},
+                        stack_frame{
+                                        .symbol_name             = function_b_name,
+                                        .module_name             = module_a_name,
+                                        .file_path               = {},
+                                        .function_line_number    = {},
+                                        .instruction_line_number = {}}}
             ),
         test_sample_data(
-            {stack_frame{
-                             .symbol_name             = function_c_name,
-                             .module_name             = module_a_name,
-                             .file_path               = {},
-                             .function_line_number    = {},
-                             .instruction_line_number = {}},
-              stack_frame{
-                             .symbol_name             = function_d_name,
-                             .module_name             = module_a_name,
-                             .file_path               = file_a_path,
-                             .function_line_number    = 50,
-                             .instruction_line_number = 60}}
+            std::nullopt,
+            std::vector{stack_frame{
+                                        .symbol_name             = function_c_name,
+                                        .module_name             = module_a_name,
+                                        .file_path               = {},
+                                        .function_line_number    = {},
+                                        .instruction_line_number = {}},
+                        stack_frame{
+                                        .symbol_name             = function_d_name,
+                                        .module_name             = module_a_name,
+                                        .file_path               = file_a_path,
+                                        .function_line_number    = 50,
+                                        .instruction_line_number = 60}}
             )
     };
 
@@ -514,4 +538,191 @@ TEST(Analysis, SampleStacksMissingFile)
     EXPECT_EQ(call_tree_node_c_d.function_id, func_d_iter->id);
     EXPECT_EQ(call_tree_node_c_d.hits, (hit_counts{.total = 1, .self = 1}));
     EXPECT_EQ(call_tree_node_c_d.children.size(), 0);
+}
+
+TEST(Analysis, SampleNoStacks)
+{
+    const auto process_id = unique_process_id{.key = 123};
+
+    const std::string function_a_name = "func_a";
+    const std::string function_b_name = "func_b";
+    const std::string function_c_name = "func_c";
+
+    const std::string module_a_name = "mod_a.so";
+    const std::string module_b_name = "mod_b.dll";
+
+    const std::string file_a_path = "/home/path/to/file/a.cpp";
+    const std::string file_b_path = "C:/path/to/file/b.h";
+
+    test_samples_provider samples_provider;
+    samples_provider.expected_process_id_ = process_id;
+    samples_provider.samples_             = {
+        test_sample_data(
+            stack_frame{
+                            .symbol_name             = function_a_name,
+                            .module_name             = module_a_name,
+                            .file_path               = file_a_path,
+                            .function_line_number    = 10,
+                            .instruction_line_number = 15},
+            std::nullopt),
+        test_sample_data(
+            stack_frame{
+                            .symbol_name             = function_b_name,
+                            .module_name             = module_b_name,
+                            .file_path               = file_b_path,
+                            .function_line_number    = 100,
+                            .instruction_line_number = 100},
+            std::nullopt),
+        test_sample_data(
+            stack_frame{
+                            .symbol_name             = function_c_name,
+                            .module_name             = module_a_name,
+                            .file_path               = file_a_path,
+                            .function_line_number    = 50,
+                            .instruction_line_number = 60},
+            std::nullopt),
+        test_sample_data(
+            stack_frame{
+                            .symbol_name             = function_a_name,
+                            .module_name             = module_a_name,
+                            .file_path               = file_a_path,
+                            .function_line_number    = 10,
+                            .instruction_line_number = 12},
+            std::nullopt),
+        test_sample_data(
+            std::nullopt,
+            std::nullopt)};
+
+    const auto analysis_result = analyze_stacks(samples_provider, process_id);
+
+    EXPECT_EQ(analysis_result.process_id, process_id);
+
+    // Check that all functions are present
+    EXPECT_EQ(analysis_result.all_functions().size(), 3);
+    const auto func_a_iter = std::ranges::find_if(analysis_result.all_functions(), [&function_a_name](const function_info& func)
+                                                  { return func.name == function_a_name; });
+    EXPECT_NE(func_a_iter, analysis_result.all_functions().end());
+
+    const auto func_b_iter = std::ranges::find_if(analysis_result.all_functions(), [&function_b_name](const function_info& func)
+                                                  { return func.name == function_b_name; });
+    EXPECT_NE(func_b_iter, analysis_result.all_functions().end());
+
+    const auto func_c_iter = std::ranges::find_if(analysis_result.all_functions(), [&function_c_name](const function_info& func)
+                                                  { return func.name == function_c_name; });
+    EXPECT_NE(func_c_iter, analysis_result.all_functions().end());
+
+    // Check that all modules are present
+    EXPECT_EQ(analysis_result.all_modules().size(), 2);
+    const auto mod_a_iter = std::ranges::find_if(analysis_result.all_modules(), [&module_a_name](const module_info& mod)
+                                                 { return mod.name == module_a_name; });
+    EXPECT_NE(mod_a_iter, analysis_result.all_modules().end());
+    const auto mod_b_iter = std::ranges::find_if(analysis_result.all_modules(), [&module_b_name](const module_info& mod)
+                                                 { return mod.name == module_b_name; });
+    EXPECT_NE(mod_b_iter, analysis_result.all_modules().end());
+
+    // Check that all files are present
+    EXPECT_EQ(analysis_result.all_files().size(), 2);
+    const auto file_a_iter = std::ranges::find_if(analysis_result.all_files(), [&file_a_path](const file_info& file)
+                                                  { return file.path == file_a_path; });
+    EXPECT_NE(file_a_iter, analysis_result.all_files().end());
+    const auto file_b_iter = std::ranges::find_if(analysis_result.all_files(), [&file_b_path](const file_info& file)
+                                                  { return file.path == file_b_path; });
+    EXPECT_NE(file_b_iter, analysis_result.all_files().end());
+
+    // Check function root
+    const auto& function_root = analysis_result.get_function_root();
+    EXPECT_EQ(function_root.name, "root");
+
+    // Check function ids
+    EXPECT_EQ(&analysis_result.get_function(function_root.id), &function_root);
+    EXPECT_EQ(&analysis_result.get_function(func_a_iter->id), &*func_a_iter);
+    EXPECT_EQ(&analysis_result.get_function(func_b_iter->id), &*func_b_iter);
+    EXPECT_EQ(&analysis_result.get_function(func_c_iter->id), &*func_c_iter);
+
+    // Check module ids
+    EXPECT_EQ(&analysis_result.get_module(mod_a_iter->id), &*mod_a_iter);
+    EXPECT_EQ(&analysis_result.get_module(mod_b_iter->id), &*mod_b_iter);
+
+    // Check file ids
+    EXPECT_EQ(&analysis_result.get_file(file_a_iter->id), &*file_a_iter);
+    EXPECT_EQ(&analysis_result.get_file(file_b_iter->id), &*file_b_iter);
+
+    // Check function hits
+    EXPECT_EQ(function_root.hits.total, 0);
+    EXPECT_EQ(function_root.hits.self, 0);
+    EXPECT_EQ(func_a_iter->hits.total, 2);
+    EXPECT_EQ(func_a_iter->hits.self, 2);
+    EXPECT_EQ(func_b_iter->hits.total, 1);
+    EXPECT_EQ(func_b_iter->hits.self, 1);
+    EXPECT_EQ(func_c_iter->hits.total, 1);
+    EXPECT_EQ(func_c_iter->hits.self, 1);
+
+    // Check module hits
+    EXPECT_EQ(mod_a_iter->hits.total, 3);
+    EXPECT_EQ(mod_a_iter->hits.self, 3);
+    EXPECT_EQ(mod_b_iter->hits.total, 1);
+    EXPECT_EQ(mod_b_iter->hits.self, 1);
+
+    // Check file hits
+    EXPECT_EQ(file_a_iter->hits.total, 3);
+    EXPECT_EQ(file_a_iter->hits.self, 3);
+    EXPECT_EQ(file_b_iter->hits.total, 1);
+    EXPECT_EQ(file_b_iter->hits.self, 1);
+
+    // Check function file associations
+    EXPECT_EQ(func_a_iter->file_id, file_a_iter->id);
+    EXPECT_EQ(func_b_iter->file_id, file_b_iter->id);
+    EXPECT_EQ(func_c_iter->file_id, file_a_iter->id);
+
+    // Check function module associations
+    EXPECT_EQ(func_a_iter->module_id, mod_a_iter->id);
+    EXPECT_EQ(func_b_iter->module_id, mod_b_iter->id);
+    EXPECT_EQ(func_c_iter->module_id, mod_a_iter->id);
+
+    // Check function line numbers
+    EXPECT_EQ(func_a_iter->line_number, 10);
+    EXPECT_EQ(func_b_iter->line_number, 100);
+    EXPECT_EQ(func_c_iter->line_number, 50);
+
+    // Check function line hits
+    EXPECT_EQ(func_a_iter->hits_by_line,
+              (line_hits_map{
+                  {12, {.total = 1, .self = 1}},
+                  {15, {.total = 1, .self = 1}},
+    }));
+    EXPECT_EQ(func_b_iter->hits_by_line,
+              (line_hits_map{
+                  {100, {.total = 1, .self = 1}},
+    }));
+    EXPECT_EQ(func_c_iter->hits_by_line,
+              (line_hits_map{
+                  {60, {.total = 1, .self = 1}}
+    }));
+
+    // Check function callers
+    EXPECT_EQ(function_root.callers,
+              (caller_map{}));
+    EXPECT_EQ(func_a_iter->callers,
+              (caller_map{}));
+    EXPECT_EQ(func_b_iter->callers,
+              (caller_map{}));
+    EXPECT_EQ(func_c_iter->callers,
+              (caller_map{}));
+
+    // Check function callees
+    EXPECT_EQ(function_root.callees,
+              (caller_map{}));
+    EXPECT_EQ(func_a_iter->callees,
+              (caller_map{}));
+    EXPECT_EQ(func_b_iter->callees,
+              (caller_map{}));
+    EXPECT_EQ(func_c_iter->callees,
+              (caller_map{}));
+
+    // check call tree
+    const auto& call_tree_root = analysis_result.get_call_tree_root();
+    EXPECT_EQ(&analysis_result.get_call_tree_node(call_tree_root.id), &call_tree_root);
+    EXPECT_EQ(call_tree_root.function_id, function_root.id);
+    EXPECT_EQ(call_tree_root.hits, (hit_counts{.total = 0, .self = 0}));
+    EXPECT_EQ(call_tree_root.children.size(), 0);
 }

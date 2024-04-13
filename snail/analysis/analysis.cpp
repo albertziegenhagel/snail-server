@@ -206,39 +206,98 @@ stacks_analysis snail::analysis::analyze_stacks(const samples_provider& provider
 
     for(const auto& sample : provider.samples(process_id, filter))
     {
-        ++result.call_tree_root.hits.total;
-        ++result.function_root.hits.total;
-
-        std::optional<module_info::id_t>   previous_node_id;
-        std::optional<module_info::id_t>   previous_module_id;
-        std::optional<function_info::id_t> previous_function_id;
-        std::optional<file_info::id_t>     previous_file_id;
-        std::optional<std::size_t>         previous_line_number;
-
-        for(const auto stack_frame : sample.reversed_stack())
+        if(sample.has_stack())
         {
+            ++result.call_tree_root.hits.total;
+            ++result.function_root.hits.total;
+
+            std::optional<module_info::id_t>   previous_node_id;
+            std::optional<module_info::id_t>   previous_module_id;
+            std::optional<function_info::id_t> previous_function_id;
+            std::optional<file_info::id_t>     previous_file_id;
+            std::optional<std::size_t>         previous_line_number;
+
+            for(const auto stack_frame : sample.reversed_stack())
+            {
+                auto&       module   = get_or_create_module(result.modules, modules_by_name, stack_frame.module_name);
+                auto&       function = get_or_create_function(result.functions, functions_by_name, module, stack_frame.symbol_name);
+                auto&       node     = get_or_append_call_tree_child(result.call_tree_nodes, previous_node_id ? result.call_tree_nodes[*previous_node_id] : result.call_tree_root, function);
+                auto* const file     = stack_frame.file_path.empty() ? nullptr : &get_or_create_file(result.files, files_by_path, stack_frame.file_path);
+
+                ++module.hits.total;
+                ++function.hits.total;
+                ++node.hits.total;
+                if(file != nullptr) ++file->hits.total;
+
+                if(previous_function_id)
+                {
+                    auto& previous_function = result.functions[*previous_function_id];
+                    ++previous_function.callees[function.id].total;
+                    ++function.callers[previous_function.id].total;
+                }
+                else
+                {
+                    auto& previous_function = result.function_root;
+                    ++previous_function.callees[function.id].total;
+                    ++function.callers[previous_function.id].total;
+                }
+
+                if(file != nullptr)
+                {
+                    assert(function.file_id == std::nullopt || *function.file_id == file->id);
+                    if(function.file_id == std::nullopt)
+                    {
+                        function.file_id = file->id;
+                    }
+                    assert(function.line_number == std::nullopt || *function.line_number == stack_frame.function_line_number);
+                    if(function.line_number == std::nullopt)
+                    {
+                        function.line_number = stack_frame.function_line_number;
+                    }
+                    ++function.hits_by_line[stack_frame.instruction_line_number].total;
+                }
+
+                previous_module_id   = module.id;
+                previous_function_id = function.id;
+                previous_node_id     = node.id;
+                previous_file_id     = file == nullptr ? std::nullopt : std::optional(file->id);
+                previous_line_number = stack_frame.instruction_line_number;
+            }
+
+            // final elements at the top of the stack have self hits
+            if(previous_module_id) ++result.modules[*previous_module_id].hits.self;
+            if(previous_node_id) ++result.call_tree_nodes[*previous_node_id].hits.self;
+            else ++result.call_tree_root.hits.self;
+            if(previous_file_id) ++result.files[*previous_file_id].hits.self;
+            if(previous_function_id)
+            {
+                ++result.functions[*previous_function_id].hits.self;
+                if(previous_file_id && previous_line_number)
+                {
+                    assert(*previous_file_id == result.functions[*previous_function_id].file_id);
+                    ++result.functions[*previous_function_id].hits_by_line[*previous_line_number].self;
+                }
+            }
+            else
+            {
+                ++result.function_root.hits.self;
+            }
+        }
+        else if(sample.has_frame())
+        {
+            const auto stack_frame = sample.frame();
+
             auto&       module   = get_or_create_module(result.modules, modules_by_name, stack_frame.module_name);
             auto&       function = get_or_create_function(result.functions, functions_by_name, module, stack_frame.symbol_name);
-            auto&       node     = get_or_append_call_tree_child(result.call_tree_nodes, previous_node_id ? result.call_tree_nodes[*previous_node_id] : result.call_tree_root, function);
             auto* const file     = stack_frame.file_path.empty() ? nullptr : &get_or_create_file(result.files, files_by_path, stack_frame.file_path);
 
             ++module.hits.total;
             ++function.hits.total;
-            ++node.hits.total;
             if(file != nullptr) ++file->hits.total;
 
-            if(previous_function_id)
-            {
-                auto& previous_function = result.functions[*previous_function_id];
-                ++previous_function.callees[function.id].total;
-                ++function.callers[previous_function.id].total;
-            }
-            else
-            {
-                auto& previous_function = result.function_root;
-                ++previous_function.callees[function.id].total;
-                ++function.callers[previous_function.id].total;
-            }
+            ++module.hits.self;
+            ++function.hits.self;
+            if(file != nullptr) ++file->hits.self;
 
             if(file != nullptr)
             {
@@ -253,32 +312,8 @@ stacks_analysis snail::analysis::analyze_stacks(const samples_provider& provider
                     function.line_number = stack_frame.function_line_number;
                 }
                 ++function.hits_by_line[stack_frame.instruction_line_number].total;
+                ++function.hits_by_line[stack_frame.instruction_line_number].self;
             }
-
-            previous_module_id   = module.id;
-            previous_function_id = function.id;
-            previous_node_id     = node.id;
-            previous_file_id     = file == nullptr ? std::nullopt : std::optional(file->id);
-            previous_line_number = stack_frame.instruction_line_number;
-        }
-
-        // final elements at the top of the stack have self hits
-        if(previous_module_id) ++result.modules[*previous_module_id].hits.self;
-        if(previous_node_id) ++result.call_tree_nodes[*previous_node_id].hits.self;
-        else ++result.call_tree_root.hits.self;
-        if(previous_file_id) ++result.files[*previous_file_id].hits.self;
-        if(previous_function_id)
-        {
-            ++result.functions[*previous_function_id].hits.self;
-            if(previous_file_id && previous_line_number)
-            {
-                assert(*previous_file_id == result.functions[*previous_function_id].file_id);
-                ++result.functions[*previous_function_id].hits_by_line[*previous_line_number].self;
-            }
-        }
-        else
-        {
-            ++result.function_root.hits.self;
         }
     }
 
