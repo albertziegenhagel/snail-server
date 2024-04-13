@@ -56,36 +56,6 @@ auto make_header_variant(const T& trace_header)
     return any_guid_trace_header{trace_header};
 }
 
-template<typename HeaderType, typename HandlersType, typename UnknownHandlersType>
-void handle_impl(const etl_file::header_data& file_header,
-                 const HeaderType&            trace_header,
-                 std::span<const std::byte>   user_data,
-                 const HandlersType&          handlers,
-                 const UnknownHandlersType&   unknown_handlers)
-{
-    const auto key = make_key(trace_header);
-
-    auto iter = handlers.find(key);
-    if(iter == handlers.end())
-    {
-        if(!unknown_handlers.empty())
-        {
-            const auto trace_header_variant = make_header_variant(trace_header);
-            for(const auto& handler : unknown_handlers)
-            {
-                handler(file_header, trace_header_variant, user_data);
-            }
-        }
-        return;
-    }
-
-    const auto trace_header_variant = make_header_variant(trace_header);
-    for(const auto& handler : iter->second)
-    {
-        handler(file_header, trace_header_variant, user_data);
-    }
-}
-
 } // namespace
 
 common_trace_header snail::etl::make_common_trace_header(const any_group_trace_header& trace_header_variant)
@@ -122,6 +92,38 @@ common_trace_header snail::etl::make_common_trace_header(const any_guid_trace_he
             }
         },
         trace_header_variant);
+}
+
+template<typename HeaderType, typename HandlersType, typename UnknownHandlersType>
+void dispatching_event_observer::handle_impl(const etl_file::header_data& file_header,
+                                             const HeaderType&            trace_header,
+                                             std::span<const std::byte>   user_data,
+                                             const HandlersType&          handlers,
+                                             const UnknownHandlersType&   unknown_handlers)
+{
+    const auto key = make_key(trace_header);
+
+    auto iter = handlers.find(key);
+    if(iter == handlers.end())
+    {
+        if(!unknown_handlers.empty())
+        {
+            const auto trace_header_variant = make_header_variant(trace_header);
+            pre_handle(file_header, key, trace_header_variant, user_data, false);
+            for(const auto& handler : unknown_handlers)
+            {
+                handler(file_header, trace_header_variant, user_data);
+            }
+        }
+        return;
+    }
+
+    const auto trace_header_variant = make_header_variant(trace_header);
+    pre_handle(file_header, key, trace_header_variant, user_data, true);
+    for(const auto& handler : iter->second)
+    {
+        handler(file_header, trace_header_variant, user_data);
+    }
 }
 
 void dispatching_event_observer::handle(const etl_file::header_data&            file_header,
