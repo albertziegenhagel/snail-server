@@ -437,8 +437,9 @@ int main(int argc, char* argv[])
 
     counting_event_observer observer;
 
-    std::size_t sample_count = 0;
-    std::size_t stack_count  = 0;
+    std::size_t                                    sample_count = 0;
+    std::unordered_map<std::uint16_t, std::size_t> pmc_sample_count;
+    std::size_t                                    stack_count = 0;
 
     std::unordered_map<std::uint32_t, std::uint32_t> thread_to_process;
 
@@ -683,6 +684,77 @@ int main(int argc, char* argv[])
                 if(should_ignore(options, observer.current_event_name)) return;
 
                 std::cout << std::format("@{} {:30}: thread {} count {} ip {:#018x}\n", header.timestamp, observer.current_event_name, event.thread_id(), event.count(), event.instruction_pointer());
+
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
+            });
+        register_known_event_names<etl::parser::perfinfo_v2_pmc_counter_profile_event_view>(observer.known_group_event_names);
+        observer.register_event<etl::parser::perfinfo_v2_pmc_counter_profile_event_view>(
+            [&options, &observer, &pmc_sample_count, &thread_to_process]([[maybe_unused]] const etl::etl_file::header_data&             file_header,
+                                                                         [[maybe_unused]] const etl::common_trace_header&               header,
+                                                                         const etl::parser::perfinfo_v2_pmc_counter_profile_event_view& event)
+            {
+                assert(event.dynamic_size() == event.buffer().size());
+
+                auto process_id = thread_to_process.find(event.thread_id());
+                if(!options.all_processes && (process_id != thread_to_process.end() && process_id->second != options.process_of_interest)) return;
+
+                auto iter = pmc_sample_count.find(event.profile_source());
+                if(iter == pmc_sample_count.end())
+                {
+                    pmc_sample_count[event.profile_source()] = 1;
+                }
+                else
+                {
+                    ++iter->second;
+                }
+
+                if(!options.show_samples) return;
+
+                if(should_ignore(options, observer.current_event_name)) return;
+
+                std::cout << std::format("@{} {:30}: thread {} source {} ip {:#018x}\n", header.timestamp, observer.current_event_name, event.thread_id(), event.profile_source(), event.instruction_pointer());
+
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
+            });
+        register_known_event_names<etl::parser::perfinfo_v3_sampled_profile_interval_event_view>(observer.known_group_event_names);
+        observer.register_event<etl::parser::perfinfo_v3_sampled_profile_interval_event_view>(
+            [&options, &observer]([[maybe_unused]] const etl::etl_file::header_data&                  file_header,
+                                  [[maybe_unused]] const etl::common_trace_header&                    header,
+                                  const etl::parser::perfinfo_v3_sampled_profile_interval_event_view& event)
+            {
+                assert(event.dynamic_size() == event.buffer().size());
+
+                if(!options.show_perfinfo) return;
+
+                if(should_ignore(options, observer.current_event_name)) return;
+
+                std::cout << std::format("@{} {:30}: source {} new-interval {} old-interval {} source-name '{}'\n", header.timestamp, observer.current_event_name, event.source(), event.new_interval(), event.old_interval(), utf8::utf16to8(event.source_name()));
+
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
+            });
+        register_known_event_names<etl::parser::perfinfo_v2_pmc_counter_config_event_view>(observer.known_group_event_names);
+        observer.register_event<etl::parser::perfinfo_v2_pmc_counter_config_event_view>(
+            [&options, &observer]([[maybe_unused]] const etl::etl_file::header_data&            file_header,
+                                  [[maybe_unused]] const etl::common_trace_header&              header,
+                                  const etl::parser::perfinfo_v2_pmc_counter_config_event_view& event)
+            {
+                assert(event.dynamic_size() == event.buffer().size());
+
+                if(!options.show_perfinfo) return;
+
+                if(should_ignore(options, observer.current_event_name)) return;
+
+                std::string names;
+                for(std::uint32_t i = 0; i < event.counter_count(); ++i)
+                {
+                    if(i > 0) names.push_back(',');
+                    names += std::format("'{}'", utf8::utf16to8(event.counter_name(i)));
+                }
+
+                std::cout << std::format("@{} {:30}: count {} names {}\n", header.timestamp, observer.current_event_name, event.counter_count(), names);
 
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
@@ -959,6 +1031,10 @@ int main(int argc, char* argv[])
     std::cout << "\n";
     std::cout << "Number of samples:\n";
     std::cout << std::format("  Regular Profile: {}\n", sample_count);
+    for(const auto& [source, count] : pmc_sample_count)
+    {
+        std::cout << std::format("  PMC profile {}: {}\n", source, count);
+    }
     std::cout << std::format("Number of stacks:  {}\n", stack_count);
 
     if(options.show_events_summary)

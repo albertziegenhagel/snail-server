@@ -285,6 +285,38 @@ TEST(EtlParser, Kernel_PerfinfoV2SampledProfileEventView)
     EXPECT_EQ(event.reserved(), 72);
 }
 
+TEST(EtlParser, Kernel_PerfinfoV2PmcCounterProfileEventView)
+{
+    const std::array<std::uint8_t, 16> buffer = {
+        0xc9, 0x0e, 0xac, 0x8c, 0xfc, 0x7f, 0x00, 0x00, 0x94, 0x0f, 0x00, 0x00, 0x1d, 0x00, 0x00, 0x00};
+
+    const auto event = etl::parser::perfinfo_v2_pmc_counter_profile_event_view(std::as_bytes(std::span(buffer)), 8);
+
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
+
+    EXPECT_EQ(event.instruction_pointer(), 0x7ffc'8cac'0ec9);
+    EXPECT_EQ(event.thread_id(), 3988);
+    EXPECT_EQ(event.profile_source(), 29);
+}
+
+TEST(EtlParser, Kernel_PerfinfoV2PmcCounterConfigEventView)
+{
+    const std::array<std::uint8_t, 68> buffer = {
+        0x02, 0x00, 0x00, 0x00, 0x42, 0x00, 0x72, 0x00, 0x61, 0x00, 0x6e, 0x00, 0x63, 0x00, 0x68, 0x00,
+        0x49, 0x00, 0x6e, 0x00, 0x73, 0x00, 0x74, 0x00, 0x72, 0x00, 0x75, 0x00, 0x63, 0x00, 0x74, 0x00,
+        0x69, 0x00, 0x6f, 0x00, 0x6e, 0x00, 0x73, 0x00, 0x00, 0x00, 0x4c, 0x00, 0x4c, 0x00, 0x43, 0x00,
+        0x52, 0x00, 0x65, 0x00, 0x66, 0x00, 0x65, 0x00, 0x72, 0x00, 0x65, 0x00, 0x6e, 0x00, 0x63, 0x00,
+        0x65, 0x00, 0x00, 0x00};
+
+    const auto event = etl::parser::perfinfo_v2_pmc_counter_config_event_view(std::as_bytes(std::span(buffer)), 8);
+
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
+
+    EXPECT_EQ(event.counter_count(), 2);
+    EXPECT_EQ(event.counter_name(0), std::u16string(u"BranchInstructions"));
+    EXPECT_EQ(event.counter_name(1), std::u16string(u"LLCReference"));
+}
+
 TEST(EtlParser, Kernel_PerfinfoV2SampledProfileIntervalEventView)
 {
     const std::array<std::uint8_t, 24> buffer = {
