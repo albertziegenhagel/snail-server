@@ -20,7 +20,7 @@ struct guid
 
     std::string to_string(bool insert_hyphen = false) const;
 
-    [[nodiscard]] friend bool operator==(const guid& lhs, const guid& rhs) noexcept
+    [[nodiscard]] constexpr friend bool operator==(const guid& lhs, const guid& rhs) noexcept
     {
         return lhs.data_1 == rhs.data_1 &&
                lhs.data_2 == rhs.data_2 &&
