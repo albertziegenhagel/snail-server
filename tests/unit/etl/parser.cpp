@@ -87,6 +87,51 @@ TEST(EtlParser, PerfInfoTraceHeader)
     EXPECT_EQ(trace_header.packet().size(), 32);
     EXPECT_EQ(trace_header.packet().type(), 46);
     EXPECT_EQ(trace_header.packet().group(), etl::parser::event_trace_group::perfinfo);
+    EXPECT_FALSE(trace_header.has_ext_pebs());
+    EXPECT_EQ(trace_header.ext_pmc_count(), 0);
+}
+
+TEST(EtlParser, PerfInfoTraceHeaderExtPmc)
+{
+    const std::array<std::uint8_t, 32> buffer = {
+        0x04, 0x02, 0x11, 0xc0, 0x38, 0x00, 0x24, 0x05, 0xff, 0x2e, 0xfc, 0xcd, 0x61, 0x01, 0x00, 0x00,
+        0x38, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xb8, 0x24, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+    const auto trace_header = etl::parser::perfinfo_trace_header_view(std::as_bytes(std::span(buffer)));
+
+    EXPECT_EQ(trace_header.version(), 4);
+    EXPECT_EQ(trace_header.header_type(), etl::parser::trace_header_type::perfinfo64);
+    EXPECT_EQ(trace_header.header_flags(), etl::parser::generic_trace_marker::trace_header_flag | etl::parser::generic_trace_marker::trace_header_event_trace_flag);
+    EXPECT_EQ(trace_header.packet().size(), 56);
+    EXPECT_EQ(trace_header.packet().type(), 36);
+    EXPECT_EQ(trace_header.packet().group(), etl::parser::event_trace_group::thread);
+    EXPECT_FALSE(trace_header.has_ext_pebs());
+    EXPECT_EQ(trace_header.ext_pmc_count(), 2);
+    EXPECT_EQ(trace_header.ext_pmc(0), 3896);
+    EXPECT_EQ(trace_header.ext_pmc(1), 9400);
+}
+
+TEST(EtlParser, PerfInfoTraceHeaderExtPebsExtPmc)
+{
+    // NOTE: This has been created artificially and is not a buffer taken from an actual ETL file.
+    const std::array<std::uint8_t, 40> buffer = {
+        0x04, 0x82, 0x11, 0xc0, 0x38, 0x00, 0x24, 0x05, 0xff, 0x2e, 0xfc, 0xcd, 0x61, 0x01, 0x00, 0x00,
+        0x59, 0x45, 0xc9, 0x4f, 0xf7, 0x7f, 0x00, 0x00,
+        0x38, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xb8, 0x24, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+    const auto trace_header = etl::parser::perfinfo_trace_header_view(std::as_bytes(std::span(buffer)));
+
+    EXPECT_EQ(trace_header.version(), 4);
+    EXPECT_EQ(trace_header.header_type(), etl::parser::trace_header_type::perfinfo64);
+    EXPECT_EQ(trace_header.header_flags(), etl::parser::generic_trace_marker::trace_header_flag | etl::parser::generic_trace_marker::trace_header_event_trace_flag);
+    EXPECT_EQ(trace_header.packet().size(), 56);
+    EXPECT_EQ(trace_header.packet().type(), 36);
+    EXPECT_EQ(trace_header.packet().group(), etl::parser::event_trace_group::thread);
+    EXPECT_TRUE(trace_header.has_ext_pebs());
+    EXPECT_EQ(trace_header.ext_pebs(), 0x0000'7ff7'4fc9'4559);
+    EXPECT_EQ(trace_header.ext_pmc_count(), 2);
+    EXPECT_EQ(trace_header.ext_pmc(0), 3896);
+    EXPECT_EQ(trace_header.ext_pmc(1), 9400);
 }
 
 TEST(EtlParser, FullHeaderTraceHeader)

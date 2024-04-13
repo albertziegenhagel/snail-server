@@ -66,7 +66,7 @@ common_trace_header snail::etl::make_common_trace_header(const any_group_trace_h
             return common_trace_header{
                 .type      = trace_header.packet().type(),
                 .timestamp = trace_header.system_time(),
-                .buffer    = trace_header.buffer().subspan(0, trace_header.static_size)};
+                .buffer    = trace_header.buffer()};
         },
         trace_header_variant);
 }
@@ -81,14 +81,14 @@ common_trace_header snail::etl::make_common_trace_header(const any_guid_trace_he
                 return common_trace_header{
                     .type      = trace_header.event_descriptor().id(),
                     .timestamp = trace_header.timestamp(),
-                    .buffer    = trace_header.buffer().subspan(0, trace_header.static_size)};
+                    .buffer    = trace_header.buffer()};
             }
             else
             {
                 return common_trace_header{
                     .type      = trace_header.trace_class().type(),
                     .timestamp = trace_header.timestamp(),
-                    .buffer    = trace_header.buffer().subspan(0, trace_header.static_size)};
+                    .buffer    = trace_header.buffer()};
             }
         },
         trace_header_variant);
