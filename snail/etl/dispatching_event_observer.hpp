@@ -98,6 +98,9 @@ struct common_trace_header
     std::span<const std::byte> buffer;
 };
 
+common_trace_header make_common_trace_header(const any_group_trace_header& trace_header_variant);
+common_trace_header make_common_trace_header(const any_guid_trace_header& trace_header_variant);
+
 template<typename T>
 concept event_record_view = std::constructible_from<T, std::span<const std::byte>, std::uint32_t>;
 
@@ -165,9 +168,6 @@ private:
 
     std::vector<group_handler_dispatch_type> unknown_group_handlers_;
     std::vector<guid_handler_dispatch_type>  unknown_guid_handlers_;
-
-    static common_trace_header make_common_trace_header(const any_group_trace_header& trace_header_variant);
-    static common_trace_header make_common_trace_header(const any_guid_trace_header& trace_header_variant);
 };
 
 template<typename EventType, typename HandlerType>

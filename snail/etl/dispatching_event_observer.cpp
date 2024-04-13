@@ -88,7 +88,7 @@ void handle_impl(const etl_file::header_data& file_header,
 
 } // namespace
 
-common_trace_header dispatching_event_observer::make_common_trace_header(const any_group_trace_header& trace_header_variant)
+common_trace_header snail::etl::make_common_trace_header(const any_group_trace_header& trace_header_variant)
 {
     return std::visit(
         [](const auto& trace_header)
@@ -101,7 +101,7 @@ common_trace_header dispatching_event_observer::make_common_trace_header(const a
         trace_header_variant);
 }
 
-common_trace_header dispatching_event_observer::make_common_trace_header(const any_guid_trace_header& trace_header_variant)
+common_trace_header snail::etl::make_common_trace_header(const any_guid_trace_header& trace_header_variant)
 {
     return std::visit(
         []<typename T>(const T& trace_header)
