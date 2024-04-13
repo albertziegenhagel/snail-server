@@ -146,23 +146,35 @@ jobs:
 
       - name: Install
         run: |
-          cmake --install ${{ github.workspace }}/build/ci --component server --prefix ${{ github.workspace }}/install
+          cmake --install ${{ github.workspace }}/build/ci --component server --prefix ${{ github.workspace }}/install/server
+          cmake --install ${{ github.workspace }}/build/ci --component tools --prefix ${{ github.workspace }}/install/tools
 
-      - name: Add build info
+      - name: Create build info
         shell: pwsh
         run: |
           "ref:    ${{ github.ref_name }}`n" + `
           "commit: ${{ github.sha }}`n"  + `
-          "date:   $(Get-Date -UFormat '%FT%T%Z' -AsUTC)" | Out-File -Path "${{ github.workspace }}/install/bin/info.txt"
+          "date:   $(Get-Date -UFormat '%FT%T%Z' -AsUTC)" | Out-File -Path "${{ github.workspace }}/install/info.txt"
+          cp ${{ github.workspace }}/install/info.txt ${{ github.workspace }}/install/server/bin/
+          cp ${{ github.workspace }}/install/info.txt ${{ github.workspace }}/install/tools/bin/
 
-      - name: Upload binaries
-        uses: actions/upload-artifact@v3
+      - name: Upload server binaries
+        uses: actions/upload-artifact@v4
         if: runner.os != 'Linux' || matrix.compiler == 'gcc'
         with:
           name: snail-server-${{ matrix.arch }}-${{ matrix.platform }}
           path: |
-            ${{ github.workspace }}/install/bin/snail-server*
-            ${{ github.workspace }}/install/bin/info.txt
+            ${{ github.workspace }}/install/server/bin/snail-server*
+            ${{ github.workspace }}/install/server/bin/info.txt
+
+      - name: Upload tool binaries
+        uses: actions/upload-artifact@v4
+        if: runner.os != 'Linux' || matrix.compiler == 'gcc'
+        with:
+          name: snail-tools-${{ matrix.arch }}-${{ matrix.platform }}
+          path: |
+            ${{ github.workspace }}/install/tools/bin/app_*
+            ${{ github.workspace }}/install/tools/bin/info.txt
 
   deploy-head:
     name: "Deploy head"

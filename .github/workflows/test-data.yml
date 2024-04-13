@@ -41,8 +41,8 @@ jobs:
       - name: Install Records
         run: ninja install-records
 
-      - name: Pack & Upload rests
-        uses: actions/upload-artifact@v3
+      - name: Pack & Upload results
+        uses: actions/upload-artifact@v4
         with:
           name: test-data-${{ matrix.run-on }}
           path: ${{ github.workspace }}/tests/apps/*/dist/**
