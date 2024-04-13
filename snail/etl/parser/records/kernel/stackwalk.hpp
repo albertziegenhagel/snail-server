@@ -20,9 +20,10 @@ namespace snail::etl::parser {
 // `StackWalk_Event:StackWalk` from wmicore.mof in WDK 10.0.22621.0
 struct stackwalk_v2_stack_event_view : private extract_view_dynamic_base
 {
-    static inline constexpr std::uint16_t event_version = 2;
-    static inline constexpr auto          event_types   = std::array{
-        event_identifier_group{event_trace_group::stackwalk, 32, "stack"}
+    static inline constexpr std::string_view event_name    = "StackWalk-Stack";
+    static inline constexpr std::uint16_t    event_version = 2;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_group{event_trace_group::stackwalk, 32, "Stack"}
     };
 
     using extract_view_dynamic_base::buffer;

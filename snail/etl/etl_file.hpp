@@ -59,7 +59,7 @@ class event_observer
 public:
     virtual ~event_observer() = default;
 
-    virtual void handle(const etl_file::header_data& /*file_header*/, const parser::wmi_buffer_header_view& /*buffer_header*/) {}
+    virtual void handle_buffer(const etl_file::header_data& /*file_header*/, const parser::wmi_buffer_header_view& /*buffer_header*/) {}
 
     virtual void handle(const etl_file::header_data& /*file_header*/, const parser::system_trace_header_view& /*trace_header*/, std::span<const std::byte> /*user_data*/) {}
     virtual void handle(const etl_file::header_data& /*file_header*/, const parser::compact_trace_header_view& /*trace_header*/, std::span<const std::byte> /*user_data*/) {}

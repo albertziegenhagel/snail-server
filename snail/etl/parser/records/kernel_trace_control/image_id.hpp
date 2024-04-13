@@ -21,9 +21,10 @@ constexpr inline auto image_id_guid = common::guid{
 
 struct image_id_v2_info_event_view : private extract_view_dynamic_base
 {
-    static inline constexpr std::uint16_t event_version = 2;
-    static inline constexpr auto          event_types   = std::array{
-        event_identifier_guid{image_id_guid, 0, "info"}
+    static inline constexpr std::string_view event_name    = "ImageId-Info";
+    static inline constexpr std::uint16_t    event_version = 2;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_guid{image_id_guid, 0, "Info"}
     };
 
     using extract_view_dynamic_base::buffer;
@@ -46,10 +47,11 @@ private:
 
 struct image_id_v2_dbg_id_pdb_info_event_view : private extract_view_dynamic_base
 {
-    static inline constexpr std::uint16_t event_version = 2;
-    static inline constexpr auto          event_types   = std::array{
-        event_identifier_guid{image_id_guid, 36, "rsds"   },
-        event_identifier_guid{image_id_guid, 37, "il rsds"}
+    static inline constexpr std::string_view event_name    = "ImageId-DbgIdPdbInfo";
+    static inline constexpr std::uint16_t    event_version = 2;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_guid{image_id_guid, 36, "Rsds"  },
+        event_identifier_guid{image_id_guid, 37, "IlRsds"}  // "Il" == "inline"
     };
 
     using extract_view_dynamic_base::buffer;

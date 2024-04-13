@@ -21,12 +21,13 @@ namespace snail::etl::parser {
 // or `Image_Load:Image` from wmicore.mof in WDK 10.0.22621.0
 struct image_v3_load_event_view : private extract_view_dynamic_base
 {
-    static inline constexpr std::uint16_t event_version = 3;
-    static inline constexpr auto          event_types   = std::array{
-        event_identifier_group{event_trace_group::process, 10, "load"    }, // For an unknown reason, this is reported as in the process group
-        event_identifier_group{event_trace_group::image,   2,  "unload"  },
-        event_identifier_group{event_trace_group::image,   3,  "dc_start"},
-        event_identifier_group{event_trace_group::image,   4,  "dc_end"  }
+    static inline constexpr std::string_view event_name    = "Image-Load";
+    static inline constexpr std::uint16_t    event_version = 3;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_group{event_trace_group::process, 10, "Load"   }, // For an unknown reason, this is reported as in the process group
+        event_identifier_group{event_trace_group::image,   2,  "Unload" },
+        event_identifier_group{event_trace_group::image,   3,  "DcStart"},
+        event_identifier_group{event_trace_group::image,   4,  "DcEnd"  }
     };
 
     using extract_view_dynamic_base::buffer;

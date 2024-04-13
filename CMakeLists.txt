@@ -17,6 +17,8 @@ include(CodeCoverage)
 option(BUILD_TESTING "Whether to build unit & integration tests" ON)
 cmake_dependent_option(SNAIL_ENABLE_CODE_COVERAGE "Enable code coverage for tests" OFF BUILD_TESTING OFF)
 
+option(SNAIL_BUILD_TOOLS "Whether to build some debugging tools" ON)
+
 option(SNAIL_WITH_LLVM "Required to resolve symbols from PDB and DWARF files." ON)
 
 option(SNAIL_ENABLE_SYSTEMTESTS "Whether to enable system testing" ON)
@@ -83,6 +85,11 @@ endif()
 # Targets
 
 add_subdirectory(snail)
+
+if(SNAIL_BUILD_TOOLS)
+  # Just for testing/development
+  add_subdirectory(apps)
+endif()
 
 # =======
 # Tests

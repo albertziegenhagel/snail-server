@@ -98,6 +98,9 @@ struct common_trace_header
     std::span<const std::byte> buffer;
 };
 
+common_trace_header make_common_trace_header(const any_group_trace_header& trace_header_variant);
+common_trace_header make_common_trace_header(const any_guid_trace_header& trace_header_variant);
+
 template<typename T>
 concept event_record_view = std::constructible_from<T, std::span<const std::byte>, std::uint32_t>;
 
@@ -156,6 +159,18 @@ public:
         requires unknown_event_handler<HandlerType>
     inline void register_unknown_event(HandlerType&& handler);
 
+protected:
+    virtual void pre_handle([[maybe_unused]] const etl_file::header_data&     file_header,
+                            [[maybe_unused]] const detail::group_handler_key& key,
+                            [[maybe_unused]] const any_group_trace_header&    trace_header,
+                            [[maybe_unused]] std::span<const std::byte>       user_data,
+                            [[maybe_unused]] bool                             has_known_handler) {}
+    virtual void pre_handle([[maybe_unused]] const etl_file::header_data&    file_header,
+                            [[maybe_unused]] const detail::guid_handler_key& key,
+                            [[maybe_unused]] const any_guid_trace_header&    trace_header,
+                            [[maybe_unused]] std::span<const std::byte>      user_data,
+                            [[maybe_unused]] bool                            has_known_handler) {}
+
 private:
     using group_handler_dispatch_type = std::function<void(const etl_file::header_data&, const any_group_trace_header&, std::span<const std::byte>)>;
     using guid_handler_dispatch_type  = std::function<void(const etl_file::header_data&, const any_guid_trace_header&, std::span<const std::byte>)>;
@@ -166,8 +181,12 @@ private:
     std::vector<group_handler_dispatch_type> unknown_group_handlers_;
     std::vector<guid_handler_dispatch_type>  unknown_guid_handlers_;
 
-    static common_trace_header make_common_trace_header(const any_group_trace_header& trace_header_variant);
-    static common_trace_header make_common_trace_header(const any_guid_trace_header& trace_header_variant);
+    template<typename HeaderType, typename HandlersType, typename UnknownHandlersType>
+    void handle_impl(const etl_file::header_data& file_header,
+                     const HeaderType&            trace_header,
+                     std::span<const std::byte>   user_data,
+                     const HandlersType&          handlers,
+                     const UnknownHandlersType&   unknown_handlers);
 };
 
 template<typename EventType, typename HandlerType>
