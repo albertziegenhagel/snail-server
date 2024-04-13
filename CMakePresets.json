@@ -37,6 +37,10 @@
                 "SNAIL_ENABLE_CODE_COVERAGE": {
                     "type": "BOOL",
                     "value": "ON"
+                },
+                "SNAIL_BUILD_TOOLS": {
+                    "type": "BOOL",
+                    "value": "OFF"
                 }
             }
         }
