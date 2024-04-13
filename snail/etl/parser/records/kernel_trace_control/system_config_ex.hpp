@@ -19,9 +19,10 @@ constexpr inline auto system_config_ex_guid = common::guid{
 
 struct system_config_ex_v0_build_info_event_view : private extract_view_dynamic_base
 {
-    static inline constexpr std::uint16_t event_version = 0;
-    static inline constexpr auto          event_types   = std::array{
-        event_identifier_guid{system_config_ex_guid, 32, "build_info"}
+    static inline constexpr std::string_view event_name    = "SystemConfigEx-BuildInfo";
+    static inline constexpr std::uint16_t    event_version = 0;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_guid{system_config_ex_guid, 32, "BuildInfo"}
     };
 
     using extract_view_dynamic_base::buffer;
@@ -42,9 +43,10 @@ private:
 
 struct system_config_ex_v0_system_paths_event_view : private extract_view_dynamic_base
 {
-    static inline constexpr std::uint16_t event_version = 0;
-    static inline constexpr auto          event_types   = std::array{
-        event_identifier_guid{system_config_ex_guid, 33, "system_paths"}
+    static inline constexpr std::string_view event_name    = "SystemConfigEx-SystemPaths";
+    static inline constexpr std::uint16_t    event_version = 0;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_guid{system_config_ex_guid, 33, "SystemPaths"}
     };
 
     using extract_view_dynamic_base::buffer;
@@ -63,9 +65,10 @@ private:
 
 struct system_config_ex_v0_volume_mapping_event_view : private extract_view_dynamic_base
 {
-    static inline constexpr std::uint16_t event_version = 0;
-    static inline constexpr auto          event_types   = std::array{
-        event_identifier_guid{system_config_ex_guid, 35, "volume_mapping"}
+    static inline constexpr std::string_view event_name    = "SystemConfigEx-VolumeMapping";
+    static inline constexpr std::uint16_t    event_version = 0;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_guid{system_config_ex_guid, 35, "VolumeMapping"}
     };
 
     using extract_view_dynamic_base::buffer;

@@ -20,9 +20,10 @@ namespace snail::etl::parser {
 // `EventTrace_Header:EventTraceEvent` from wmicore.mof in WDK 10.0.22621.0
 struct event_trace_v2_header_event_view : private extract_view_dynamic_base
 {
-    static inline constexpr std::uint16_t event_version = 2;
-    static inline constexpr auto          event_types   = std::array{
-        event_identifier_group{event_trace_group::header, 0, "header"}
+    static inline constexpr std::string_view event_name    = "EventTrace-Header";
+    static inline constexpr std::uint16_t    event_version = 2;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_group{event_trace_group::header, 0, "Header"}
     };
 
     inline explicit event_trace_v2_header_event_view(std::span<const std::byte> buffer) :

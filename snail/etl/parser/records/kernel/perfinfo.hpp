@@ -20,9 +20,10 @@ namespace snail::etl::parser {
 // or `SampledProfile:PerfInfo_V2` from wmicore.mof in WDK 10.0.22621.0
 struct perfinfo_v2_sampled_profile_event_view : private extract_view_dynamic_base
 {
-    static inline constexpr std::uint16_t event_version = 2;
-    static inline constexpr auto          event_types   = std::array{
-        event_identifier_group{event_trace_group::perfinfo, 46, "sample prof"}
+    static inline constexpr std::string_view event_name    = "PerfInfo-SampledProfile";
+    static inline constexpr std::uint16_t    event_version = 2;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_group{event_trace_group::perfinfo, 46, "SampledProfile"}
     };
 
     using extract_view_dynamic_base::buffer;
@@ -39,10 +40,11 @@ struct perfinfo_v2_sampled_profile_event_view : private extract_view_dynamic_bas
 // `SampledProfileInterval_V3:PerfInfo` from wmicore.mof in WDK 10.0.22621.0
 struct perfinfo_v3_sampled_profile_interval_event_view : private extract_view_dynamic_base
 {
-    static inline constexpr std::uint16_t event_version = 3;
-    static inline constexpr auto          event_types   = std::array{
-        event_identifier_group{event_trace_group::perfinfo, 73, "collection start"},
-        event_identifier_group{event_trace_group::perfinfo, 74, "collection end"  }
+    static inline constexpr std::string_view event_name    = "PerfInfo-SampledProfileInterval";
+    static inline constexpr std::uint16_t    event_version = 3;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_group{event_trace_group::perfinfo, 73, "CollectionStart"},
+        event_identifier_group{event_trace_group::perfinfo, 74, "CollectionEnd"  }
     };
 
     using extract_view_dynamic_base::buffer;

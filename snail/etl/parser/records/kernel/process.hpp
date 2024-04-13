@@ -21,13 +21,14 @@ namespace snail::etl::parser {
 // or `Process_V4_TypeGroup1:Process_V4` from wmicore.mof in WDK 10.0.22621.0
 struct process_v4_type_group1_event_view : private extract_view_dynamic_base
 {
-    static inline constexpr std::uint16_t event_version = 4;
-    static inline constexpr auto          event_types   = std::array{
-        event_identifier_group{event_trace_group::process, 1,  "load"    },
-        event_identifier_group{event_trace_group::process, 2,  "unload"  },
-        event_identifier_group{event_trace_group::process, 3,  "dc_start"},
-        event_identifier_group{event_trace_group::process, 4,  "dc_end"  },
-        event_identifier_group{event_trace_group::process, 39, "defunct" }
+    static inline constexpr std::string_view event_name    = "Process-TypeGroup1";
+    static inline constexpr std::uint16_t    event_version = 4;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_group{event_trace_group::process, 1,  "Load"   },
+        event_identifier_group{event_trace_group::process, 2,  "Unload" },
+        event_identifier_group{event_trace_group::process, 3,  "DcStart"},
+        event_identifier_group{event_trace_group::process, 4,  "DcEnd"  },
+        event_identifier_group{event_trace_group::process, 39, "Defunct"}
     };
 
     using extract_view_dynamic_base::buffer;

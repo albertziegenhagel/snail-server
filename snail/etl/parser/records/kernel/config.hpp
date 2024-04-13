@@ -27,9 +27,10 @@ enum class drive_type : std::uint32_t
 // or `SystemConfig_V3_CPU:SystemConfig_V3` from wmicore.mof in WDK 10.0.22621.0
 struct system_config_v3_cpu_event_view : private extract_view_dynamic_base
 {
-    static inline constexpr std::uint16_t event_version = 3;
-    static inline constexpr auto          event_types   = std::array{
-        event_identifier_group{event_trace_group::config, 10, "cpu"},
+    static inline constexpr std::string_view event_name    = "SystemConfig-Cpu";
+    static inline constexpr std::uint16_t    event_version = 3;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_group{event_trace_group::config, 10, "Cpu"},
     };
 
     using extract_view_dynamic_base::buffer;
@@ -62,9 +63,10 @@ private:
 // or `SystemConfig_V2_PhyDisk:SystemConfig_V2` from wmicore.mof in WDK 10.0.22621.0
 struct system_config_v2_physical_disk_event_view : private extract_view_dynamic_base
 {
-    static inline constexpr std::uint16_t event_version = 2;
-    static inline constexpr auto          event_types   = std::array{
-        event_identifier_group{event_trace_group::config, 11, "physical disk"},
+    static inline constexpr std::string_view event_name    = "SystemConfig-PhyDisk";
+    static inline constexpr std::uint16_t    event_version = 2;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_group{event_trace_group::config, 11, "PhyDisk"},
     };
 
     using extract_view_dynamic_base::buffer;
@@ -100,9 +102,10 @@ private:
 // or `SystemConfig_V2_LogDisk:SystemConfig_V2` from wmicore.mof in WDK 10.0.22621.0
 struct system_config_v2_logical_disk_event_view : private extract_view_dynamic_base
 {
-    static inline constexpr std::uint16_t event_version = 2;
-    static inline constexpr auto          event_types   = std::array{
-        event_identifier_group{event_trace_group::config, 12, "logical disk"},
+    static inline constexpr std::string_view event_name    = "SystemConfig-LogDisk";
+    static inline constexpr std::uint16_t    event_version = 2;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_group{event_trace_group::config, 12, "LogDisk"},
     };
 
     using extract_view_dynamic_base::buffer;
@@ -137,9 +140,10 @@ private:
 // or `SystemConfig_PnP:SystemConfig` from wmicore.mof in WDK 10.0.22621.0
 struct system_config_v5_pnp_event_view : private extract_view_dynamic_base
 {
-    static inline constexpr std::uint16_t event_version = 5;
-    static inline constexpr auto          event_types   = std::array{
-        event_identifier_group{event_trace_group::config, 22, "pnp"},
+    static inline constexpr std::string_view event_name    = "SystemConfig-Pnp";
+    static inline constexpr std::uint16_t    event_version = 5;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_group{event_trace_group::config, 22, "Pnp"},
     };
 
     using extract_view_dynamic_base::buffer;

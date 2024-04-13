@@ -20,9 +20,10 @@ namespace snail::etl::parser {
 // `ThreadSetName:Thread_V2` from wmicore.mof in WDK 10.0.22621.0
 struct thread_v2_set_name_event_view : private extract_view_dynamic_base
 {
-    static inline constexpr std::uint16_t event_version = 2;
-    static inline constexpr auto          event_types   = std::array{
-        event_identifier_group{event_trace_group::thread, 72, "set name"},
+    static inline constexpr std::string_view event_name    = "Thread-SetName";
+    static inline constexpr std::uint16_t    event_version = 2;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_group{event_trace_group::thread, 72, "SetName"},
     };
 
     using extract_view_dynamic_base::buffer;
@@ -42,12 +43,13 @@ private:
 // `Thread_V3_TypeGroup1:Thread_V3` from wmicore.mof in WDK 10.0.22621.0
 struct thread_v3_type_group1_event_view : private extract_view_dynamic_base
 {
-    static inline constexpr std::uint16_t event_version = 3;
-    static inline constexpr auto          event_types   = std::array{
-        event_identifier_group{event_trace_group::thread, 1, "start"   },
-        event_identifier_group{event_trace_group::thread, 2, "end"     },
-        event_identifier_group{event_trace_group::thread, 3, "dc_start"},
-        event_identifier_group{event_trace_group::thread, 4, "dc_end"  }
+    static inline constexpr std::string_view event_name    = "Thread-TypeGroup1";
+    static inline constexpr std::uint16_t    event_version = 3;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_group{event_trace_group::thread, 1, "Start"  },
+        event_identifier_group{event_trace_group::thread, 2, "End"    },
+        event_identifier_group{event_trace_group::thread, 3, "DcStart"},
+        event_identifier_group{event_trace_group::thread, 4, "DcEnd"  }
     };
 
     using extract_view_dynamic_base::buffer;
@@ -90,12 +92,13 @@ private:
 // `Thread_TypeGroup1:Thread_V4` from wmicore.mof in WDK 10.0.22621.0
 struct thread_v4_type_group1_event_view : private extract_view_dynamic_base
 {
-    static inline constexpr std::uint16_t event_version = 4;
-    static inline constexpr auto          event_types   = std::array{
-        event_identifier_group{event_trace_group::thread, 1, "start"   },
-        event_identifier_group{event_trace_group::thread, 2, "end"     },
-        event_identifier_group{event_trace_group::thread, 3, "dc_start"},
-        event_identifier_group{event_trace_group::thread, 4, "dc_end"  }
+    static inline constexpr std::string_view event_name    = "Thread-TypeGroup1";
+    static inline constexpr std::uint16_t    event_version = 4;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_group{event_trace_group::thread, 1, "Start"  },
+        event_identifier_group{event_trace_group::thread, 2, "End"    },
+        event_identifier_group{event_trace_group::thread, 3, "DcStart"},
+        event_identifier_group{event_trace_group::thread, 4, "DcEnd"  }
     };
 
     using extract_view_dynamic_base::buffer;

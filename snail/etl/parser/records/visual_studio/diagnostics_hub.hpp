@@ -48,9 +48,10 @@ enum class machine_architecture : std::uint32_t
 
 struct vs_diagnostics_hub_target_profiling_started_event_view : private extract_view_dynamic_base
 {
-    static inline constexpr std::uint16_t event_version = 2;
-    static inline constexpr auto          event_types   = std::array{
-        event_identifier_guid{vs_diagnostics_hub_guid, 1, "target profiling started"}
+    static inline constexpr std::string_view event_name    = "DiagHub-TargetProfStarted";
+    static inline constexpr std::uint16_t    event_version = 2;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_guid{vs_diagnostics_hub_guid, 1, "TargetProfStarted"}
     };
 
     using extract_view_dynamic_base::buffer;
@@ -67,9 +68,10 @@ struct vs_diagnostics_hub_target_profiling_started_event_view : private extract_
 
 struct vs_diagnostics_hub_target_profiling_stopped_event_view : private extract_view_dynamic_base
 {
-    static inline constexpr std::uint16_t event_version = 1;
-    static inline constexpr auto          event_types   = std::array{
-        event_identifier_guid{vs_diagnostics_hub_guid, 2, "target profiling stopped"}
+    static inline constexpr std::string_view event_name    = "DiagHub-TargetProfStopped";
+    static inline constexpr std::uint16_t    event_version = 1;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_guid{vs_diagnostics_hub_guid, 2, "TargetProfStopped"}
     };
 
     using extract_view_dynamic_base::buffer;
@@ -85,9 +87,10 @@ struct vs_diagnostics_hub_target_profiling_stopped_event_view : private extract_
 
 struct vs_diagnostics_hub_machine_info_event_view : private extract_view_dynamic_base
 {
-    static inline constexpr std::uint16_t event_version = 0;
-    static inline constexpr auto          event_types   = std::array{
-        event_identifier_guid{vs_diagnostics_hub_guid, 5, "machine info"}
+    static inline constexpr std::string_view event_name    = "DiagHub-MachineInfo";
+    static inline constexpr std::uint16_t    event_version = 0;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_guid{vs_diagnostics_hub_guid, 5, "MachineInfo"}
     };
 
     using extract_view_dynamic_base::buffer;
@@ -106,9 +109,10 @@ private:
 
 struct vs_diagnostics_hub_counter_info_event_view : private extract_view_dynamic_base
 {
-    static inline constexpr std::uint16_t event_version = 0;
-    static inline constexpr auto          event_types   = std::array{
-        event_identifier_guid{vs_diagnostics_hub_guid, 6, "counter info"}
+    static inline constexpr std::string_view event_name    = "DiagHub-CounterInfo";
+    static inline constexpr std::uint16_t    event_version = 0;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_guid{vs_diagnostics_hub_guid, 6, "CounterInfo"}
     };
 
     using extract_view_dynamic_base::buffer;
@@ -125,9 +129,10 @@ struct vs_diagnostics_hub_counter_info_event_view : private extract_view_dynamic
 
 struct vs_diagnostics_hub_mark_info_event_view : private extract_view_dynamic_base
 {
-    static inline constexpr std::uint16_t event_version = 0;
-    static inline constexpr auto          event_types   = std::array{
-        event_identifier_guid{vs_diagnostics_hub_guid, 7, "mark info"}
+    static inline constexpr std::string_view event_name    = "DiagHub-MarkInfo";
+    static inline constexpr std::uint16_t    event_version = 0;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_guid{vs_diagnostics_hub_guid, 7, "MarkInfo"}
     };
 
     using extract_view_dynamic_base::buffer;
