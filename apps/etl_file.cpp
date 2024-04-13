@@ -375,8 +375,8 @@ public:
 
     std::string_view current_event_name; // hacky way to sneak the event name into the handler routines.
 
-    virtual void handle(const etl::etl_file::header_data&          file_header,
-                        const etl::parser::wmi_buffer_header_view& buffer_header) override
+    virtual void handle_buffer(const etl::etl_file::header_data&          file_header,
+                               const etl::parser::wmi_buffer_header_view& buffer_header) override
     {
         if(!buffer_header_callback_) return;
         buffer_header_callback_(file_header, buffer_header);

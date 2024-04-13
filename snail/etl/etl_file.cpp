@@ -434,7 +434,7 @@ void etl_file::process(event_observer& callbacks)
             const auto buffer_exhausted = buffer_info.current_payload_offset >= buffer_info.payload_buffer.size();
             if(buffer_exhausted)
             {
-                callbacks.handle(header_, parser::wmi_buffer_header_view(buffer_info.header_buffer));
+                callbacks.handle_buffer(header_, parser::wmi_buffer_header_view(buffer_info.header_buffer));
 
                 auto& remaining_buffers = processor_data.remaining_buffers;
 
