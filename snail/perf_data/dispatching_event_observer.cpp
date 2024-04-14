@@ -11,11 +11,24 @@ void dispatching_event_observer::handle(const parser::event_header_view& event_h
                                         std::span<const std::byte>       event_data,
                                         std::endian                      byte_order)
 {
-    auto iter = handlers_.find(static_cast<std::uint32_t>(event_header.type()));
-    if(iter == handlers_.end()) return;
+    auto iter = kernel_handlers_.find(static_cast<std::uint32_t>(event_header.type()));
+    if(iter == kernel_handlers_.end()) return;
 
     for(const auto& handler : iter->second)
     {
         handler(attributes, event_data, byte_order);
+    }
+}
+
+void dispatching_event_observer::handle(const parser::event_header_view& event_header,
+                                        std::span<const std::byte>       event_data,
+                                        std::endian                      byte_order)
+{
+    auto iter = non_kernel_handlers_.find(static_cast<std::uint32_t>(event_header.type()));
+    if(iter == non_kernel_handlers_.end()) return;
+
+    for(const auto& handler : iter->second)
+    {
+        handler(event_data, byte_order);
     }
 }

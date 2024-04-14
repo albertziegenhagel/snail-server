@@ -184,6 +184,8 @@ struct sample_event
 {
     static inline constexpr parser::event_type event_type = parser::event_type::sample;
 
+    const event_attributes* attributes;
+
     std::optional<std::uint64_t> id;
     std::optional<std::uint64_t> ip;
 

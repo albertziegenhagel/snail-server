@@ -15,27 +15,29 @@ enum class event_type : std::uint32_t
     // Kernel events
     // https://github.com/torvalds/linux/blob/master/include/uapi/linux/perf_event.h
     // vvvvvv
-    mmap             = 1,
-    lost             = 2,
-    comm             = 3,
-    exit             = 4,
-    throttle         = 5,
-    unthrottle       = 6,
-    fork             = 7,
-    read             = 8,
-    sample           = 9,
-    mmap2            = 10,
-    aux              = 11,
-    itrace_start     = 12,
-    lost_samples     = 13,
-    switch_          = 14,
-    switch_cpu_wide  = 15,
-    namespaces       = 16,
-    ksymbol          = 17,
-    bpf_event        = 18,
-    cgroup           = 19,
-    text_poke        = 20,
-    aux_output_hw_id = 21,
+    mmap               = 1,
+    first_kernel_event = mmap,
+    lost               = 2,
+    comm               = 3,
+    exit               = 4,
+    throttle           = 5,
+    unthrottle         = 6,
+    fork               = 7,
+    read               = 8,
+    sample             = 9,
+    mmap2              = 10,
+    aux                = 11,
+    itrace_start       = 12,
+    lost_samples       = 13,
+    switch_            = 14,
+    switch_cpu_wide    = 15,
+    namespaces         = 16,
+    ksymbol            = 17,
+    bpf_event          = 18,
+    cgroup             = 19,
+    text_poke          = 20,
+    aux_output_hw_id   = 21,
+    last_kernel_event  = aux_output_hw_id,
     // ^^^^^^
     // Kernel events
 
@@ -64,6 +66,12 @@ enum class event_type : std::uint32_t
     // ^^^^^^
     // Perf events
 };
+
+inline constexpr bool is_kernel_event(event_type type)
+{
+    return std::to_underlying(type) >= std::to_underlying(event_type::first_kernel_event) &&
+           std::to_underlying(type) <= std::to_underlying(event_type::last_kernel_event);
+}
 
 enum class header_misc_mask : std::uint16_t
 {

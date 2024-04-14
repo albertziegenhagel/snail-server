@@ -54,6 +54,7 @@ public:
     virtual ~event_observer() = default;
 
     virtual void handle(const parser::event_header_view& /*event_header*/, const parser::event_attributes& /*attributes*/, std::span<const std::byte> /*event_data*/, std::endian /*byte_order*/) {}
+    virtual void handle(const parser::event_header_view& /*event_header*/, std::span<const std::byte> /*event_data*/, std::endian /*byte_order*/) {}
 };
 
 } // namespace snail::perf_data

@@ -26,6 +26,10 @@ public:
     {
         ++counts[event_header.type()];
     }
+    void handle(const perf_data::parser::event_header_view& event_header, std::span<const std::byte> /*event_data*/, std::endian /*byte_order*/) override
+    {
+        ++counts[event_header.type()];
+    }
 };
 
 } // namespace
