@@ -51,24 +51,36 @@ struct test_sample_data : public sample_data
 class test_samples_provider : public samples_provider
 {
 public:
-    common::generator<const sample_data&> samples(unique_process_id process_id,
+    const std::vector<sample_source_info>& sample_sources() const override
+    {
+        return sources_;
+    }
+
+    common::generator<const sample_data&> samples(sample_source_info::id_t source_id,
+                                                  unique_process_id        process_id,
                                                   const sample_filter& /*filter*/) const override
     {
         if(process_id != expected_process_id_) co_return;
+        if(source_id != expected_source_id_) co_return;
 
         for(const auto& sample : samples_)
         {
             co_yield sample;
         }
     }
-    std::size_t count_samples(unique_process_id process_id,
+    std::size_t count_samples(sample_source_info::id_t source_id,
+                              unique_process_id        process_id,
                               const sample_filter& /*filter*/) const override
     {
         if(process_id != expected_process_id_) return 0;
+        if(source_id != expected_source_id_) return 0;
         return samples_.size();
     }
 
+    std::vector<sample_source_info> sources_;
+
     unique_process_id             expected_process_id_;
+    sample_source_info::id_t      expected_source_id_;
     std::vector<test_sample_data> samples_;
 };
 
@@ -78,6 +90,7 @@ using caller_map    = std::unordered_map<function_info::id_t, hit_counts>;
 TEST(Analysis, SampleStacksFullInfo)
 {
     const auto process_id = unique_process_id{.key = 123};
+    const auto source_id  = sample_source_info::id_t{456};
 
     const std::string function_a_name = "func_a";
     const std::string function_b_name = "func_b";
@@ -91,6 +104,7 @@ TEST(Analysis, SampleStacksFullInfo)
 
     test_samples_provider samples_provider;
     samples_provider.expected_process_id_ = process_id;
+    samples_provider.expected_source_id_  = source_id;
     samples_provider.samples_             = {
         test_sample_data(
             std::nullopt,
@@ -134,7 +148,7 @@ TEST(Analysis, SampleStacksFullInfo)
             )
     };
 
-    const auto analysis_result = analyze_stacks(samples_provider, process_id);
+    const auto analysis_result = analyze_stacks(samples_provider, source_id, process_id);
 
     EXPECT_EQ(analysis_result.process_id, process_id);
 
@@ -315,6 +329,7 @@ TEST(Analysis, SampleStacksFullInfo)
 TEST(Analysis, SampleStacksMissingFile)
 {
     const auto process_id = unique_process_id{.key = 123};
+    const auto source_id  = sample_source_info::id_t{456};
 
     const std::string function_a_name = "func_a";
     const std::string function_b_name = "func_b";
@@ -327,6 +342,7 @@ TEST(Analysis, SampleStacksMissingFile)
 
     test_samples_provider samples_provider;
     samples_provider.expected_process_id_ = process_id;
+    samples_provider.expected_source_id_  = source_id;
     samples_provider.samples_             = {
         test_sample_data(
             std::nullopt,
@@ -360,7 +376,7 @@ TEST(Analysis, SampleStacksMissingFile)
             )
     };
 
-    const auto analysis_result = analyze_stacks(samples_provider, process_id);
+    const auto analysis_result = analyze_stacks(samples_provider, source_id, process_id);
 
     EXPECT_EQ(analysis_result.process_id, process_id);
 
@@ -543,6 +559,7 @@ TEST(Analysis, SampleStacksMissingFile)
 TEST(Analysis, SampleNoStacks)
 {
     const auto process_id = unique_process_id{.key = 123};
+    const auto source_id  = sample_source_info::id_t{456};
 
     const std::string function_a_name = "func_a";
     const std::string function_b_name = "func_b";
@@ -556,6 +573,7 @@ TEST(Analysis, SampleNoStacks)
 
     test_samples_provider samples_provider;
     samples_provider.expected_process_id_ = process_id;
+    samples_provider.expected_source_id_  = source_id;
     samples_provider.samples_             = {
         test_sample_data(
             stack_frame{
@@ -593,7 +611,7 @@ TEST(Analysis, SampleNoStacks)
             std::nullopt,
             std::nullopt)};
 
-    const auto analysis_result = analyze_stacks(samples_provider, process_id);
+    const auto analysis_result = analyze_stacks(samples_provider, source_id, process_id);
 
     EXPECT_EQ(analysis_result.process_id, process_id);
 

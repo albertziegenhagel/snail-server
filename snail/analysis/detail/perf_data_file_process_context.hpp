@@ -167,9 +167,6 @@ struct perf_data_file_process_context::sampled_process_info
     os_pid_t process_id;
 
     timestamp_t process_timestamp;
-
-    timestamp_t first_sample_time;
-    timestamp_t last_sample_time;
 };
 
 struct perf_data_file_process_context::sample_info

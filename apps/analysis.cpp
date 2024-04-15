@@ -90,12 +90,15 @@ int main(int argc, char* argv[])
 
     for(const auto process_id : provider->sampling_processes())
     {
-        const auto process_info    = provider->process_info(process_id);
-        const auto stacks_analysis = snail::analysis::analyze_stacks(*provider, process_id);
-        std::cout << process_info.name << " (" << process_info.os_id << "):\n";
-        std::cout << "  Modules:   " << stacks_analysis.all_modules().size() << "\n";
-        std::cout << "  Functions: " << stacks_analysis.all_functions().size() << "\n";
-        std::cout << "  Files:     " << stacks_analysis.all_files().size() << "\n";
+        for(const auto& sample_source : provider->sample_sources())
+        {
+            const auto process_info    = provider->process_info(process_id);
+            const auto stacks_analysis = snail::analysis::analyze_stacks(*provider, sample_source.id, process_id);
+            std::cout << process_info.name << " (" << process_info.os_id << "):\n";
+            std::cout << "  Modules:   " << stacks_analysis.all_modules().size() << "\n";
+            std::cout << "  Functions: " << stacks_analysis.all_functions().size() << "\n";
+            std::cout << "  Files:     " << stacks_analysis.all_files().size() << "\n";
+        }
     }
 
     return EXIT_SUCCESS;

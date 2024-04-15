@@ -5,6 +5,7 @@
 #include <span>
 
 #include <snail/analysis/data/functions.hpp>
+#include <snail/analysis/data/sample_source.hpp>
 
 namespace snail::analysis {
 
@@ -54,13 +55,18 @@ public:
 
     void apply_document_filter(const document_id& id, analysis::sample_filter filter);
 
-    std::size_t get_total_samples_count(const document_id& id);
+    std::size_t get_total_samples_count(const document_id&                 id,
+                                        analysis::sample_source_info::id_t source_id);
 
-    const analysis::stacks_analysis& get_stacks_analysis(const document_id& id, analysis::unique_process_id process_id);
+    const analysis::stacks_analysis& get_stacks_analysis(const document_id& id, analysis::sample_source_info::id_t source_id, analysis::unique_process_id process_id);
 
-    std::span<const analysis::function_info::id_t> get_functions_page(const document_id& id, analysis::unique_process_id process_id,
-                                                                      function_data_type sort_by, bool reversed,
-                                                                      std::size_t page_size, std::size_t page_index);
+    std::span<const analysis::function_info::id_t> get_functions_page(const document_id&                 id,
+                                                                      analysis::sample_source_info::id_t source_id,
+                                                                      analysis::unique_process_id        process_id,
+                                                                      function_data_type                 sort_by,
+                                                                      bool                               reversed,
+                                                                      std::size_t                        page_size,
+                                                                      std::size_t                        page_index);
 
 private:
     struct impl;

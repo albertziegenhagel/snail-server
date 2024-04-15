@@ -93,7 +93,6 @@ describe("InnerDiagsession", function () {
         assert.strictEqual(response.sessionInfo.numberOfProcesses, 1);
         assert.strictEqual(response.sessionInfo.numberOfThreads, 4);
         assert.strictEqual(response.sessionInfo.numberOfSamples, 292);
-        assert.strictEqual(response.sessionInfo.averageSamplingRate, 84.267008906157088);
     });
 
     it("processes", async () => {

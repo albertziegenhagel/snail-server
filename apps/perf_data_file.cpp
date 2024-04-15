@@ -121,22 +121,34 @@ int main(int argc, char* argv[])
 
     perf_data::dispatching_event_observer observer;
 
-    struct
+    struct samples_range
     {
         std::size_t count = 0;
 
         std::uint64_t first_time = std::numeric_limits<std::uint64_t>::max();
         std::uint64_t last_time  = std::numeric_limits<std::uint64_t>::min();
-    } samples_data;
+    };
 
-    const auto flush_samples = [&samples_data]()
+    std::unordered_map<std::optional<std::uint64_t>, samples_range> round_samples;
+    std::unordered_map<std::optional<std::uint64_t>, samples_range> total_samples;
+
+    const auto flush_samples = [&round_samples, &total_samples]()
     {
-        if(samples_data.count == 0) return;
-        std::cout << std::format("SAMPLES @{}-{} count {}", samples_data.first_time, samples_data.last_time, samples_data.count) << "\n";
+        for(auto& [id, round_info] : round_samples)
+        {
+            if(round_info.count == 0) continue;
+            const auto id_str = id ? std::to_string(*id) : "null";
+            std::cout << std::format("SAMPLES @{}-{} id {} count {}", round_info.first_time, round_info.last_time, id_str, round_info.count) << "\n";
 
-        samples_data.count      = 0;
-        samples_data.first_time = std::numeric_limits<std::uint64_t>::max();
-        samples_data.last_time  = std::numeric_limits<std::uint64_t>::min();
+            auto& total_info = total_samples[id];
+            total_info.count += round_info.count;
+            total_info.first_time = std::min(total_info.first_time, round_info.first_time);
+            total_info.last_time  = std::max(total_info.last_time, round_info.last_time);
+
+            round_info.count      = 0;
+            round_info.first_time = std::numeric_limits<std::uint64_t>::max();
+            round_info.last_time  = std::numeric_limits<std::uint64_t>::min();
+        }
     };
 
     observer.register_event<perf_data::parser::id_index_event_view>(
@@ -239,10 +251,30 @@ int main(int argc, char* argv[])
     observer.register_event<perf_data::parser::sample_event>(
         [&](const perf_data::parser::sample_event& event)
         {
-            ++samples_data.count;
-            samples_data.first_time = std::min(samples_data.first_time, *event.time);
-            samples_data.last_time  = std::max(samples_data.last_time, *event.time);
+            auto& info = round_samples[event.id];
+            ++info.count;
+            info.first_time = std::min(info.first_time, *event.time);
+            info.last_time  = std::max(info.last_time, *event.time);
         });
 
     file.process(observer);
+
+    std::cout << "\n";
+    std::cout << "Total samples:\n";
+    for(const auto& [id, info] : total_samples)
+    {
+        auto id_name = id ? std::to_string(*id) : "null";
+        if(id)
+        {
+            for(const auto& desc : file.metadata().event_desc)
+            {
+                if(std::ranges::find(desc.ids, *id) != desc.ids.end())
+                {
+                    id_name = std::format("{} ({})", desc.event_string, *id);
+                    break;
+                }
+            }
+        }
+        std::cout << std::format("  id {} @{}-{} count {}", id_name, info.first_time, info.last_time, info.count) << "\n";
+    }
 }

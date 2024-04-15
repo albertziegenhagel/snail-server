@@ -193,6 +193,39 @@ void etl_data_provider::process(const std::filesystem::path& file_path)
 
     using namespace std::chrono;
 
+    struct time_range
+    {
+        detail::etl_file_process_context::timestamp_t start;
+        detail::etl_file_process_context::timestamp_t end;
+    };
+
+    const auto& sample_source_names = process_context_->sample_source_names();
+
+    sample_source_internal_ids_.clear();
+    for(const auto& [internal_id, name] : sample_source_names)
+    {
+        sample_source_internal_ids_.push_back(internal_id);
+    }
+
+    std::ranges::sort(sample_source_internal_ids_);
+
+    sample_sources_.clear();
+    std::vector<time_range> sample_source_times;
+    for(const auto internal_id : sample_source_internal_ids_)
+    {
+        sample_sources_.push_back(sample_source_info{
+            .id                    = sample_sources_.size(),
+            .name                  = utf8::utf16to8(sample_source_names.at(internal_id)),
+            .number_of_samples     = 0,
+            .average_sampling_rate = 0.0,
+        });
+
+        sample_source_times.push_back(time_range{
+            .start = std::numeric_limits<detail::etl_file_process_context::timestamp_t>::max(),
+            .end   = std::numeric_limits<detail::etl_file_process_context::timestamp_t>::min(),
+        });
+    }
+
     std::size_t total_sample_count = 0;
     std::size_t total_thread_count = 0;
     for(const auto& [process_key, profiler_process_info] : process_context_->profiler_processes())
@@ -210,13 +243,37 @@ void etl_data_provider::process(const std::filesystem::path& file_path)
             const auto* const thread     = process_context_->get_threads().find_at(thread_key.id, thread_key.time);
             if(thread == nullptr) continue;
 
-            const std::uint16_t sample_source = 0; // FIXME: make this based on an argument
+            for(sample_source_info::id_t source_id = 0; source_id < sample_sources_.size(); ++source_id)
+            {
+                const auto source_internal_id = sample_source_internal_ids_[source_id];
+                const auto samples            = process_context_->thread_samples(thread_key.id, thread->timestamp, thread->payload.end_time, source_internal_id);
 
-            const auto samples = process_context_->thread_samples(thread_key.id, thread->timestamp, thread->payload.end_time, sample_source);
-            total_sample_count += std::ranges::size(samples);
+                auto& source_time_range = sample_source_times[source_id];
+
+                if(!samples.empty())
+                {
+                    source_time_range.start = std::min(source_time_range.start, samples.front().timestamp);
+                    source_time_range.end   = std::max(source_time_range.end, samples.back().timestamp);
+                }
+
+                sample_sources_[source_id].number_of_samples += std::ranges::size(samples);
+                total_sample_count += std::ranges::size(samples);
+            }
         }
     }
 
+    for(sample_source_info::id_t source_id = 0; source_id < sample_sources_.size(); ++source_id)
+    {
+        const auto& source_time_range = sample_source_times[source_id];
+
+        if(source_time_range.start > source_time_range.end) continue; // skip empty
+
+        auto& source_info = sample_sources_[source_id];
+
+        const auto sampling_runtime = common::nt_duration(source_time_range.end) - common::nt_duration(source_time_range.start);
+
+        source_info.average_sampling_rate = sampling_runtime.count() == 0 ? 0.0 : ((double)source_info.number_of_samples / duration_cast<duration<double>>(sampling_runtime).count());
+    }
     pointer_size_ = file.header().pointer_size;
 
     const auto runtime = file.header().end_time - file.header().start_time;
@@ -224,8 +281,6 @@ void etl_data_provider::process(const std::filesystem::path& file_path)
     session_start_qpc_ticks_ = file.header().start_time_qpc_ticks;
     session_end_qpc_ticks_   = session_start_qpc_ticks_ + to_qpc_ticks(runtime, file.header().qpc_frequency);
     qpc_frequency_           = file.header().qpc_frequency;
-
-    const auto average_sampling_rate = runtime.count() == 0 ? 0.0 : ((double)total_sample_count / duration_cast<duration<double>>(runtime).count());
 
     // This is a very rudimentary way to find the command line used to create the profile:
     // We assume that the profile has been collected via "vsdiagnostics.exe start"
@@ -248,13 +303,13 @@ void etl_data_provider::process(const std::filesystem::path& file_path)
     }
 
     session_info_ = analysis::session_info{
-        .command_line          = std::move(command_line),
-        .date                  = time_point_cast<seconds>(file.header().start_time),
-        .runtime               = std::chrono::duration_cast<std::chrono::nanoseconds>(runtime),
-        .number_of_processes   = process_context_->profiler_processes().size(),
-        .number_of_threads     = total_thread_count,
-        .number_of_samples     = total_sample_count,
-        .average_sampling_rate = average_sampling_rate};
+        .command_line        = std::move(command_line),
+        .date                = time_point_cast<seconds>(file.header().start_time),
+        .runtime             = std::chrono::duration_cast<std::chrono::nanoseconds>(runtime),
+        .number_of_processes = process_context_->profiler_processes().size(),
+        .number_of_threads   = total_thread_count,
+        .number_of_samples   = total_sample_count,
+    };
 
     system_info_ = analysis::system_info{
         .hostname             = process_context_->computer_name() ? utf8::utf16to8(*process_context_->computer_name()) : "[unknown]",
@@ -333,12 +388,20 @@ common::generator<analysis::thread_info> etl_data_provider::threads_info(unique_
     }
 }
 
-common::generator<const sample_data&> etl_data_provider::samples(unique_process_id    process_id,
-                                                                 const sample_filter& filter) const
+const std::vector<sample_source_info>& etl_data_provider::sample_sources() const
+{
+    return sample_sources_;
+}
+
+common::generator<const sample_data&> etl_data_provider::samples(sample_source_info::id_t source_id,
+                                                                 unique_process_id        process_id,
+                                                                 const sample_filter&     filter) const
 {
     if(process_context_ == nullptr) co_return;
 
     if(filter.excluded_processes.contains(process_id)) co_return;
+
+    if(source_id >= sample_source_internal_ids_.size()) co_return;
 
     assert(symbol_resolver_ != nullptr);
 
@@ -385,9 +448,7 @@ common::generator<const sample_data&> etl_data_provider::samples(unique_process_
                                               *filter_max_timestamp) :
                                          thread->payload.end_time;
 
-        const std::uint16_t sample_source = 0; // FIXME: make this based on an argument
-
-        const auto samples = process_context.thread_samples(thread_key.id, sample_min_time, sample_max_time, sample_source);
+        const auto samples = process_context.thread_samples(thread_key.id, sample_min_time, sample_max_time, sample_source_internal_ids_[source_id]);
 
         if(samples.empty()) continue;
 
@@ -461,12 +522,15 @@ common::generator<const sample_data&> etl_data_provider::samples(unique_process_
     }
 }
 
-std::size_t etl_data_provider::count_samples(unique_process_id    process_id,
-                                             const sample_filter& filter) const
+std::size_t etl_data_provider::count_samples(sample_source_info::id_t source_id,
+                                             unique_process_id        process_id,
+                                             const sample_filter&     filter) const
 {
     if(process_context_ == nullptr) return 0;
 
     if(filter.excluded_processes.contains(process_id)) return 0;
+
+    if(source_id >= sample_source_internal_ids_.size()) return 0;
 
     // TODO: remove code duplication
 
@@ -501,9 +565,7 @@ std::size_t etl_data_provider::count_samples(unique_process_id    process_id,
                                               *filter_max_timestamp) :
                                          thread->payload.end_time;
 
-        const std::uint16_t sample_source = 0; // FIXME: make this based on an argument
-
-        total_samples_count += process_context.thread_samples(thread_key.id, sample_min_time, sample_max_time, sample_source).size();
+        total_samples_count += process_context.thread_samples(thread_key.id, sample_min_time, sample_max_time, sample_source_internal_ids_[source_id]).size();
     }
     return total_samples_count;
 }

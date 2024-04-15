@@ -183,16 +183,72 @@ void perf_data_data_provider::process(const std::filesystem::path& file_path)
 
     using namespace std::chrono;
 
+    struct time_range
+    {
+        detail::perf_data_file_process_context::timestamp_t start;
+        detail::perf_data_file_process_context::timestamp_t end;
+    };
+
+    const auto& event_ids_per_sample_source = process_context_->event_ids_per_sample_source();
+
+    std::unordered_map<detail::perf_data_file_process_context::sample_source_id_t, std::string> sample_source_names;
+
+    sample_source_internal_ids_.clear();
+    for(const auto& [internal_id, event_ids] : event_ids_per_sample_source)
+    {
+        std::optional<std::string> source_name;
+        assert(!event_ids.empty());
+        const auto event_id = event_ids.front(); // it should be sufficient to loop for one event id only.
+        for(const auto& event_desc : file.metadata().event_desc)
+        {
+            // for an unset event, we just take the first event descriptor.
+            if(event_id == std::nullopt)
+            {
+                source_name = event_desc.event_string;
+                break;
+            }
+
+            if(std::ranges::find(event_desc.ids, *event_id) == event_desc.ids.end()) continue;
+
+            source_name = event_desc.event_string;
+            break;
+        }
+
+        if(source_name == std::nullopt)
+        {
+            // create a generic name
+            source_name = std::format("unknown event {}", (sample_source_internal_ids_.size() + 1));
+        }
+
+        sample_source_internal_ids_.push_back(internal_id);
+
+        sample_source_names[internal_id] = std::move(*source_name);
+    }
+
+    std::ranges::sort(sample_source_internal_ids_);
+
+    sample_sources_.clear();
+    std::vector<time_range> sample_source_times;
+    for(const auto internal_id : sample_source_internal_ids_)
+    {
+        sample_sources_.push_back(sample_source_info{
+            .id                    = sample_sources_.size(),
+            .name                  = std::move(sample_source_names.at(internal_id)),
+            .number_of_samples     = 0,
+            .average_sampling_rate = 0.0,
+        });
+
+        sample_source_times.push_back(time_range{
+            .start = std::numeric_limits<detail::perf_data_file_process_context::timestamp_t>::max(),
+            .end   = std::numeric_limits<detail::perf_data_file_process_context::timestamp_t>::min(),
+        });
+    }
+
     std::size_t total_sample_count = 0;
     std::size_t total_thread_count = 0;
-    auto        start_timestamp    = file.metadata().sample_time ? file.metadata().sample_time->start : nanoseconds::max();
-    auto        end_timestamp      = file.metadata().sample_time ? file.metadata().sample_time->end : nanoseconds::min();
 
     for(const auto& [process_key, sample_storage] : process_context_->sampled_processes())
     {
-        start_timestamp = std::min(start_timestamp, nanoseconds(sample_storage.first_sample_time));
-        end_timestamp   = std::max(end_timestamp, nanoseconds(sample_storage.last_sample_time));
-
         const auto* const process = process_context_->get_processes().find_at(process_key.id, process_key.time);
         if(process == nullptr) continue;
 
@@ -206,19 +262,51 @@ void perf_data_data_provider::process(const std::filesystem::path& file_path)
             const auto* const thread     = process_context_->get_threads().find_at(thread_key.id, thread_key.time);
             if(thread == nullptr) continue;
 
-            const std::size_t source_internal_id = 0; // FIXME: make this based on an argument
+            for(sample_source_info::id_t source_id = 0; source_id < sample_sources_.size(); ++source_id)
+            {
+                const auto source_internal_id = sample_source_internal_ids_[source_id];
+                const auto samples            = process_context_->thread_samples(thread_key.id, thread->timestamp, thread->payload.end_time, source_internal_id);
 
-            const auto samples = process_context_->thread_samples(thread_key.id, thread->timestamp, thread->payload.end_time, source_internal_id);
-            total_sample_count += std::ranges::size(samples);
+                auto& source_time_range = sample_source_times[source_id];
+
+                if(!samples.empty())
+                {
+                    source_time_range.start = std::min(source_time_range.start, samples.front().timestamp);
+                    source_time_range.end   = std::max(source_time_range.end, samples.back().timestamp);
+                }
+
+                sample_sources_[source_id].number_of_samples += std::ranges::size(samples);
+                total_sample_count += std::ranges::size(samples);
+            }
         }
+    }
+
+    auto start_timestamp = file.metadata().sample_time ? file.metadata().sample_time->start : nanoseconds::max();
+    auto end_timestamp   = file.metadata().sample_time ? file.metadata().sample_time->end : nanoseconds::min();
+
+    for(sample_source_info::id_t source_id = 0; source_id < sample_sources_.size(); ++source_id)
+    {
+        const auto& source_time_range = sample_source_times[source_id];
+
+        if(source_time_range.start > source_time_range.end) continue; // skip empty
+
+        auto& source_info = sample_sources_[source_id];
+
+        const auto start_ns = nanoseconds(source_time_range.start);
+        const auto end_ns   = nanoseconds(source_time_range.end);
+
+        start_timestamp = std::min(start_timestamp, start_ns);
+        end_timestamp   = std::max(end_timestamp, end_ns);
+
+        const auto sampling_runtime = end_ns - start_ns;
+
+        source_info.average_sampling_rate = sampling_runtime.count() == 0 ? 0.0 : ((double)source_info.number_of_samples / duration_cast<duration<double>>(sampling_runtime).count());
     }
 
     session_start_time_ = start_timestamp.count();
     session_end_time_   = end_timestamp.count();
 
     const auto runtime = start_timestamp < end_timestamp ? end_timestamp - start_timestamp : nanoseconds::zero();
-
-    const auto average_sampling_rate = runtime.count() == 0 ? 0.0 : ((double)total_sample_count / duration_cast<duration<double>>(runtime).count());
 
     const auto file_modified_time = std::filesystem::last_write_time(file_path);
 
@@ -234,13 +322,13 @@ void perf_data_data_provider::process(const std::filesystem::path& file_path)
     }
 
     session_info_ = analysis::session_info{
-        .command_line          = file.metadata().cmdline ? join(*file.metadata().cmdline) : "[unknown]",
-        .date                  = date,
-        .runtime               = runtime,
-        .number_of_processes   = process_context_->sampled_processes().size(),
-        .number_of_threads     = total_thread_count,
-        .number_of_samples     = total_sample_count,
-        .average_sampling_rate = average_sampling_rate};
+        .command_line        = file.metadata().cmdline ? join(*file.metadata().cmdline) : "[unknown]",
+        .date                = date,
+        .runtime             = runtime,
+        .number_of_processes = process_context_->sampled_processes().size(),
+        .number_of_threads   = total_thread_count,
+        .number_of_samples   = total_sample_count,
+    };
 
     system_info_ = analysis::system_info{
         .hostname             = file.metadata().hostname ? *file.metadata().hostname : "[unknown]",
@@ -319,12 +407,20 @@ common::generator<analysis::thread_info> perf_data_data_provider::threads_info(u
     }
 }
 
-common::generator<const sample_data&> perf_data_data_provider::samples(unique_process_id    process_id,
-                                                                       const sample_filter& filter) const
+const std::vector<sample_source_info>& perf_data_data_provider::sample_sources() const
+{
+    return sample_sources_;
+}
+
+common::generator<const sample_data&> perf_data_data_provider::samples(sample_source_info::id_t source_id,
+                                                                       unique_process_id        process_id,
+                                                                       const sample_filter&     filter) const
 {
     if(process_context_ == nullptr) co_return;
 
     if(filter.excluded_processes.contains(process_id)) co_return;
+
+    if(source_id >= sample_source_internal_ids_.size()) co_return;
 
     assert(symbol_resolver_ != nullptr);
 
@@ -353,6 +449,8 @@ common::generator<const sample_data&> perf_data_data_provider::samples(unique_pr
     std::vector<thread_sample_data> threads_samples;
     threads_samples.reserve(threads.size());
 
+    const auto source_internal_id = sample_source_internal_ids_[source_id];
+
     for(const auto& thread_id : threads)
     {
         if(filter.excluded_threads.contains(thread_id)) continue;
@@ -370,8 +468,6 @@ common::generator<const sample_data&> perf_data_data_provider::samples(unique_pr
                                               std::min(*filter_max_timestamp, *thread->payload.end_time) :
                                               *filter_max_timestamp) :
                                          thread->payload.end_time;
-
-        const std::size_t source_internal_id = 0; // FIXME: make this based on an argument
 
         const auto samples = process_context.thread_samples(thread_key.id, sample_min_time, sample_max_time, source_internal_id);
 
@@ -428,12 +524,15 @@ common::generator<const sample_data&> perf_data_data_provider::samples(unique_pr
     }
 }
 
-std::size_t perf_data_data_provider::count_samples(unique_process_id    process_id,
-                                                   const sample_filter& filter) const
+std::size_t perf_data_data_provider::count_samples(sample_source_info::id_t source_id,
+                                                   unique_process_id        process_id,
+                                                   const sample_filter&     filter) const
 {
     if(process_context_ == nullptr) return 0;
 
     if(filter.excluded_processes.contains(process_id)) return 0;
+
+    if(source_id >= sample_source_internal_ids_.size()) return 0;
 
     // TODO: remove code duplication
 
@@ -448,6 +547,8 @@ std::size_t perf_data_data_provider::count_samples(unique_process_id    process_
                                                                         std::make_optional(to_relative_timestamp(*filter.max_time, session_start_time_));
 
     const auto& threads = process_context.get_process_threads(process_id);
+
+    const auto source_internal_id = sample_source_internal_ids_[source_id];
 
     std::size_t total_samples_count = 0;
     for(const auto& thread_id : threads)
@@ -467,8 +568,6 @@ std::size_t perf_data_data_provider::count_samples(unique_process_id    process_
                                               std::min(*filter_max_timestamp, *thread->payload.end_time) :
                                               *filter_max_timestamp) :
                                          thread->payload.end_time;
-
-        const std::size_t source_internal_id = 0; // FIXME: make this based on an argument
 
         total_samples_count += process_context.thread_samples(thread_key.id, sample_min_time, sample_max_time, source_internal_id).size();
     }

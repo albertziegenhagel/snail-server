@@ -18,7 +18,6 @@ struct session_info
     std::size_t number_of_threads;
 
     std::size_t number_of_samples;
-    double      average_sampling_rate;
 };
 
 } // namespace snail::analysis

@@ -80,7 +80,6 @@ describe("InnerPerfData", function () {
         assert.strictEqual(response.sessionInfo.numberOfProcesses, 1);
         assert.strictEqual(response.sessionInfo.numberOfThreads, 1);
         assert.strictEqual(response.sessionInfo.numberOfSamples, 1524);
-        assert.strictEqual(response.sessionInfo.averageSamplingRate, 3933.9346780988258);
     });
 
     it("processes", async () => {

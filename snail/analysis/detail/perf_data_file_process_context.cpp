@@ -148,24 +148,13 @@ void perf_data_file_process_context::finish()
 
                 const auto sampled_process_key = process_key{process->id, process->timestamp};
 
-                const auto first_sample_time = std::max(samples.first_sample_time, thread_entry.timestamp);
-                const auto last_sample_time  = thread_entry.payload.end_time ?
-                                                   std::min(samples.last_sample_time, *thread_entry.payload.end_time) :
-                                                   samples.last_sample_time;
-
                 auto proc_iter = sampled_processes_.find(sampled_process_key);
                 if(proc_iter == sampled_processes_.end())
                 {
                     sampled_processes_[sampled_process_key] = sampled_process_info{
                         .process_id        = process->id,
                         .process_timestamp = process->timestamp,
-                        .first_sample_time = first_sample_time,
-                        .last_sample_time  = last_sample_time};
-                }
-                else
-                {
-                    proc_iter->second.first_sample_time = std::min(proc_iter->second.first_sample_time, first_sample_time);
-                    proc_iter->second.last_sample_time  = std::max(proc_iter->second.last_sample_time, last_sample_time);
+                    };
                 }
             }
         }
