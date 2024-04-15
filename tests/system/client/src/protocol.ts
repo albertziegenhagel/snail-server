@@ -8,6 +8,16 @@ export enum ModuleFilterMode {
     onlyIncluded = "only_included",
 }
 
+export interface SampleSourceInfo {
+    id: number;
+
+    name: string;
+
+    numberOfSamples: number;
+
+    averageSamplingRate: number;
+}
+
 export interface ThreadInfo {
     key: number;
 
@@ -51,8 +61,6 @@ export interface SessionInfo {
     numberOfThreads: number;
 
     numberOfSamples: number;
-
-    averageSamplingRate: number;
 }
 
 export interface SystemInfo {
@@ -142,10 +150,20 @@ export interface ReadDocumentResult {
     documentId: number;
 }
 
+export interface RetrieveSampleSourcesParams {
+    // The id of the document to perform the operation on.
+    // This should be an id that resulted from a call to `readDocument`.
+    documentId: number;
+}
+
 export interface RetrieveSessionInfoParams {
     // The id of the document to perform the operation on.
     // This should be an id that resulted from a call to `readDocument`.
     documentId: number;
+}
+
+export interface RetrieveSampleSourcesResult {
+    sampleSources: SampleSourceInfo[];
 }
 
 export interface RetrieveSessionInfoResult {
@@ -175,6 +193,8 @@ export interface RetrieveProcessesResult {
 export interface RetrieveHottestFunctionsParams {
     count: number;
 
+    sourceId: number;
+
     // The id of the document to perform the operation on.
     // This should be an id that resulted from a call to `readDocument`.
     documentId: number;
@@ -185,6 +205,8 @@ export interface RetrieveHottestFunctionsResult {
 }
 
 export interface RetrieveCallTreeHotPathParams {
+    sourceId: number;
+
     processKey: number;
 
     // The id of the document to perform the operation on.
@@ -201,6 +223,8 @@ export interface RetrieveFunctionsPageParams {
 
     pageIndex: number;
 
+    sourceId: number;
+
     processKey: number;
 
     // The id of the document to perform the operation on.
@@ -214,6 +238,8 @@ export interface RetrieveFunctionsPageResult {
 
 export interface ExpandCallTreeNodeParams {
     nodeId: number;
+
+    sourceId: number;
 
     processKey: number;
 
@@ -230,6 +256,8 @@ export interface RetrieveCallersCalleesParams {
     maxEntries: number;
 
     functionId: number;
+
+    sourceId: number;
 
     processKey: number;
 
@@ -248,6 +276,8 @@ export interface RetrieveCallersCalleesResult {
 
 export interface RetrieveLineInfoParams {
     functionId: number;
+
+    sourceId: number;
 
     processKey: number;
 
@@ -336,6 +366,9 @@ export const shutdownRequestType = new rpc.RequestType<void, null, void>('shutdo
 
 
 export const readDocumentRequestType = new rpc.RequestType<ReadDocumentParams, ReadDocumentResult, void>('readDocument');
+
+
+export const retrieveSampleSourcesRequestType = new rpc.RequestType<RetrieveSampleSourcesParams, RetrieveSampleSourcesResult, void>('retrieveSampleSources');
 
 
 export const retrieveSessionInfoRequestType = new rpc.RequestType<RetrieveSessionInfoParams, RetrieveSessionInfoResult, void>('retrieveSessionInfo');

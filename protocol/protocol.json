@@ -36,6 +36,18 @@
             }
         },
         {
+            "method": "retrieveSampleSources",
+            "result": {
+                "kind": "reference",
+                "name": "RetrieveSampleSourcesResult"
+            },
+            "messageDirection": "clientToServer",
+            "params": {
+                "kind": "reference",
+                "name": "RetrieveSampleSourcesParams"
+            }
+        },
+        {
             "method": "retrieveSessionInfo",
             "result": {
                 "kind": "reference",
@@ -213,6 +225,39 @@
     ],
     "structures": [
         {
+            "name": "SampleSourceInfo",
+            "properties": [
+                {
+                    "name": "id",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "name",
+                    "type": {
+                        "kind": "base",
+                        "name": "string"
+                    }
+                },
+                {
+                    "name": "numberOfSamples",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "averageSamplingRate",
+                    "type": {
+                        "kind": "base",
+                        "name": "decimal"
+                    }
+                }
+            ]
+        },
+        {
             "name": "ThreadInfo",
             "properties": [
                 {
@@ -351,13 +396,6 @@
                     "type": {
                         "kind": "base",
                         "name": "integer"
-                    }
-                },
-                {
-                    "name": "averageSamplingRate",
-                    "type": {
-                        "kind": "base",
-                        "name": "decimal"
                     }
                 }
             ]
@@ -625,6 +663,13 @@
             "name": "_ProcessParams",
             "properties": [
                 {
+                    "name": "sourceId",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
                     "name": "processKey",
                     "type": {
                         "kind": "base",
@@ -698,12 +743,37 @@
             ]
         },
         {
+            "name": "RetrieveSampleSourcesParams",
+            "properties": [],
+            "extends": [
+                {
+                    "kind": "reference",
+                    "name": "_DocumentIdParams"
+                }
+            ]
+        },
+        {
             "name": "RetrieveSessionInfoParams",
             "properties": [],
             "extends": [
                 {
                     "kind": "reference",
                     "name": "_DocumentIdParams"
+                }
+            ]
+        },
+        {
+            "name": "RetrieveSampleSourcesResult",
+            "properties": [
+                {
+                    "name": "sampleSources",
+                    "type": {
+                        "kind": "array",
+                        "element": {
+                            "kind": "reference",
+                            "name": "SampleSourceInfo"
+                        }
+                    }
                 }
             ]
         },
@@ -771,6 +841,13 @@
             "properties": [
                 {
                     "name": "count",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "sourceId",
                     "type": {
                         "kind": "base",
                         "name": "uinteger"

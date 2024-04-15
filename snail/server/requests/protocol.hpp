@@ -96,6 +96,35 @@ struct is_request<read_document_request> : std::true_type
 {};
 } // namespace snail::jsonrpc::detail
 
+struct retrieve_sample_sources_request
+{
+    static constexpr std::string_view name = "retrieveSampleSources";
+
+    static constexpr auto parameters = std::tuple(
+        snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"});
+
+    // The id of the document to perform the operation on.
+    // This should be an id that resulted from a call to `readDocument`.
+    const std::size_t& document_id() const
+    {
+        return std::get<0>(data_);
+    }
+
+    template<typename RequestType>
+        requires snail::jsonrpc::detail::is_request_v<RequestType>
+    friend RequestType snail::jsonrpc::detail::unpack_request(const nlohmann::json& raw_data);
+
+private:
+    std::tuple<
+        std::size_t>
+        data_;
+};
+namespace snail::jsonrpc::detail {
+template<>
+struct is_request<retrieve_sample_sources_request> : std::true_type
+{};
+} // namespace snail::jsonrpc::detail
+
 struct retrieve_session_info_request
 {
     static constexpr std::string_view name = "retrieveSessionInfo";
@@ -189,17 +218,23 @@ struct retrieve_hottest_functions_request
 
     static constexpr auto parameters = std::tuple(
         snail::jsonrpc::detail::request_parameter<std::size_t>{"count"},
+        snail::jsonrpc::detail::request_parameter<std::size_t>{"sourceId"},
         snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"});
 
     const std::size_t& count() const
     {
         return std::get<0>(data_);
     }
+
+    const std::size_t& source_id() const
+    {
+        return std::get<1>(data_);
+    }
     // The id of the document to perform the operation on.
     // This should be an id that resulted from a call to `readDocument`.
     const std::size_t& document_id() const
     {
-        return std::get<1>(data_);
+        return std::get<2>(data_);
     }
 
     template<typename RequestType>
@@ -208,6 +243,7 @@ struct retrieve_hottest_functions_request
 
 private:
     std::tuple<
+        std::size_t,
         std::size_t,
         std::size_t>
         data_;
@@ -223,18 +259,24 @@ struct retrieve_call_tree_hot_path_request
     static constexpr std::string_view name = "retrieveCallTreeHotPath";
 
     static constexpr auto parameters = std::tuple(
+        snail::jsonrpc::detail::request_parameter<std::size_t>{"sourceId"},
         snail::jsonrpc::detail::request_parameter<std::uint64_t>{"processKey"},
         snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"});
 
-    const std::uint64_t& process_key() const
+    const std::size_t& source_id() const
     {
         return std::get<0>(data_);
+    }
+
+    const std::uint64_t& process_key() const
+    {
+        return std::get<1>(data_);
     }
     // The id of the document to perform the operation on.
     // This should be an id that resulted from a call to `readDocument`.
     const std::size_t& document_id() const
     {
-        return std::get<1>(data_);
+        return std::get<2>(data_);
     }
 
     template<typename RequestType>
@@ -243,6 +285,7 @@ struct retrieve_call_tree_hot_path_request
 
 private:
     std::tuple<
+        std::size_t,
         std::uint64_t,
         std::size_t>
         data_;
@@ -260,6 +303,7 @@ struct retrieve_functions_page_request
     static constexpr auto parameters = std::tuple(
         snail::jsonrpc::detail::request_parameter<std::size_t>{"pageSize"},
         snail::jsonrpc::detail::request_parameter<std::size_t>{"pageIndex"},
+        snail::jsonrpc::detail::request_parameter<std::size_t>{"sourceId"},
         snail::jsonrpc::detail::request_parameter<std::uint64_t>{"processKey"},
         snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"});
 
@@ -273,15 +317,20 @@ struct retrieve_functions_page_request
         return std::get<1>(data_);
     }
 
-    const std::uint64_t& process_key() const
+    const std::size_t& source_id() const
     {
         return std::get<2>(data_);
+    }
+
+    const std::uint64_t& process_key() const
+    {
+        return std::get<3>(data_);
     }
     // The id of the document to perform the operation on.
     // This should be an id that resulted from a call to `readDocument`.
     const std::size_t& document_id() const
     {
-        return std::get<3>(data_);
+        return std::get<4>(data_);
     }
 
     template<typename RequestType>
@@ -290,6 +339,7 @@ struct retrieve_functions_page_request
 
 private:
     std::tuple<
+        std::size_t,
         std::size_t,
         std::size_t,
         std::uint64_t,
@@ -308,6 +358,7 @@ struct expand_call_tree_node_request
 
     static constexpr auto parameters = std::tuple(
         snail::jsonrpc::detail::request_parameter<std::size_t>{"nodeId"},
+        snail::jsonrpc::detail::request_parameter<std::size_t>{"sourceId"},
         snail::jsonrpc::detail::request_parameter<std::uint64_t>{"processKey"},
         snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"});
 
@@ -316,50 +367,7 @@ struct expand_call_tree_node_request
         return std::get<0>(data_);
     }
 
-    const std::uint64_t& process_key() const
-    {
-        return std::get<1>(data_);
-    }
-    // The id of the document to perform the operation on.
-    // This should be an id that resulted from a call to `readDocument`.
-    const std::size_t& document_id() const
-    {
-        return std::get<2>(data_);
-    }
-
-    template<typename RequestType>
-        requires snail::jsonrpc::detail::is_request_v<RequestType>
-    friend RequestType snail::jsonrpc::detail::unpack_request(const nlohmann::json& raw_data);
-
-private:
-    std::tuple<
-        std::size_t,
-        std::uint64_t,
-        std::size_t>
-        data_;
-};
-namespace snail::jsonrpc::detail {
-template<>
-struct is_request<expand_call_tree_node_request> : std::true_type
-{};
-} // namespace snail::jsonrpc::detail
-
-struct retrieve_callers_callees_request
-{
-    static constexpr std::string_view name = "retrieveCallersCallees";
-
-    static constexpr auto parameters = std::tuple(
-        snail::jsonrpc::detail::request_parameter<std::size_t>{"maxEntries"},
-        snail::jsonrpc::detail::request_parameter<std::size_t>{"functionId"},
-        snail::jsonrpc::detail::request_parameter<std::uint64_t>{"processKey"},
-        snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"});
-
-    const std::size_t& max_entries() const
-    {
-        return std::get<0>(data_);
-    }
-
-    const std::size_t& function_id() const
+    const std::size_t& source_id() const
     {
         return std::get<1>(data_);
     }
@@ -389,6 +397,62 @@ private:
 };
 namespace snail::jsonrpc::detail {
 template<>
+struct is_request<expand_call_tree_node_request> : std::true_type
+{};
+} // namespace snail::jsonrpc::detail
+
+struct retrieve_callers_callees_request
+{
+    static constexpr std::string_view name = "retrieveCallersCallees";
+
+    static constexpr auto parameters = std::tuple(
+        snail::jsonrpc::detail::request_parameter<std::size_t>{"maxEntries"},
+        snail::jsonrpc::detail::request_parameter<std::size_t>{"functionId"},
+        snail::jsonrpc::detail::request_parameter<std::size_t>{"sourceId"},
+        snail::jsonrpc::detail::request_parameter<std::uint64_t>{"processKey"},
+        snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"});
+
+    const std::size_t& max_entries() const
+    {
+        return std::get<0>(data_);
+    }
+
+    const std::size_t& function_id() const
+    {
+        return std::get<1>(data_);
+    }
+
+    const std::size_t& source_id() const
+    {
+        return std::get<2>(data_);
+    }
+
+    const std::uint64_t& process_key() const
+    {
+        return std::get<3>(data_);
+    }
+    // The id of the document to perform the operation on.
+    // This should be an id that resulted from a call to `readDocument`.
+    const std::size_t& document_id() const
+    {
+        return std::get<4>(data_);
+    }
+
+    template<typename RequestType>
+        requires snail::jsonrpc::detail::is_request_v<RequestType>
+    friend RequestType snail::jsonrpc::detail::unpack_request(const nlohmann::json& raw_data);
+
+private:
+    std::tuple<
+        std::size_t,
+        std::size_t,
+        std::size_t,
+        std::uint64_t,
+        std::size_t>
+        data_;
+};
+namespace snail::jsonrpc::detail {
+template<>
 struct is_request<retrieve_callers_callees_request> : std::true_type
 {};
 } // namespace snail::jsonrpc::detail
@@ -399,6 +463,7 @@ struct retrieve_line_info_request
 
     static constexpr auto parameters = std::tuple(
         snail::jsonrpc::detail::request_parameter<std::size_t>{"functionId"},
+        snail::jsonrpc::detail::request_parameter<std::size_t>{"sourceId"},
         snail::jsonrpc::detail::request_parameter<std::uint64_t>{"processKey"},
         snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"});
 
@@ -407,15 +472,20 @@ struct retrieve_line_info_request
         return std::get<0>(data_);
     }
 
-    const std::uint64_t& process_key() const
+    const std::size_t& source_id() const
     {
         return std::get<1>(data_);
+    }
+
+    const std::uint64_t& process_key() const
+    {
+        return std::get<2>(data_);
     }
     // The id of the document to perform the operation on.
     // This should be an id that resulted from a call to `readDocument`.
     const std::size_t& document_id() const
     {
-        return std::get<2>(data_);
+        return std::get<3>(data_);
     }
 
     template<typename RequestType>
@@ -424,6 +494,7 @@ struct retrieve_line_info_request
 
 private:
     std::tuple<
+        std::size_t,
         std::size_t,
         std::uint64_t,
         std::size_t>

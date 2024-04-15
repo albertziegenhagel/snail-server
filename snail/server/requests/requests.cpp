@@ -269,10 +269,33 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
             return nullptr;
         });
 
+    server.register_request<retrieve_sample_sources_request>(
+        [&](const retrieve_sample_sources_request& request) -> nlohmann::json
+        {
+            const auto& data_provider = storage.get_data({request.document_id()});
+
+            auto json_sample_sources = nlohmann::json::array();
+            for(const auto& source_info : data_provider.sample_sources())
+            {
+                json_sample_sources.push_back({
+                    {"id",                  source_info.id                   },
+                    {"name",                source_info.name                 },
+                    {"numberOfSamples",     source_info.number_of_samples    },
+                    {"averageSamplingRate", source_info.average_sampling_rate}
+                });
+            }
+
+            return {
+                {"sampleSources", std::move(json_sample_sources)}
+            };
+        });
+
     server.register_request<retrieve_session_info_request>(
         [&](const retrieve_session_info_request& request) -> nlohmann::json
         {
-            const auto& session_info = storage.get_data({request.document_id()}).session_info();
+            const auto& data_provider = storage.get_data({request.document_id()});
+
+            const auto& session_info = data_provider.session_info();
 
             const auto format_date = [](const std::chrono::sys_seconds& date) -> std::string
             {
@@ -296,7 +319,6 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
                      {"numberOfProcesses", session_info.number_of_processes},
                      {"numberOfThreads", session_info.number_of_threads},
                      {"numberOfSamples", session_info.number_of_samples},
-                     {"averageSamplingRate", 0.0}, // TODO: get rid of this
                  }}
             };
         });
@@ -361,12 +383,10 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
 
             const auto& data_provider = storage.get_data({request.document_id()});
 
-            const analysis::sample_source_info::id_t sample_source_id = 0; // FIXME: add source-id to requests
-
             for(const auto process_id : data_provider.sampling_processes())
             {
-                const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, sample_source_id, process_id);
-                const auto& function_ids    = storage.get_functions_page({request.document_id()}, sample_source_id, process_id,
+                const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, request.source_id(), process_id);
+                const auto& function_ids    = storage.get_functions_page({request.document_id()}, request.source_id(), process_id,
                                                                          function_data_type::self_samples, true,
                                                                          request.count(), 0);
 
@@ -384,12 +404,12 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
                                   return lhs.function->hits.self > rhs.function->hits.self;
                               });
 
-            const auto total_hits = storage.get_total_samples_count({request.document_id()}, sample_source_id);
+            const auto total_hits = storage.get_total_samples_count({request.document_id()}, request.source_id());
 
             auto json_functions = nlohmann::json::array();
             for(const auto& entry : intermediate_functions | std::views::take(request.count()))
             {
-                const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, sample_source_id, entry.process_id);
+                const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, request.source_id(), entry.process_id);
                 const auto& process_info    = data_provider.process_info(entry.process_id);
                 json_functions.push_back({
                     {"processKey", entry.process_id.key},
@@ -409,10 +429,8 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
             const auto sort_by    = function_data_type::self_samples;
             const auto sort_order = direction::descending;
 
-            const analysis::sample_source_info::id_t sample_source_id = 0; // FIXME: add source-id to requests
-
-            const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, sample_source_id, {request.process_key()});
-            const auto& function_ids    = storage.get_functions_page({request.document_id()}, sample_source_id, {request.process_key()},
+            const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, request.source_id(), {request.process_key()});
+            const auto& function_ids    = storage.get_functions_page({request.document_id()}, request.source_id(), {request.process_key()},
                                                                      sort_by, sort_order == direction::descending,
                                                                      request.page_size(), request.page_index());
 
@@ -420,7 +438,7 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
 
             const auto& process_info = data_provider.process_info({request.process_key()});
 
-            const auto total_hits = storage.get_total_samples_count({request.document_id()}, sample_source_id);
+            const auto total_hits = storage.get_total_samples_count({request.document_id()}, request.source_id());
 
             auto json_functions = nlohmann::json::array();
             // if(sort_order == direction::descending)
@@ -446,14 +464,12 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
     server.register_request<retrieve_call_tree_hot_path_request>(
         [&](const retrieve_call_tree_hot_path_request& request) -> nlohmann::json
         {
-            const analysis::sample_source_info::id_t sample_source_id = 0; // FIXME: add source-id to requests
-
-            const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, sample_source_id, {request.process_key()});
+            const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, request.source_id(), {request.process_key()});
 
             const auto& data_provider = storage.get_data({request.document_id()});
             const auto& process       = data_provider.process_info({request.process_key()});
 
-            const auto total_hits = storage.get_total_samples_count({request.document_id()}, sample_source_id);
+            const auto total_hits = storage.get_total_samples_count({request.document_id()}, request.source_id());
 
             const auto root_name = std::format("{} (PID: {})", process.name, process.os_id);
 
@@ -495,11 +511,9 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
     server.register_request<expand_call_tree_node_request>(
         [&](const expand_call_tree_node_request& request) -> nlohmann::json
         {
-            const analysis::sample_source_info::id_t sample_source_id = 0; // FIXME: add source-id to requests
+            const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, request.source_id(), {request.process_key()});
 
-            const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, sample_source_id, {request.process_key()});
-
-            const auto total_hits = storage.get_total_samples_count({request.document_id()}, sample_source_id);
+            const auto total_hits = storage.get_total_samples_count({request.document_id()}, request.source_id());
 
             const auto& current_node = stacks_analysis.get_call_tree_node(request.node_id());
 
@@ -513,16 +527,14 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
     server.register_request<retrieve_callers_callees_request>(
         [&](const retrieve_callers_callees_request& request) -> nlohmann::json
         {
-            const analysis::sample_source_info::id_t sample_source_id = 0; // FIXME: add source-id to requests
-
-            const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, sample_source_id, {request.process_key()});
+            const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, request.source_id(), {request.process_key()});
 
             const auto& data_provider = storage.get_data({request.document_id()});
             const auto& process       = data_provider.process_info({request.process_key()});
 
             const auto max_entries = request.max_entries() > 0 ? request.max_entries() : 1;
 
-            const auto total_hits = storage.get_total_samples_count({request.document_id()}, sample_source_id);
+            const auto total_hits = storage.get_total_samples_count({request.document_id()}, request.source_id());
 
             const auto& function = stacks_analysis.get_function(request.function_id());
 
@@ -615,9 +627,7 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
     server.register_request<retrieve_line_info_request>(
         [&](const retrieve_line_info_request& request) -> nlohmann::json
         {
-            const analysis::sample_source_info::id_t sample_source_id = 0; // FIXME: add source-id to requests
-
-            const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, sample_source_id, {request.process_key()});
+            const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, request.source_id(), {request.process_key()});
             const auto& function        = stacks_analysis.get_function(request.function_id());
 
             if(function.file_id == std::nullopt || function.line_number == std::nullopt)
@@ -625,7 +635,7 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
                 return nullptr;
             }
 
-            const auto total_hits = storage.get_total_samples_count({request.document_id()}, sample_source_id);
+            const auto total_hits = storage.get_total_samples_count({request.document_id()}, request.source_id());
 
             const auto& file = stacks_analysis.get_file(*function.file_id);
 

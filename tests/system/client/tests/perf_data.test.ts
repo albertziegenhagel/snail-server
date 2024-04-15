@@ -8,6 +8,7 @@ describe("InnerPerfData", function () {
     this.timeout(60 * 1000);
 
     let documentId: number | undefined = undefined;
+    let sourceId: number | undefined = undefined;
 
     before(async function () {
         if (process.env.SNAIL_ROOT_DIR === undefined) {
@@ -49,6 +50,8 @@ describe("InnerPerfData", function () {
         assert.isAtLeast(response.documentId, 0);
 
         documentId = response.documentId;
+
+        sourceId = 0; // FIXME: modify the test to retrieve this?
     });
 
     after(async function () {
@@ -67,6 +70,21 @@ describe("InnerPerfData", function () {
         assert.strictEqual(response.systemInfo.architecture, "x86_64");
         assert.strictEqual(response.systemInfo.cpuName, "Intel(R) Core(TM) i7-7700HQ CPU @ 2.80GHz");
         assert.strictEqual(response.systemInfo.numberOfProcessors, 8);
+    });
+
+    it("sampleSources", async () => {
+        const response = await fixture.connection.sendRequest(snail.retrieveSampleSourcesRequestType, {
+            documentId: documentId
+        });
+
+        assert.strictEqual(response.sampleSources.length, 1);
+
+        const cyclesSource = response.sampleSources.find(sourceInfo => sourceInfo.name == "cycles:u");
+        assert.isDefined(cyclesSource);
+        assert.strictEqual(cyclesSource!.id, sourceId);
+        assert.strictEqual(cyclesSource!.name, "cycles:u");
+        assert.strictEqual(cyclesSource!.numberOfSamples, 1524);
+        assert.strictEqual(cyclesSource!.averageSamplingRate, 3933.9346780988258);
     });
 
     it("sessionInfo", async () => {
@@ -111,6 +129,7 @@ describe("InnerPerfData", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveHottestFunctionsRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             count: 1
         });
 
@@ -135,6 +154,7 @@ describe("InnerPerfData", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveHottestFunctionsRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             count: 3
         });
 
@@ -181,6 +201,7 @@ describe("InnerPerfData", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveCallTreeHotPathRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             processKey: process!.key
         });
 
@@ -266,6 +287,7 @@ describe("InnerPerfData", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveFunctionsPageRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             processKey: process!.key,
             pageSize: 3,
             pageIndex: 0
@@ -310,6 +332,7 @@ describe("InnerPerfData", function () {
 
         const hotPathResponse = await fixture.connection.sendRequest(snail.retrieveCallTreeHotPathRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             processKey: process!.key
         });
 
@@ -339,6 +362,7 @@ describe("InnerPerfData", function () {
 
         const response = await fixture.connection.sendRequest(snail.expandCallTreeNodeRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             processKey: process!.key,
             nodeId: current?.id
         });
@@ -367,6 +391,7 @@ describe("InnerPerfData", function () {
 
         const functionsPage = await fixture.connection.sendRequest(snail.retrieveFunctionsPageRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             processKey: process!.key,
             pageSize: 200,
             pageIndex: 0
@@ -377,6 +402,7 @@ describe("InnerPerfData", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveCallersCalleesRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             processKey: process!.key,
             functionId: func!.id,
             maxEntries: 2
@@ -400,6 +426,7 @@ describe("InnerPerfData", function () {
 
         const functionsPage = await fixture.connection.sendRequest(snail.retrieveFunctionsPageRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             processKey: process!.key,
             pageSize: 200,
             pageIndex: 0
@@ -410,6 +437,7 @@ describe("InnerPerfData", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveCallersCalleesRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             processKey: process!.key,
             functionId: func!.id,
             maxEntries: 1
@@ -431,6 +459,7 @@ describe("InnerPerfData", function () {
 
         const functionsPage = await fixture.connection.sendRequest(snail.retrieveFunctionsPageRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             processKey: process!.key,
             pageSize: 200,
             pageIndex: 0
@@ -441,6 +470,7 @@ describe("InnerPerfData", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveLineInfoRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             processKey: process!.key,
             functionId: func!.id,
         });
@@ -488,6 +518,7 @@ describe("InnerPerfData", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveHottestFunctionsRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             count: 1
         });
 
@@ -520,6 +551,7 @@ describe("InnerPerfData", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveHottestFunctionsRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             count: 10
         });
 
@@ -546,6 +578,7 @@ describe("InnerPerfData", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveHottestFunctionsRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             count: 10
         });
 

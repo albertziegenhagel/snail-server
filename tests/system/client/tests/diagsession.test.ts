@@ -8,6 +8,7 @@ describe("InnerDiagsession", function () {
     this.timeout(60 * 1000);
 
     let documentId: number | undefined = undefined;
+    let sourceId: number | undefined = undefined;
 
     let tempPdbFile: string;
 
@@ -62,6 +63,8 @@ describe("InnerDiagsession", function () {
         assert.isAtLeast(response.documentId, 0);
 
         documentId = response.documentId;
+
+        sourceId = 0; // FIXME: modify the test to retrieve this?
     });
 
     after(async function () {
@@ -80,6 +83,21 @@ describe("InnerDiagsession", function () {
         assert.strictEqual(response.systemInfo.architecture, "x64");
         assert.strictEqual(response.systemInfo.cpuName, "Intel(R) Xeon(R) Platinum 8272CL CPU @ 2.60GHz");
         assert.strictEqual(response.systemInfo.numberOfProcessors, 2);
+    });
+
+    it("sampleSources", async () => {
+        const response = await fixture.connection.sendRequest(snail.retrieveSampleSourcesRequestType, {
+            documentId: documentId
+        });
+
+        assert.strictEqual(response.sampleSources.length, 1);
+
+        const timerSource = response.sampleSources.find(sourceInfo => sourceInfo.name == "Timer");
+        assert.isDefined(timerSource);
+        assert.strictEqual(timerSource!.id, sourceId);
+        assert.strictEqual(timerSource!.name, "Timer");
+        assert.strictEqual(timerSource!.numberOfSamples, 292);
+        assert.strictEqual(timerSource!.averageSamplingRate, 195.95397980519758);
     });
 
     it("sessionInfo", async () => {
@@ -146,7 +164,8 @@ describe("InnerDiagsession", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveHottestFunctionsRequestType, {
             documentId: documentId,
-            count: 1
+            count: 1,
+            sourceId: sourceId
         });
 
         assert.strictEqual(response.functions.length, 1);
@@ -170,7 +189,8 @@ describe("InnerDiagsession", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveHottestFunctionsRequestType, {
             documentId: documentId,
-            count: 3
+            count: 3,
+            sourceId: sourceId
         });
 
         assert.strictEqual(response.functions.length, 3);
@@ -215,6 +235,7 @@ describe("InnerDiagsession", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveCallTreeHotPathRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             processKey: process!.key
         });
 
@@ -323,6 +344,7 @@ describe("InnerDiagsession", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveFunctionsPageRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             processKey: process!.key,
             pageSize: 3,
             pageIndex: 0
@@ -367,6 +389,7 @@ describe("InnerDiagsession", function () {
 
         const hotPathResponse = await fixture.connection.sendRequest(snail.retrieveCallTreeHotPathRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             processKey: process!.key
         });
 
@@ -396,6 +419,7 @@ describe("InnerDiagsession", function () {
 
         const response = await fixture.connection.sendRequest(snail.expandCallTreeNodeRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             processKey: process!.key,
             nodeId: current?.id
         });
@@ -424,6 +448,7 @@ describe("InnerDiagsession", function () {
 
         const functionsPage = await fixture.connection.sendRequest(snail.retrieveFunctionsPageRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             processKey: process!.key,
             pageSize: 500,
             pageIndex: 0
@@ -434,6 +459,7 @@ describe("InnerDiagsession", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveCallersCalleesRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             processKey: process!.key,
             functionId: func!.id,
             maxEntries: 2
@@ -457,6 +483,7 @@ describe("InnerDiagsession", function () {
 
         const functionsPage = await fixture.connection.sendRequest(snail.retrieveFunctionsPageRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             processKey: process!.key,
             pageSize: 500,
             pageIndex: 0
@@ -466,6 +493,7 @@ describe("InnerDiagsession", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveLineInfoRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             processKey: process!.key,
             functionId: func!.id,
         });
@@ -519,6 +547,7 @@ describe("InnerDiagsession", function () {
 
         const functionsPage = await fixture.connection.sendRequest(snail.retrieveFunctionsPageRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             processKey: process!.key,
             pageSize: 50,
             pageIndex: 0
@@ -528,6 +557,7 @@ describe("InnerDiagsession", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveLineInfoRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             processKey: process!.key,
             functionId: func!.id,
         });
@@ -552,6 +582,7 @@ describe("InnerDiagsession", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveHottestFunctionsRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             count: 1
         });
 
@@ -585,6 +616,7 @@ describe("InnerDiagsession", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveHottestFunctionsRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             count: 10
         });
 
@@ -615,6 +647,7 @@ describe("InnerDiagsession", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveHottestFunctionsRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             count: 1
         });
 
