@@ -210,7 +210,9 @@ void etl_data_provider::process(const std::filesystem::path& file_path)
             const auto* const thread     = process_context_->get_threads().find_at(thread_key.id, thread_key.time);
             if(thread == nullptr) continue;
 
-            const auto samples = process_context_->thread_samples(thread_key.id, thread->timestamp, thread->payload.end_time);
+            const std::uint16_t sample_source = 0; // FIXME: make this based on an argument
+
+            const auto samples = process_context_->thread_samples(thread_key.id, thread->timestamp, thread->payload.end_time, sample_source);
             total_sample_count += std::ranges::size(samples);
         }
     }
@@ -376,7 +378,9 @@ common::generator<const sample_data&> etl_data_provider::samples(unique_process_
                                               *filter_max_timestamp) :
                                          thread->payload.end_time;
 
-        const auto samples = process_context.thread_samples(thread_key.id, sample_min_time, sample_max_time);
+        const std::uint16_t sample_source = 0; // FIXME: make this based on an argument
+
+        const auto samples = process_context.thread_samples(thread_key.id, sample_min_time, sample_max_time, sample_source);
 
         if(samples.empty()) continue;
 
@@ -490,7 +494,9 @@ std::size_t etl_data_provider::count_samples(unique_process_id    process_id,
                                               *filter_max_timestamp) :
                                          thread->payload.end_time;
 
-        total_samples_count += process_context.thread_samples(thread_key.id, sample_min_time, sample_max_time).size();
+        const std::uint16_t sample_source = 0; // FIXME: make this based on an argument
+
+        total_samples_count += process_context.thread_samples(thread_key.id, sample_min_time, sample_max_time, sample_source).size();
     }
     return total_samples_count;
 }
