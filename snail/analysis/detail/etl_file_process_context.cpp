@@ -81,7 +81,11 @@ void etl_file_process_context::finish()
             ++next_process_id.key;
 
             unique_process_id_to_key_[*entry.payload.unique_id] = process_key{id, entry.timestamp};
+
+            threads_per_process_[*entry.payload.unique_id]; // initialize the map
         }
+
+        modules_per_process_id_[id]; // initialize the map
     }
     unique_thread_id next_thread_id{.key = 0x2'0000'0000};
     for(auto& [id, entries] : threads.all_entries())
@@ -176,6 +180,46 @@ void etl_file_process_context::finish()
             if(storage.samples.empty()) continue;
             sample_source_names_[storage.source] = utf8::utf8to16(std::format("Unknown ({})", storage.source));
             break;
+        }
+    }
+
+    if(profiler_processes_.empty())
+    {
+        for(auto& [id, entries] : processes.all_entries())
+        {
+            for(const auto& process_entry : entries)
+            {
+                bool has_samples = false;
+                for(const auto& unique_thread_id : get_process_threads(*process_entry.payload.unique_id))
+                {
+                    const auto        thread_key = unique_thread_id_to_key_.at(unique_thread_id);
+                    const auto* const thread     = threads.find_at(thread_key.id, thread_key.time);
+                    if(thread == nullptr) continue;
+
+                    {
+                        auto iter = samples_per_thread_id_.find(thread->id);
+                        if(iter != samples_per_thread_id_.end() && !iter->second.empty())
+                        {
+                            has_samples = true;
+                            break;
+                        }
+                    }
+                    {
+                        auto iter = pmc_samples_per_thread_id_.find(thread->id);
+                        if(iter != pmc_samples_per_thread_id_.end() && !iter->second.empty())
+                        {
+                            has_samples = true;
+                            break;
+                        }
+                    }
+                }
+
+                if(!has_samples) continue;
+
+                profiler_processes_[process_key{process_entry.id, process_entry.timestamp}] = profiler_process_info{
+                    .process_id      = process_entry.id,
+                    .start_timestamp = process_entry.timestamp};
+            }
         }
     }
 }
