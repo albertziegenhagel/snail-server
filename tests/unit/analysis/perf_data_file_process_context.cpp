@@ -367,7 +367,9 @@ TEST(PerfDataFileProcessContext, Samples)
 
     context.finish();
 
-    const auto samples_123 = context.thread_samples(123, 20, 20);
+    const perf_data_file_process_context::sample_source_id_t sample_source_id = 0;
+
+    const auto samples_123 = context.thread_samples(123, 20, 20, sample_source_id);
     EXPECT_EQ(samples_123.size(), 1);
 
     EXPECT_EQ(samples_123[0].thread_id, 123);
@@ -375,7 +377,7 @@ TEST(PerfDataFileProcessContext, Samples)
     EXPECT_EQ(samples_123[0].instruction_pointer, 0xAA11);
     EXPECT_EQ(samples_123[0].stack_index, 0);
 
-    const auto samples_222 = context.thread_samples(222, 25, 30);
+    const auto samples_222 = context.thread_samples(222, 25, 30, sample_source_id);
     EXPECT_EQ(samples_222.size(), 2);
 
     EXPECT_EQ(samples_222[0].thread_id, 222);
@@ -388,7 +390,7 @@ TEST(PerfDataFileProcessContext, Samples)
     EXPECT_EQ(samples_222[1].instruction_pointer, 0xAA33);
     EXPECT_EQ(samples_222[1].stack_index, 0);
 
-    const auto samples_456 = context.thread_samples(456, 40, 40);
+    const auto samples_456 = context.thread_samples(456, 40, 40, sample_source_id);
     EXPECT_EQ(samples_456.size(), 1);
 
     EXPECT_EQ(samples_456[0].thread_id, 456);

@@ -33,6 +33,8 @@ public:
     using timestamp_t           = std::uint64_t;
     using instruction_pointer_t = std::uint64_t;
 
+    using sample_source_id_t = std::size_t;
+
     using process_key = id_at<os_pid_t, timestamp_t>;
     using thread_key  = id_at<os_tid_t, timestamp_t>;
 
@@ -101,6 +103,8 @@ public:
 
     const std::unordered_map<process_key, sampled_process_info>& sampled_processes() const;
 
+    const std::unordered_map<sample_source_id_t, std::vector<std::optional<std::uint64_t>>>& event_ids_per_sample_source() const;
+
     const process_history& get_processes() const;
 
     const thread_history& get_threads() const;
@@ -109,7 +113,7 @@ public:
 
     const module_map<module_data, timestamp_t>& get_modules(os_pid_t process_id) const;
 
-    std::span<const sample_info> thread_samples(os_tid_t thread_id, timestamp_t start_time, std::optional<timestamp_t> end_time) const;
+    std::span<const sample_info> thread_samples(os_tid_t thread_id, timestamp_t start_time, std::optional<timestamp_t> end_time, std::uintptr_t source_id) const;
 
     const std::vector<instruction_pointer_t>& stack(std::size_t stack_index) const;
 
@@ -146,7 +150,12 @@ private:
         std::vector<sample_info> samples;
     };
 
-    std::unordered_map<os_tid_t, samples_storage> samples_per_thread_id_;
+    std::unordered_map<std::uintptr_t, sample_source_id_t> unique_sample_sources_;
+
+    std::unordered_map<sample_source_id_t, std::unordered_map<os_tid_t, samples_storage>> samples_per_source_and_thread_id_;
+
+    std::unordered_map<std::optional<std::uint64_t>, sample_source_id_t>              event_id_to_source_id_;
+    std::unordered_map<sample_source_id_t, std::vector<std::optional<std::uint64_t>>> event_ids_per_sample_source_;
 
     std::unordered_map<process_key, sampled_process_info> sampled_processes_;
 

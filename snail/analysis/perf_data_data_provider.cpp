@@ -206,7 +206,9 @@ void perf_data_data_provider::process(const std::filesystem::path& file_path)
             const auto* const thread     = process_context_->get_threads().find_at(thread_key.id, thread_key.time);
             if(thread == nullptr) continue;
 
-            const auto samples = process_context_->thread_samples(thread_key.id, thread->timestamp, thread->payload.end_time);
+            const std::size_t source_internal_id = 0; // FIXME: make this based on an argument
+
+            const auto samples = process_context_->thread_samples(thread_key.id, thread->timestamp, thread->payload.end_time, source_internal_id);
             total_sample_count += std::ranges::size(samples);
         }
     }
@@ -369,7 +371,9 @@ common::generator<const sample_data&> perf_data_data_provider::samples(unique_pr
                                               *filter_max_timestamp) :
                                          thread->payload.end_time;
 
-        const auto samples = process_context.thread_samples(thread_key.id, sample_min_time, sample_max_time);
+        const std::size_t source_internal_id = 0; // FIXME: make this based on an argument
+
+        const auto samples = process_context.thread_samples(thread_key.id, sample_min_time, sample_max_time, source_internal_id);
 
         if(samples.empty()) continue;
 
@@ -464,7 +468,9 @@ std::size_t perf_data_data_provider::count_samples(unique_process_id    process_
                                               *filter_max_timestamp) :
                                          thread->payload.end_time;
 
-        total_samples_count += process_context.thread_samples(thread_key.id, sample_min_time, sample_max_time).size();
+        const std::size_t source_internal_id = 0; // FIXME: make this based on an argument
+
+        total_samples_count += process_context.thread_samples(thread_key.id, sample_min_time, sample_max_time, source_internal_id).size();
     }
     return total_samples_count;
 }
