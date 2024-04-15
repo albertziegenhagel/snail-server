@@ -26,6 +26,9 @@ jobs:
         with:
           arch: x64
 
+      - name: Check PMC sources
+        run: xperf -pmcsources
+
       - name: Configure
         run: cmake -G Ninja ${{ github.workspace }}/tests/apps
 
