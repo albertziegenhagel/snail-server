@@ -238,6 +238,13 @@ void etl_data_provider::process(const std::filesystem::path& file_path)
             command_line = utf8::utf16to8(infos.front().payload.command_line);
             break;
         }
+        if(common::ascii_iequals(infos.front().payload.image_filename, "xperf.exe") &&
+           (infos.front().payload.command_line.contains(u" -start ") ||
+            infos.front().payload.command_line.contains(u" -on ")))
+        {
+            command_line = utf8::utf16to8(infos.front().payload.command_line);
+            break;
+        }
     }
 
     session_info_ = analysis::session_info{
