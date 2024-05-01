@@ -443,6 +443,14 @@ int main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
 
+    std::cout << std::format("  start_time:           {}\n", file.header().start_time);
+    std::cout << std::format("  end_time:             {}\n", file.header().end_time);
+    std::cout << std::format("  start_time_qpc_ticks: {}\n", file.header().start_time_qpc_ticks);
+    std::cout << std::format("  qpc_frequency:        {}\n", file.header().qpc_frequency);
+    std::cout << std::format("  pointer_size:         {}\n", file.header().pointer_size);
+    std::cout << std::format("  number_of_processors: {}\n", file.header().number_of_processors);
+    std::cout << std::format("  number_of_buffers:    {}\n", file.header().number_of_buffers);
+
     counting_event_observer observer;
 
     std::size_t                                    sample_count = 0;
