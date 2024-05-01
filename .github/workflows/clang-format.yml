@@ -16,7 +16,7 @@ jobs:
     - name: Run clang-format
       uses: DoozyX/clang-format-lint-action@v0.16.2
       with:
-        source: './snail ./tests ./apps'
+        source: './snail ./tests ./tools'
         exclude: './snail/common/third_party'
         extensions: 'cpp,hpp'
         clangFormatVersion: 16

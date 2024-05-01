@@ -88,7 +88,7 @@ add_subdirectory(snail)
 
 if(SNAIL_BUILD_TOOLS)
   # Just for testing/development
-  add_subdirectory(apps)
+  add_subdirectory(tools)
 endif()
 
 # =======
