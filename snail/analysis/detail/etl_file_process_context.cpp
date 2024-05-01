@@ -16,6 +16,7 @@
 #include <snail/etl/parser/records/kernel/thread.hpp>
 #include <snail/etl/parser/records/kernel_trace_control/image_id.hpp>
 #include <snail/etl/parser/records/kernel_trace_control/system_config_ex.hpp>
+#include <snail/etl/parser/records/snail/profiler.hpp>
 #include <snail/etl/parser/records/visual_studio/diagnostics_hub.hpp>
 
 using namespace snail;
@@ -55,6 +56,7 @@ etl_file_process_context::etl_file_process_context()
     register_event<etl::parser::stackwalk_v2_stack_event_view>();
     register_event<etl::parser::image_id_v2_dbg_id_pdb_info_event_view>();
     register_event<etl::parser::vs_diagnostics_hub_target_profiling_started_event_view>();
+    register_event<etl::parser::snail_profiler_profile_target_event_view>();
 }
 
 etl_file_process_context::~etl_file_process_context() = default;
@@ -574,6 +576,17 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data&   
 void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
                                             const etl::common_trace_header&                                            header,
                                             const etl::parser::vs_diagnostics_hub_target_profiling_started_event_view& event)
+{
+    const auto process_id = event.process_id();
+
+    profiler_processes_[process_key{process_id, header.timestamp}] = profiler_process_info{
+        .process_id      = process_id,
+        .start_timestamp = header.timestamp};
+}
+
+void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
+                                            const etl::common_trace_header&                              header,
+                                            const etl::parser::snail_profiler_profile_target_event_view& event)
 {
     const auto process_id = event.process_id();
 

@@ -31,6 +31,8 @@
 
 #include <snail/etl/parser/records/visual_studio/diagnostics_hub.hpp>
 
+#include <snail/etl/parser/records/snail/profiler.hpp>
+
 #include <snail/common/detail/dump.hpp>
 
 using namespace snail;
@@ -138,6 +140,7 @@ struct options
     bool show_stacks    = false;
     bool show_config_ex = false;
     bool show_vs_diag   = false;
+    bool show_snail     = false;
 
     std::optional<std::uint32_t> process_of_interest;
     bool                         all_processes = false;
@@ -208,6 +211,10 @@ options parse_command_line(int argc, char* argv[]) // NOLINT(modernize-avoid-c-a
         else if(current_arg == "--vs-diag")
         {
             result.show_vs_diag = true;
+        }
+        else if(current_arg == "--snail")
+        {
+            result.show_snail = true;
         }
         else if(current_arg == "--pid")
         {
@@ -300,6 +307,7 @@ constexpr std::string_view get_guid_provider_name(const common::guid& guid)
     if(guid == etl::parser::image_id_guid ||
        guid == etl::parser::system_config_ex_guid) return "XPerf";
     if(guid == etl::parser::vs_diagnostics_hub_guid) return "VS";
+    if(guid == etl::parser::snail_profiler_guid) return "Snail";
     return "Unknown";
 }
 
@@ -1019,6 +1027,26 @@ int main(int argc, char* argv[])
                 if(should_ignore(options, observer.current_event_name)) return;
 
                 std::cout << std::format("@{} {:30}: Count {} timestamp {} value {}\n", header.timestamp, observer.current_event_name, (int)event.counter(), event.timestamp(), event.value());
+
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
+            });
+    }
+
+    // Snail-Profiler
+    {
+        register_known_event_names<etl::parser::snail_profiler_profile_target_event_view>(observer.known_guid_event_names);
+        observer.register_event<etl::parser::snail_profiler_profile_target_event_view>(
+            [&options, &observer]([[maybe_unused]] const etl::etl_file::header_data&           file_header,
+                                  const etl::common_trace_header&                              header,
+                                  const etl::parser::snail_profiler_profile_target_event_view& event)
+            {
+                assert(event.dynamic_size() == event.buffer().size());
+
+                if(!options.show_snail) return;
+                if(should_ignore(options, observer.current_event_name)) return;
+
+                std::cout << std::format("@{} {:30}: pid {}\n", header.timestamp, observer.current_event_name, event.process_id());
 
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");

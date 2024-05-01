@@ -13,6 +13,7 @@
 #include <snail/etl/parser/records/kernel_trace_control/image_id.hpp>
 #include <snail/etl/parser/records/kernel_trace_control/system_config_ex.hpp>
 
+#include <snail/etl/parser/records/snail/profiler.hpp>
 #include <snail/etl/parser/records/visual_studio/diagnostics_hub.hpp>
 
 #include <snail/common/cast.hpp>
@@ -539,6 +540,29 @@ void push_prof_started_event(const etl::etl_file::header_data& file_header,
     const auto event_header = make_full_trace_header(file_header, buffer, timestamp, event_data_size,
                                                      etl::parser::vs_diagnostics_hub_target_profiling_started_event_view::event_version,
                                                      etl::parser::vs_diagnostics_hub_guid,
+                                                     1);
+
+    observer.handle(file_header, event_header, event_data.subspan(0, event_data_size));
+}
+
+void push_snail_prof_target_event(const etl::etl_file::header_data& file_header,
+                                  etl::event_observer&              observer,
+                                  std::span<std::byte>              buffer,
+                                  std::uint64_t                     timestamp,
+                                  std::uint32_t                     process_id)
+{
+    std::ranges::fill(buffer, std::byte{});
+
+    const auto event_data = buffer.subspan(etl::parser::full_header_trace_header_view::static_size);
+
+    set_at(event_data, 0, process_id);
+    const auto event_data_size = 4;
+
+    assert(etl::parser::snail_profiler_profile_target_event_view(event_data, file_header.pointer_size).process_id() == process_id);
+
+    const auto event_header = make_full_trace_header(file_header, buffer, timestamp, event_data_size,
+                                                     etl::parser::snail_profiler_profile_target_event_view::event_version,
+                                                     etl::parser::snail_profiler_guid,
                                                      1);
 
     observer.handle(file_header, event_header, event_data.subspan(0, event_data_size));
@@ -1283,6 +1307,32 @@ TEST(EtlFileProcessContext, VsDiagnosticsHub)
                             10, 123);
     push_prof_started_event(file_header, context.observer(), writable_bytes_buffer,
                             20, 456);
+
+    context.finish();
+
+    const auto& processes = context.profiler_processes();
+    EXPECT_EQ(processes.size(), 2);
+
+    const auto process_123 = processes.at(etl_file_process_context::process_key{123, 10});
+    EXPECT_EQ(process_123.process_id, 123);
+    EXPECT_EQ(process_123.start_timestamp, 10);
+
+    const auto process_456 = processes.at(etl_file_process_context::process_key{456, 20});
+    EXPECT_EQ(process_456.process_id, 456);
+    EXPECT_EQ(process_456.start_timestamp, 20);
+}
+
+TEST(EtlFileProcessContext, SnailProfiler)
+{
+    etl_file_process_context context;
+
+    std::array<std::uint8_t, 1024> buffer;
+    const auto                     writable_bytes_buffer = std::as_writable_bytes(std::span(buffer));
+
+    push_snail_prof_target_event(file_header, context.observer(), writable_bytes_buffer,
+                                 10, 123);
+    push_snail_prof_target_event(file_header, context.observer(), writable_bytes_buffer,
+                                 20, 456);
 
     context.finish();
 

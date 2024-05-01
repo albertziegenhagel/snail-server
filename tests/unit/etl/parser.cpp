@@ -21,6 +21,7 @@
 #include <snail/etl/parser/records/kernel_trace_control/image_id.hpp>
 #include <snail/etl/parser/records/kernel_trace_control/system_config_ex.hpp>
 
+#include <snail/etl/parser/records/snail/profiler.hpp>
 #include <snail/etl/parser/records/visual_studio/diagnostics_hub.hpp>
 
 using namespace snail;
@@ -946,4 +947,16 @@ TEST(EtlParser, VsDiagHub_CounterInfoV0EventView)
     EXPECT_EQ(event.counter(), etl::parser::counter_type::CPU);
     EXPECT_EQ(event.timestamp(), 2925795820);
     EXPECT_EQ(event.value(), 21.428571428571427);
+}
+
+TEST(EtlParser, SnailProfiler_ProfileTarget)
+{
+    const std::array<std::uint8_t, 4> buffer = {
+        0x90, 0x59, 0x00, 0x00};
+
+    const auto event = etl::parser::snail_profiler_profile_target_event_view(std::as_bytes(std::span(buffer)), 8);
+
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
+
+    EXPECT_EQ(event.process_id(), 22928);
 }

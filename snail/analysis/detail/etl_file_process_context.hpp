@@ -38,7 +38,7 @@ struct perfinfo_v3_sampled_profile_interval_event_view;
 struct stackwalk_v2_stack_event_view;
 struct image_id_v2_dbg_id_pdb_info_event_view;
 struct vs_diagnostics_hub_target_profiling_started_event_view;
-struct vs_diagnostics_hub_target_profiling_stopped_event_view;
+struct snail_profiler_profile_target_event_view;
 
 } // namespace snail::etl::parser
 
@@ -166,6 +166,7 @@ private:
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::stackwalk_v2_stack_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::image_id_v2_dbg_id_pdb_info_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::vs_diagnostics_hub_target_profiling_started_event_view& event);
+    void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::snail_profiler_profile_target_event_view& event);
 
     etl::dispatching_event_observer observer_;
 
