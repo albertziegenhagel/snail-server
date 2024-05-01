@@ -254,6 +254,13 @@
                         "kind": "base",
                         "name": "decimal"
                     }
+                },
+                {
+                    "name": "hasStacks",
+                    "type": {
+                        "kind": "base",
+                        "name": "boolean"
+                    }
                 }
             ]
         },
@@ -441,6 +448,46 @@
             ]
         },
         {
+            "name": "HitCounts",
+            "properties": [
+                {
+                    "name": "sourceId",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "totalSamples",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "selfSamples",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "totalPercent",
+                    "type": {
+                        "kind": "base",
+                        "name": "decimal"
+                    }
+                },
+                {
+                    "name": "selfPercent",
+                    "type": {
+                        "kind": "base",
+                        "name": "decimal"
+                    }
+                }
+            ]
+        },
+        {
             "name": "CallTreeNode",
             "properties": [
                 {
@@ -479,31 +526,13 @@
                     }
                 },
                 {
-                    "name": "totalSamples",
+                    "name": "hits",
                     "type": {
-                        "kind": "base",
-                        "name": "uinteger"
-                    }
-                },
-                {
-                    "name": "selfSamples",
-                    "type": {
-                        "kind": "base",
-                        "name": "uinteger"
-                    }
-                },
-                {
-                    "name": "totalPercent",
-                    "type": {
-                        "kind": "base",
-                        "name": "decimal"
-                    }
-                },
-                {
-                    "name": "selfPercent",
-                    "type": {
-                        "kind": "base",
-                        "name": "decimal"
+                        "kind": "array",
+                        "element": {
+                            "kind": "reference",
+                            "name": "HitCounts"
+                        }
                     }
                 },
                 {
@@ -558,31 +587,13 @@
                     }
                 },
                 {
-                    "name": "totalSamples",
+                    "name": "hits",
                     "type": {
-                        "kind": "base",
-                        "name": "uinteger"
-                    }
-                },
-                {
-                    "name": "selfSamples",
-                    "type": {
-                        "kind": "base",
-                        "name": "uinteger"
-                    }
-                },
-                {
-                    "name": "totalPercent",
-                    "type": {
-                        "kind": "base",
-                        "name": "decimal"
-                    }
-                },
-                {
-                    "name": "selfPercent",
-                    "type": {
-                        "kind": "base",
-                        "name": "decimal"
+                        "kind": "array",
+                        "element": {
+                            "kind": "reference",
+                            "name": "HitCounts"
+                        }
                     }
                 }
             ]
@@ -617,31 +628,13 @@
                     }
                 },
                 {
-                    "name": "totalSamples",
+                    "name": "hits",
                     "type": {
-                        "kind": "base",
-                        "name": "uinteger"
-                    }
-                },
-                {
-                    "name": "selfSamples",
-                    "type": {
-                        "kind": "base",
-                        "name": "uinteger"
-                    }
-                },
-                {
-                    "name": "totalPercent",
-                    "type": {
-                        "kind": "base",
-                        "name": "decimal"
-                    }
-                },
-                {
-                    "name": "selfPercent",
-                    "type": {
-                        "kind": "base",
-                        "name": "decimal"
+                        "kind": "array",
+                        "element": {
+                            "kind": "reference",
+                            "name": "HitCounts"
+                        }
                     }
                 }
             ]
@@ -662,13 +655,6 @@
         {
             "name": "_ProcessParams",
             "properties": [
-                {
-                    "name": "sourceId",
-                    "type": {
-                        "kind": "base",
-                        "name": "uinteger"
-                    }
-                },
                 {
                     "name": "processKey",
                     "type": {
@@ -878,7 +864,15 @@
         },
         {
             "name": "RetrieveCallTreeHotPathParams",
-            "properties": [],
+            "properties": [
+                {
+                    "name": "sourceId",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                }
+            ],
             "extends": [
                 {
                     "kind": "reference",
@@ -901,6 +895,28 @@
         {
             "name": "RetrieveFunctionsPageParams",
             "properties": [
+                {
+                    "name": "sortBy",
+                    "type": {
+                        "kind": "reference",
+                        "name": "FunctionsSortBy"
+                    }
+                },
+                {
+                    "name": "sortOrder",
+                    "type": {
+                        "kind": "reference",
+                        "name": "SortDirection"
+                    }
+                },
+                {
+                    "name": "sortSourceId",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    },
+                    "optional": true
+                },
                 {
                     "name": "pageSize",
                     "type": {
@@ -947,6 +963,14 @@
                         "kind": "base",
                         "name": "uinteger"
                     }
+                },
+                {
+                    "name": "hotSourceId",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    },
+                    "optional": true
                 }
             ],
             "extends": [
@@ -974,6 +998,13 @@
         {
             "name": "RetrieveCallersCalleesParams",
             "properties": [
+                {
+                    "name": "sortSourceId",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
                 {
                     "name": "maxEntries",
                     "type": {
@@ -1049,31 +1080,13 @@
                     }
                 },
                 {
-                    "name": "totalSamples",
+                    "name": "hits",
                     "type": {
-                        "kind": "base",
-                        "name": "uinteger"
-                    }
-                },
-                {
-                    "name": "selfSamples",
-                    "type": {
-                        "kind": "base",
-                        "name": "uinteger"
-                    }
-                },
-                {
-                    "name": "totalPercent",
-                    "type": {
-                        "kind": "base",
-                        "name": "decimal"
-                    }
-                },
-                {
-                    "name": "selfPercent",
-                    "type": {
-                        "kind": "base",
-                        "name": "decimal"
+                        "kind": "array",
+                        "element": {
+                            "kind": "reference",
+                            "name": "HitCounts"
+                        }
                     }
                 },
                 {
@@ -1301,6 +1314,46 @@
                 {
                     "name": "onlyIncluded",
                     "value": "only_included"
+                }
+            ],
+            "supportsCustomValues": false
+        },
+        {
+            "name": "FunctionsSortBy",
+            "type": {
+                "kind": "base",
+                "name": "string"
+            },
+            "values": [
+                {
+                    "name": "name",
+                    "value": "name"
+                },
+                {
+                    "name": "selfSamples",
+                    "value": "self_samples"
+                },
+                {
+                    "name": "totalSamples",
+                    "value": "total_samples"
+                }
+            ],
+            "supportsCustomValues": false
+        },
+        {
+            "name": "SortDirection",
+            "type": {
+                "kind": "base",
+                "name": "string"
+            },
+            "values": [
+                {
+                    "name": "ascending",
+                    "value": "ascending"
+                },
+                {
+                    "name": "descending",
+                    "value": "descending"
                 }
             ],
             "supportsCustomValues": false

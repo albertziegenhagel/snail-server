@@ -85,6 +85,7 @@ describe("InnerPerfData", function () {
         assert.strictEqual(cyclesSource!.name, "cycles:u");
         assert.strictEqual(cyclesSource!.numberOfSamples, 1524);
         assert.strictEqual(cyclesSource!.averageSamplingRate, 3933.9346780988258);
+        assert.isTrue(cyclesSource!.hasStacks);
     });
 
     it("sessionInfo", async () => {
@@ -139,10 +140,12 @@ describe("InnerPerfData", function () {
         assert.isAtLeast(response.functions[0].function.id, 0);
         assert.strictEqual(response.functions[0].function.module, "/tmp/build/inner/Debug/build/inner");
         assert.strictEqual(response.functions[0].function.type, "function");
-        assert.strictEqual(response.functions[0].function.totalSamples, 1099);
-        assert.strictEqual(response.functions[0].function.selfSamples, 322);
-        assert.strictEqual(response.functions[0].function.totalPercent, 72.11286089238845);
-        assert.strictEqual(response.functions[0].function.selfPercent, 21.128608923884514);
+        assert.strictEqual(response.functions[0].function.hits.length, 1);
+        assert.strictEqual(response.functions[0].function.hits[0].sourceId, 0);
+        assert.strictEqual(response.functions[0].function.hits[0].totalSamples, 1099);
+        assert.strictEqual(response.functions[0].function.hits[0].selfSamples, 322);
+        assert.strictEqual(response.functions[0].function.hits[0].totalPercent, 72.11286089238845);
+        assert.strictEqual(response.functions[0].function.hits[0].selfPercent, 21.128608923884514);
     });
 
     it("hottestFunctions_3", async () => {
@@ -165,30 +168,36 @@ describe("InnerPerfData", function () {
         assert.isAtLeast(response.functions[0].function.id, 0);
         assert.strictEqual(response.functions[0].function.module, "/tmp/build/inner/Debug/build/inner");
         assert.strictEqual(response.functions[0].function.type, "function");
-        assert.strictEqual(response.functions[0].function.totalSamples, 1099);
-        assert.strictEqual(response.functions[0].function.selfSamples, 322);
-        assert.strictEqual(response.functions[0].function.totalPercent, 72.11286089238845);
-        assert.strictEqual(response.functions[0].function.selfPercent, 21.128608923884514);
+        assert.strictEqual(response.functions[0].function.hits.length, 1);
+        assert.strictEqual(response.functions[0].function.hits[0].sourceId, 0);
+        assert.strictEqual(response.functions[0].function.hits[0].totalSamples, 1099);
+        assert.strictEqual(response.functions[0].function.hits[0].selfSamples, 322);
+        assert.strictEqual(response.functions[0].function.hits[0].totalPercent, 72.11286089238845);
+        assert.strictEqual(response.functions[0].function.hits[0].selfPercent, 21.128608923884514);
 
         assert.strictEqual(response.functions[1].processKey, process!.key);
         assert.strictEqual(response.functions[1].function.name, "libm.so.6!0x00007f6062b2d34f");
         assert.isAtLeast(response.functions[1].function.id, 0);
         assert.strictEqual(response.functions[1].function.module, "/usr/lib64/libm.so.6");
         assert.strictEqual(response.functions[1].function.type, "function");
-        assert.strictEqual(response.functions[1].function.totalSamples, 321);
-        assert.strictEqual(response.functions[1].function.selfSamples, 321);
-        assert.strictEqual(response.functions[1].function.totalPercent, 21.062992125984252);
-        assert.strictEqual(response.functions[1].function.selfPercent, 21.062992125984252);
+        assert.strictEqual(response.functions[1].function.hits.length, 1);
+        assert.strictEqual(response.functions[1].function.hits[0].sourceId, 0);
+        assert.strictEqual(response.functions[1].function.hits[0].totalSamples, 321);
+        assert.strictEqual(response.functions[1].function.hits[0].selfSamples, 321);
+        assert.strictEqual(response.functions[1].function.hits[0].totalPercent, 21.062992125984252);
+        assert.strictEqual(response.functions[1].function.hits[0].selfPercent, 21.062992125984252);
 
         assert.strictEqual(response.functions[2].processKey, process!.key);
         assert.strictEqual(response.functions[2].function.name, "std::mersenne_twister_engine<unsigned long, 32ul, 624ul, 397ul, 31ul, 2567483615ul, 11ul, 4294967295ul, 7ul, 2636928640ul, 15ul, 4022730752ul, 18ul, 1812433253ul>::_M_gen_rand()");
         assert.isAtLeast(response.functions[2].function.id, 0);
         assert.strictEqual(response.functions[2].function.module, "/tmp/build/inner/Debug/build/inner");
         assert.strictEqual(response.functions[2].function.type, "function");
-        assert.strictEqual(response.functions[2].function.totalSamples, 156);
-        assert.strictEqual(response.functions[2].function.selfSamples, 156);
-        assert.strictEqual(response.functions[2].function.totalPercent, 10.236220472440944);
-        assert.strictEqual(response.functions[2].function.selfPercent, 10.236220472440944);
+        assert.strictEqual(response.functions[2].function.hits.length, 1);
+        assert.strictEqual(response.functions[2].function.hits[0].sourceId, 0);
+        assert.strictEqual(response.functions[2].function.hits[0].totalSamples, 156);
+        assert.strictEqual(response.functions[2].function.hits[0].selfSamples, 156);
+        assert.strictEqual(response.functions[2].function.hits[0].totalPercent, 10.236220472440944);
+        assert.strictEqual(response.functions[2].function.hits[0].selfPercent, 10.236220472440944);
     });
 
 
@@ -212,10 +221,12 @@ describe("InnerPerfData", function () {
         assert.isTrue(response.root.isHot);
         assert.strictEqual(response.root.module, "[multiple]");
         assert.strictEqual(response.root.name, "inner (PID: 248)");
-        assert.strictEqual(response.root.totalSamples, 1524);
-        assert.strictEqual(response.root.selfSamples, 0);
-        assert.strictEqual(response.root.totalPercent, 100);
-        assert.strictEqual(response.root.selfPercent, 0);
+        assert.strictEqual(response.root.hits.length, 1);
+        assert.strictEqual(response.root.hits[0].sourceId, 0);
+        assert.strictEqual(response.root.hits[0].totalSamples, 1524);
+        assert.strictEqual(response.root.hits[0].selfSamples, 0);
+        assert.strictEqual(response.root.hits[0].totalPercent, 100);
+        assert.strictEqual(response.root.hits[0].selfPercent, 0);
         assert.strictEqual(response.root.type, "process");
         assert.strictEqual(response.root.children?.length, 3);
 
@@ -286,8 +297,10 @@ describe("InnerPerfData", function () {
         assert.isDefined(process);
 
         const response = await fixture.connection.sendRequest(snail.retrieveFunctionsPageRequestType, {
-            documentId: documentId,
-            sourceId: sourceId,
+            documentId: documentId!,
+            sortBy: snail.FunctionsSortBy.selfSamples,
+            sortOrder: snail.SortDirection.descending,
+            sortSourceId: sourceId!,
             processKey: process!.key,
             pageSize: 3,
             pageIndex: 0
@@ -299,27 +312,33 @@ describe("InnerPerfData", function () {
         assert.strictEqual(response.functions[0].module, "/tmp/build/inner/Debug/build/inner");
         assert.strictEqual(response.functions[0].name, "double std::generate_canonical<double, 53ul, std::mersenne_twister_engine<unsigned long, 32ul, 624ul, 397ul, 31ul, 2567483615ul, 11ul, 4294967295ul, 7ul, 2636928640ul, 15ul, 4022730752ul, 18ul, 1812433253ul>>(std::mersenne_twister_engine<unsigned long, 32ul, 624ul, 397ul, 31ul, 2567483615ul, 11ul, 4294967295ul, 7ul, 2636928640ul, 15ul, 4022730752ul, 18ul, 1812433253ul>&)");
         assert.strictEqual(response.functions[0].type, "function");
-        assert.strictEqual(response.functions[0].totalSamples, 1099);
-        assert.strictEqual(response.functions[0].selfSamples, 322);
-        assert.strictEqual(response.functions[0].totalPercent, 72.11286089238845);
-        assert.strictEqual(response.functions[0].selfPercent, 21.128608923884514);
+        assert.strictEqual(response.functions[0].hits.length, 1);
+        assert.strictEqual(response.functions[0].hits[0].sourceId, 0);
+        assert.strictEqual(response.functions[0].hits[0].totalSamples, 1099);
+        assert.strictEqual(response.functions[0].hits[0].selfSamples, 322);
+        assert.strictEqual(response.functions[0].hits[0].totalPercent, 72.11286089238845);
+        assert.strictEqual(response.functions[0].hits[0].selfPercent, 21.128608923884514);
 
         assert.isAtLeast(response.functions[1].id, 0);
         assert.strictEqual(response.functions[1].module, "/usr/lib64/libm.so.6");
         assert.strictEqual(response.functions[1].name, "libm.so.6!0x00007f6062b2d34f");
-        assert.strictEqual(response.functions[1].totalSamples, 321);
-        assert.strictEqual(response.functions[1].selfSamples, 321);
-        assert.strictEqual(response.functions[1].totalPercent, 21.062992125984252);
-        assert.strictEqual(response.functions[1].selfPercent, 21.062992125984252);
+        assert.strictEqual(response.functions[1].hits.length, 1);
+        assert.strictEqual(response.functions[1].hits[0].sourceId, 0);
+        assert.strictEqual(response.functions[1].hits[0].totalSamples, 321);
+        assert.strictEqual(response.functions[1].hits[0].selfSamples, 321);
+        assert.strictEqual(response.functions[1].hits[0].totalPercent, 21.062992125984252);
+        assert.strictEqual(response.functions[1].hits[0].selfPercent, 21.062992125984252);
         assert.strictEqual(response.functions[1].type, "function");
 
         assert.isAtLeast(response.functions[2].id, 0);
         assert.strictEqual(response.functions[2].module, "/tmp/build/inner/Debug/build/inner");
         assert.strictEqual(response.functions[2].name, "std::mersenne_twister_engine<unsigned long, 32ul, 624ul, 397ul, 31ul, 2567483615ul, 11ul, 4294967295ul, 7ul, 2636928640ul, 15ul, 4022730752ul, 18ul, 1812433253ul>::_M_gen_rand()");
-        assert.strictEqual(response.functions[2].totalSamples, 156);
-        assert.strictEqual(response.functions[2].selfSamples, 156);
-        assert.strictEqual(response.functions[2].totalPercent, 10.236220472440944);
-        assert.strictEqual(response.functions[2].selfPercent, 10.236220472440944);
+        assert.strictEqual(response.functions[2].hits.length, 1);
+        assert.strictEqual(response.functions[2].hits[0].sourceId, 0);
+        assert.strictEqual(response.functions[2].hits[0].totalSamples, 156);
+        assert.strictEqual(response.functions[2].hits[0].selfSamples, 156);
+        assert.strictEqual(response.functions[2].hits[0].totalPercent, 10.236220472440944);
+        assert.strictEqual(response.functions[2].hits[0].selfPercent, 10.236220472440944);
         assert.strictEqual(response.functions[2].type, "function");
     });
 
@@ -361,10 +380,10 @@ describe("InnerPerfData", function () {
         }
 
         const response = await fixture.connection.sendRequest(snail.expandCallTreeNodeRequestType, {
-            documentId: documentId,
-            sourceId: sourceId,
+            documentId: documentId!,
+            hotSourceId: sourceId!,
             processKey: process!.key,
-            nodeId: current?.id
+            nodeId: current!.id
         });
 
         assert.strictEqual(response.children.length, 1);
@@ -374,10 +393,12 @@ describe("InnerPerfData", function () {
         assert.isFalse(response.children[0].isHot);
         assert.strictEqual(response.children[0].module, "/tmp/build/inner/Debug/build/inner");
         assert.strictEqual(response.children[0].name, "std::vector<double, std::allocator<double>>::operator[](unsigned long) const");
-        assert.strictEqual(response.children[0].totalSamples, 6);
-        assert.strictEqual(response.children[0].selfSamples, 6);
-        assert.strictEqual(response.children[0].totalPercent, 0.3937007874015748);
-        assert.strictEqual(response.children[0].selfPercent, 0.3937007874015748);
+        assert.strictEqual(response.children[0].hits.length, 1);
+        assert.strictEqual(response.children[0].hits[0].sourceId, 0);
+        assert.strictEqual(response.children[0].hits[0].totalSamples, 6);
+        assert.strictEqual(response.children[0].hits[0].selfSamples, 6);
+        assert.strictEqual(response.children[0].hits[0].totalPercent, 0.3937007874015748);
+        assert.strictEqual(response.children[0].hits[0].selfPercent, 0.3937007874015748);
         assert.strictEqual(response.children[0].type, "function");
         assert.strictEqual(response.children[0].children?.length, 0);
     });
@@ -390,8 +411,10 @@ describe("InnerPerfData", function () {
         assert.isDefined(process);
 
         const functionsPage = await fixture.connection.sendRequest(snail.retrieveFunctionsPageRequestType, {
-            documentId: documentId,
-            sourceId: sourceId,
+            documentId: documentId!,
+            sortBy: snail.FunctionsSortBy.selfSamples,
+            sortOrder: snail.SortDirection.descending,
+            sortSourceId: sourceId!,
             processKey: process!.key,
             pageSize: 200,
             pageIndex: 0
@@ -402,7 +425,7 @@ describe("InnerPerfData", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveCallersCalleesRequestType, {
             documentId: documentId,
-            sourceId: sourceId,
+            sortSourceId: sourceId,
             processKey: process!.key,
             functionId: func!.id,
             maxEntries: 2
@@ -425,8 +448,10 @@ describe("InnerPerfData", function () {
         assert.isDefined(process);
 
         const functionsPage = await fixture.connection.sendRequest(snail.retrieveFunctionsPageRequestType, {
-            documentId: documentId,
-            sourceId: sourceId,
+            documentId: documentId!,
+            sortBy: snail.FunctionsSortBy.selfSamples,
+            sortOrder: snail.SortDirection.descending,
+            sortSourceId: sourceId!,
             processKey: process!.key,
             pageSize: 200,
             pageIndex: 0
@@ -437,7 +462,7 @@ describe("InnerPerfData", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveCallersCalleesRequestType, {
             documentId: documentId,
-            sourceId: sourceId,
+            sortSourceId: sourceId,
             processKey: process!.key,
             functionId: func!.id,
             maxEntries: 1
@@ -458,8 +483,10 @@ describe("InnerPerfData", function () {
         assert.isDefined(process);
 
         const functionsPage = await fixture.connection.sendRequest(snail.retrieveFunctionsPageRequestType, {
-            documentId: documentId,
-            sourceId: sourceId,
+            documentId: documentId!,
+            sortBy: snail.FunctionsSortBy.selfSamples,
+            sortOrder: snail.SortDirection.descending,
+            sortSourceId: sourceId!,
             processKey: process!.key,
             pageSize: 200,
             pageIndex: 0
@@ -470,17 +497,18 @@ describe("InnerPerfData", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveLineInfoRequestType, {
             documentId: documentId,
-            sourceId: sourceId,
             processKey: process!.key,
             functionId: func!.id,
         });
 
         assert.strictEqual(response!.filePath.replace('\\', '/'), "/tmp/snail-server/tests/apps/inner/main.cpp");
         assert.strictEqual(response!.lineNumber, 57);
-        assert.strictEqual(response!.totalSamples, 1502);
-        assert.strictEqual(response!.selfSamples, 0);
-        assert.strictEqual(response!.totalPercent, 98.55643044619423);
-        assert.strictEqual(response!.selfPercent, 0);
+        assert.strictEqual(response!.hits.length, 1);
+        assert.strictEqual(response!.hits[0].sourceId, 0);
+        assert.strictEqual(response!.hits[0].totalSamples, 1502);
+        assert.strictEqual(response!.hits[0].selfSamples, 0);
+        assert.strictEqual(response!.hits[0].totalPercent, 98.55643044619423);
+        assert.strictEqual(response!.hits[0].selfPercent, 0);
 
         response!.lineHits.sort((a, b) => {
             return a.lineNumber - b.lineNumber;
@@ -489,16 +517,18 @@ describe("InnerPerfData", function () {
         assert.strictEqual(response!.lineHits.length, 2);
 
         assert.strictEqual(response!.lineHits[0].lineNumber, 69);
-        assert.strictEqual(response!.lineHits[0].totalSamples, 759);
-        assert.strictEqual(response!.lineHits[0].selfSamples, 0);
-        assert.strictEqual(response!.lineHits[0].totalPercent, 49.803149606299215);
-        assert.strictEqual(response!.lineHits[0].selfPercent, 0);
+        assert.strictEqual(response!.lineHits[0].hits.length, 1);
+        assert.strictEqual(response!.lineHits[0].hits[0].sourceId, 0);
+        assert.strictEqual(response!.lineHits[0].hits[0].totalSamples, 759);
+        assert.strictEqual(response!.lineHits[0].hits[0].selfSamples, 0);
+        assert.strictEqual(response!.lineHits[0].hits[0].totalPercent, 49.803149606299215);
+        assert.strictEqual(response!.lineHits[0].hits[0].selfPercent, 0);
 
         assert.strictEqual(response!.lineHits[1].lineNumber, 71);
-        assert.strictEqual(response!.lineHits[1].totalSamples, 743);
-        assert.strictEqual(response!.lineHits[1].selfSamples, 0);
-        assert.strictEqual(response!.lineHits[1].totalPercent, 48.75328083989501);
-        assert.strictEqual(response!.lineHits[1].selfPercent, 0);
+        assert.strictEqual(response!.lineHits[1].hits[0].totalSamples, 743);
+        assert.strictEqual(response!.lineHits[1].hits[0].selfSamples, 0);
+        assert.strictEqual(response!.lineHits[1].hits[0].totalPercent, 48.75328083989501);
+        assert.strictEqual(response!.lineHits[1].hits[0].selfPercent, 0);
     });
 
     it("filterTime", async () => {
@@ -528,10 +558,12 @@ describe("InnerPerfData", function () {
         assert.isAtLeast(response.functions[0].function.id, 0);
         assert.strictEqual(response.functions[0].function.module, "/tmp/build/inner/Debug/build/inner");
         assert.strictEqual(response.functions[0].function.type, "function");
-        assert.strictEqual(response.functions[0].function.totalSamples, 55);
-        assert.strictEqual(response.functions[0].function.selfSamples, 16);
-        assert.strictEqual(response.functions[0].function.totalPercent, 68.75);
-        assert.strictEqual(response.functions[0].function.selfPercent, 20);
+        assert.strictEqual(response.functions[0].function.hits.length, 1);
+        assert.strictEqual(response.functions[0].function.hits[0].sourceId, 0);
+        assert.strictEqual(response.functions[0].function.hits[0].totalSamples, 55);
+        assert.strictEqual(response.functions[0].function.hits[0].selfSamples, 16);
+        assert.strictEqual(response.functions[0].function.hits[0].totalPercent, 68.75);
+        assert.strictEqual(response.functions[0].function.hits[0].selfPercent, 20);
     });
 
     it("filterProcess", async () => {

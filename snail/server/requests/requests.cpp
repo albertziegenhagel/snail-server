@@ -31,14 +31,36 @@ double make_percent(T value, U max_value)
     return max_value == 0 ? 0.0 : (static_cast<double>(value) * 100.0 / static_cast<double>(max_value));
 }
 
-const analysis::call_tree_node* get_top_child(const analysis::stacks_analysis& stacks_analysis,
-                                              const analysis::call_tree_node&  current_node)
+auto make_hits_json(const analysis::source_hit_counts&                                         hits_per_source,
+                    const std::unordered_map<analysis::sample_source_info::id_t, std::size_t>& total_hits)
+{
+    auto results = nlohmann::json::array();
+
+    for(analysis::sample_source_info::id_t source_id = 0; source_id < hits_per_source.counts_per_source.size(); ++source_id)
+    {
+        const auto& hits   = hits_per_source.counts_per_source[source_id];
+        const auto& totals = total_hits.at(source_id);
+
+        results.push_back({
+            {"sourceId", source_id},
+            {"totalSamples", hits.total},
+            {"selfSamples", hits.self},
+            {"totalPercent", make_percent(hits.total, totals)},
+            {"selfPercent", make_percent(hits.self, totals)},
+        });
+    }
+    return results;
+}
+
+const analysis::call_tree_node* get_top_child(const analysis::stacks_analysis&   stacks_analysis,
+                                              const analysis::call_tree_node&    current_node,
+                                              analysis::sample_source_info::id_t source_id)
 {
     const analysis::call_tree_node* top_child = nullptr;
     for(const auto child_id : current_node.children)
     {
         const auto& child = stacks_analysis.get_call_tree_node(child_id);
-        if(top_child == nullptr || child.hits.total > top_child->hits.total)
+        if(top_child == nullptr || child.hits.get(source_id).total > top_child->hits.get(source_id).total)
         {
             top_child = &child;
         }
@@ -46,19 +68,21 @@ const analysis::call_tree_node* get_top_child(const analysis::stacks_analysis& s
     return top_child;
 }
 
-auto append_call_tree_node_children(const analysis::stacks_analysis& stacks_analysis,
-                                    const analysis::call_tree_node&  current_node,
-                                    std::size_t                      total_hits,
-                                    nlohmann::json&                  children,
-                                    bool                             expand_hot_path)
+auto append_call_tree_node_children(const analysis::stacks_analysis&                                           stacks_analysis,
+                                    const analysis::call_tree_node&                                            current_node,
+                                    const std::unordered_map<analysis::sample_source_info::id_t, std::size_t>& total_hits,
+                                    nlohmann::json&                                                            children,
+                                    bool                                                                       expand_hot_path,
+                                    std::optional<analysis::sample_source_info::id_t>                          hot_source_id)
 {
     children = nlohmann::json::array();
 
-    const auto* const top_child = get_top_child(stacks_analysis, current_node);
+    const auto* const top_child = hot_source_id ? get_top_child(stacks_analysis, current_node, *hot_source_id) : nullptr;
 
     const auto expand_top_child = expand_hot_path &&
                                   top_child != nullptr &&
-                                  top_child->hits.total > current_node.hits.self;
+                                  hot_source_id &&
+                                  top_child->hits.get(*hot_source_id).total > current_node.hits.get(*hot_source_id).self;
 
     std::size_t top_child_index = 0;
     for(std::size_t child_index = 0; child_index < current_node.children.size(); ++child_index) // TODO: views::enumerate
@@ -68,8 +92,7 @@ auto append_call_tree_node_children(const analysis::stacks_analysis& stacks_anal
         const auto& child_function = stacks_analysis.get_function(child.function_id);
         const auto& child_module   = stacks_analysis.get_module(child_function.module_id);
 
-        assert(top_child != nullptr);
-        const auto is_top_child = child.id == top_child->id;
+        const auto is_top_child = top_child != nullptr && child.id == top_child->id;
 
         children.push_back({
             {"name", child_function.name},
@@ -77,10 +100,7 @@ auto append_call_tree_node_children(const analysis::stacks_analysis& stacks_anal
             {"functionId", child.function_id},
             {"module", child_module.name},
             {"type", "function"},
-            {"totalSamples", child.hits.total},
-            {"selfSamples", child.hits.self},
-            {"totalPercent", make_percent(child.hits.total, total_hits)},
-            {"selfPercent", make_percent(child.hits.self, total_hits)},
+            {"hits", make_hits_json(child.hits, total_hits)},
             {"isHot", expand_top_child && is_top_child}
         });
 
@@ -99,11 +119,11 @@ auto append_call_tree_node_children(const analysis::stacks_analysis& stacks_anal
     return std::make_tuple(top_child, top_child_index, expand_top_child);
 }
 
-auto make_function_json(const analysis::stacks_analysis& stacks_analysis,
-                        const analysis::process_info&    process,
-                        const analysis::function_info&   function,
-                        std::size_t                      total_hits,
-                        const analysis::hit_counts*      hits = nullptr)
+auto make_function_json(const analysis::stacks_analysis&                                           stacks_analysis,
+                        const analysis::process_info&                                              process,
+                        const analysis::function_info&                                             function,
+                        const std::unordered_map<analysis::sample_source_info::id_t, std::size_t>& total_hits,
+                        const analysis::source_hit_counts*                                         hits = nullptr)
 {
     if(hits == nullptr) hits = &function.hits;
 
@@ -122,11 +142,78 @@ auto make_function_json(const analysis::stacks_analysis& stacks_analysis,
         {"id", function.id},
         {"module", std::move(module_name)},
         {"type", type},
-        {"totalSamples", hits->total},
-        {"selfSamples", hits->self},
-        {"totalPercent", make_percent(hits->total, total_hits)},
-        {"selfPercent", make_percent(hits->self, total_hits)},
+        {"hits", make_hits_json(*hits, total_hits)}
     };
+}
+
+auto make_callers_callees_json(const analysis::stacks_analysis&                                                      stacks_analysis,
+                               const analysis::process_info&                                                         process,
+                               const auto                                                                            max_entries,
+                               const std::unordered_map<analysis::sample_source_info::id_t, std::size_t>&            total_hits,
+                               analysis::sample_source_info::id_t                                                    sort_source_id,
+                               const std::unordered_map<analysis::function_info::id_t, analysis::source_hit_counts>& functions)
+{
+    assert(max_entries >= 1);
+    struct id_and_count
+    {
+        analysis::function_info::id_t id;
+        std::size_t                   count;
+    };
+
+    std::vector<id_and_count> counts_per_function;
+    for(const auto& [id, hits] : functions)
+    {
+        counts_per_function.push_back(
+            {.id    = id,
+             .count = hits.get(sort_source_id).total});
+    }
+
+    std::sort(
+        counts_per_function.begin(), counts_per_function.end(),
+        [](const id_and_count& lhs, const id_and_count& rhs)
+        {
+            return lhs.count > rhs.count;
+        });
+
+    auto result = nlohmann::json::array();
+
+    const auto need_accumulated_item = counts_per_function.size() > max_entries;
+
+    const auto regular_items_count = need_accumulated_item ? max_entries - 1 : counts_per_function.size();
+
+    // result.reserve(functions.size());
+    for(const auto& [id, count] : std::views::take(counts_per_function, regular_items_count))
+    {
+        const auto& function = stacks_analysis.get_function(id);
+        result.push_back(make_function_json(stacks_analysis, process, function, total_hits));
+    }
+
+    if(need_accumulated_item)
+    {
+        analysis::source_hit_counts accumulated_hits;
+        for(const auto& [id, count] : std::views::drop(counts_per_function, regular_items_count))
+        {
+            const auto& function = stacks_analysis.get_function(id);
+
+            for(analysis::sample_source_info::id_t source_id = 0; source_id < function.hits.counts_per_source.size(); ++source_id)
+            {
+                const auto& hits = function.hits.counts_per_source[source_id];
+
+                accumulated_hits.get(source_id).total = hits.total;
+                accumulated_hits.get(source_id).self  = hits.self;
+            }
+        }
+
+        result.push_back(
+            nlohmann::json{
+                {"name", "[others]"},
+                {"id", nlohmann::json(nullptr)},
+                {"module", "[multiple]"},
+                {"type", "accumulated"},
+                {"hits", make_hits_json(accumulated_hits, total_hits)},
+        });
+    }
+    return result;
 }
 
 } // namespace
@@ -281,7 +368,8 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
                     {"id",                  source_info.id                   },
                     {"name",                source_info.name                 },
                     {"numberOfSamples",     source_info.number_of_samples    },
-                    {"averageSamplingRate", source_info.average_sampling_rate}
+                    {"averageSamplingRate", source_info.average_sampling_rate},
+                    {"hasStacks",           source_info.has_stacks           },
                 });
             }
 
@@ -383,11 +471,19 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
 
             const auto& data_provider = storage.get_data({request.document_id()});
 
+            const auto source_id = request.source_id();
+
+            const auto sort_by = sort_by_samples{
+                .sample_source_id = source_id,
+                .sum              = sort_by_samples::sum_type::self,
+            };
+
             for(const auto process_id : data_provider.sampling_processes())
             {
-                const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, request.source_id(), process_id);
-                const auto& function_ids    = storage.get_functions_page({request.document_id()}, request.source_id(), process_id,
-                                                                         function_data_type::self_samples, true,
+                const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, process_id);
+                const auto& function_ids    = storage.get_functions_page({request.document_id()}, process_id,
+                                                                         sort_by,
+                                                                         true,
                                                                          request.count(), 0);
 
                 for(const auto function_id : function_ids)
@@ -399,17 +495,17 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
             }
 
             std::ranges::sort(intermediate_functions,
-                              [](const intermediate_function_info& lhs, const intermediate_function_info& rhs)
+                              [source_id](const intermediate_function_info& lhs, const intermediate_function_info& rhs)
                               {
-                                  return lhs.function->hits.self > rhs.function->hits.self;
+                                  return lhs.function->hits.get(source_id).self > rhs.function->hits.get(source_id).self;
                               });
 
-            const auto total_hits = storage.get_total_samples_count({request.document_id()}, request.source_id());
+            const auto& total_hits = storage.get_total_samples_counts({request.document_id()});
 
             auto json_functions = nlohmann::json::array();
             for(const auto& entry : intermediate_functions | std::views::take(request.count()))
             {
-                const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, request.source_id(), entry.process_id);
+                const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, entry.process_id);
                 const auto& process_info    = data_provider.process_info(entry.process_id);
                 json_functions.push_back({
                     {"processKey", entry.process_id.key},
@@ -425,37 +521,52 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
     server.register_request<retrieve_functions_page_request>(
         [&](const retrieve_functions_page_request& request) -> nlohmann::json
         {
-            // TODO: Add `sort_by` and `sort_order` to request
-            const auto sort_by    = function_data_type::self_samples;
-            const auto sort_order = direction::descending;
+            const auto sort_by = [&request]() -> sort_by_kind
+            {
+                switch(request.sort_by())
+                {
+                default:
+                case functions_sort_by::name:
+                    return sort_by_name{};
+                case functions_sort_by::self_samples:
+                    if(!request.sort_source_id()) throw jsonrpc::invalid_request_error("missing 'sortSourceId'.");
+                    return sort_by_samples{
+                        .sample_source_id = *request.sort_source_id(),
+                        .sum              = sort_by_samples::sum_type::self};
+                case functions_sort_by::total_samples:
+                    if(!request.sort_source_id()) throw jsonrpc::invalid_request_error("missing 'sortSourceId'.");
+                    return sort_by_samples{
+                        .sample_source_id = *request.sort_source_id(),
+                        .sum              = sort_by_samples::sum_type::total};
+                }
+            }();
 
-            const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, request.source_id(), {request.process_key()});
-            const auto& function_ids    = storage.get_functions_page({request.document_id()}, request.source_id(), {request.process_key()},
-                                                                     sort_by, sort_order == direction::descending,
+            const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, {request.process_key()});
+            const auto& function_ids    = storage.get_functions_page({request.document_id()}, {request.process_key()},
+                                                                     sort_by, request.sort_order() == sort_direction::descending,
                                                                      request.page_size(), request.page_index());
 
             const auto& data_provider = storage.get_data({request.document_id()});
 
             const auto& process_info = data_provider.process_info({request.process_key()});
 
-            const auto total_hits = storage.get_total_samples_count({request.document_id()}, request.source_id());
+            const auto& total_hits = storage.get_total_samples_counts({request.document_id()});
 
             auto json_functions = nlohmann::json::array();
-            // if(sort_order == direction::descending)
-            assert(sort_order == direction::descending);
+            if(request.sort_order() == sort_direction::descending)
             {
                 for(const auto function_id : std::views::reverse(function_ids))
                 {
                     json_functions.push_back(make_function_json(stacks_analysis, process_info, stacks_analysis.get_function(function_id), total_hits));
                 }
             }
-            // else
-            // {
-            //     for(const auto function_id : function_ids)
-            //     {
-            //         json_functions.push_back(make_function_json(stacks_analysis, stacks_analysis.get_function(function_id), total_hits));
-            //     }
-            // }
+            else
+            {
+                for(const auto function_id : function_ids)
+                {
+                    json_functions.push_back(make_function_json(stacks_analysis, process_info, stacks_analysis.get_function(function_id), total_hits));
+                }
+            }
 
             return {
                 {"functions", json_functions}
@@ -464,12 +575,12 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
     server.register_request<retrieve_call_tree_hot_path_request>(
         [&](const retrieve_call_tree_hot_path_request& request) -> nlohmann::json
         {
-            const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, request.source_id(), {request.process_key()});
+            const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, {request.process_key()});
 
             const auto& data_provider = storage.get_data({request.document_id()});
             const auto& process       = data_provider.process_info({request.process_key()});
 
-            const auto total_hits = storage.get_total_samples_count({request.document_id()}, request.source_id());
+            const auto& total_hits = storage.get_total_samples_counts({request.document_id()});
 
             const auto root_name = std::format("{} (PID: {})", process.name, process.os_id);
 
@@ -481,10 +592,7 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
                 {"functionId", current_node->function_id},
                 {"module", "[multiple]"},
                 {"type", "process"},
-                {"totalSamples", current_node->hits.total},
-                {"selfSamples", current_node->hits.self},
-                {"totalPercent", make_percent(current_node->hits.total, total_hits)},
-                {"selfPercent", make_percent(current_node->hits.self, total_hits)},
+                {"hits", make_hits_json(current_node->hits, total_hits)},
                 {"isHot", true}
             };
 
@@ -494,7 +602,7 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
             {
                 auto& children = (*current_json_node)["children"];
 
-                const auto [top_child, top_child_index, expand_top_child] = append_call_tree_node_children(stacks_analysis, *current_node, total_hits, children, true);
+                const auto [top_child, top_child_index, expand_top_child] = append_call_tree_node_children(stacks_analysis, *current_node, total_hits, children, true, request.source_id());
 
                 if(top_child == nullptr) break;
 
@@ -511,14 +619,14 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
     server.register_request<expand_call_tree_node_request>(
         [&](const expand_call_tree_node_request& request) -> nlohmann::json
         {
-            const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, request.source_id(), {request.process_key()});
+            const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, {request.process_key()});
 
-            const auto total_hits = storage.get_total_samples_count({request.document_id()}, request.source_id());
+            const auto& total_hits = storage.get_total_samples_counts({request.document_id()});
 
             const auto& current_node = stacks_analysis.get_call_tree_node(request.node_id());
 
             nlohmann::json children;
-            append_call_tree_node_children(stacks_analysis, current_node, total_hits, children, false);
+            append_call_tree_node_children(stacks_analysis, current_node, total_hits, children, false, request.hot_source_id());
 
             return {
                 {"children", std::move(children)}
@@ -527,107 +635,32 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
     server.register_request<retrieve_callers_callees_request>(
         [&](const retrieve_callers_callees_request& request) -> nlohmann::json
         {
-            const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, request.source_id(), {request.process_key()});
+            const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, {request.process_key()});
 
             const auto& data_provider = storage.get_data({request.document_id()});
             const auto& process       = data_provider.process_info({request.process_key()});
 
             const auto max_entries = request.max_entries() > 0 ? request.max_entries() : 1;
 
-            const auto total_hits = storage.get_total_samples_count({request.document_id()}, request.source_id());
+            const auto& total_hits = storage.get_total_samples_counts({request.document_id()});
 
             const auto& function = stacks_analysis.get_function(request.function_id());
 
             auto function_json = make_function_json(stacks_analysis, process, function, total_hits);
 
-            std::vector<nlohmann::json> callers;
-            std::vector<nlohmann::json> callees;
-
-            callers.reserve(function.callers.size());
-            for(const auto& [caller_id, caller_hits] : function.callers)
-            {
-                const auto& caller = stacks_analysis.get_function(caller_id);
-                callers.push_back(make_function_json(stacks_analysis, process, caller, total_hits, &caller_hits));
-            }
-
-            std::sort(
-                callers.begin(), callers.end(),
-                [](const nlohmann::json& lhs, const nlohmann::json& rhs)
-                {
-                    return lhs.at("totalSamples").get<std::size_t>() > rhs.at("totalSamples").get<std::size_t>();
-                });
-
-            // TODO: make into function and remove code duplication with code below
-            if(callers.size() > max_entries)
-            {
-                analysis::hit_counts accumulated_hits;
-                for(std::size_t i = max_entries - 1; i < callers.size(); ++i)
-                {
-                    accumulated_hits.total += callers[i].at("totalSamples").get<std::size_t>();
-                    accumulated_hits.total += callers[i].at("selfSamples").get<std::size_t>();
-                }
-
-                callers.erase(callers.begin() + common::narrow_cast<std::ptrdiff_t>(max_entries - 1), callers.end());
-                callers.push_back(
-                    nlohmann::json{
-                        {"name", "[others]"},
-                        {"id", nlohmann::json(nullptr)},
-                        {"module", "[multiple]"},
-                        {"type", "accumulated"},
-                        {"totalSamples", accumulated_hits.total},
-                        {"selfSamples", accumulated_hits.self},
-                        {"totalPercent", make_percent(accumulated_hits.total, total_hits)},
-                        {"selfPercent", make_percent(accumulated_hits.self, total_hits)},
-                });
-            }
-
-            callees.reserve(function.callees.size());
-            for(const auto& [callee_id, callee_hits] : function.callees)
-            {
-                const auto& callee = stacks_analysis.get_function(callee_id);
-                callees.push_back(make_function_json(stacks_analysis, process, callee, total_hits, &callee_hits));
-            }
-
-            std::sort(
-                callees.begin(), callees.end(),
-                [](const nlohmann::json& lhs, const nlohmann::json& rhs)
-                {
-                    return lhs.at("totalSamples").get<std::size_t>() > rhs.at("totalSamples").get<std::size_t>();
-                });
-
-            if(callees.size() > max_entries)
-            {
-                analysis::hit_counts accumulated_hits;
-                for(std::size_t i = max_entries - 1; i < callees.size(); ++i)
-                {
-                    accumulated_hits.total += callees[i].at("totalSamples").get<std::size_t>();
-                    accumulated_hits.total += callees[i].at("selfSamples").get<std::size_t>();
-                }
-
-                callees.erase(callees.begin() + common::narrow_cast<std::ptrdiff_t>(max_entries - 1), callees.end());
-                callees.push_back(
-                    nlohmann::json{
-                        {"name", "[others]"},
-                        {"id", nlohmann::json(nullptr)},
-                        {"module", "[multiple]"},
-                        {"type", "accumulated"},
-                        {"totalSamples", accumulated_hits.total},
-                        {"selfSamples", accumulated_hits.self},
-                        {"totalPercent", make_percent(accumulated_hits.total, total_hits)},
-                        {"selfPercent", make_percent(accumulated_hits.self, total_hits)},
-                });
-            }
+            auto callers_json = make_callers_callees_json(stacks_analysis, process, max_entries, total_hits, request.sort_source_id(), function.callers);
+            auto callees_json = make_callers_callees_json(stacks_analysis, process, max_entries, total_hits, request.sort_source_id(), function.callees);
 
             return {
-                {"function", std::move(function_json)          },
-                {"callers",  nlohmann::json(std::move(callers))},
-                {"callees",  nlohmann::json(std::move(callees))}
+                {"function", std::move(function_json)},
+                {"callers",  std::move(callers_json) },
+                {"callees",  std::move(callees_json) }
             };
         });
     server.register_request<retrieve_line_info_request>(
         [&](const retrieve_line_info_request& request) -> nlohmann::json
         {
-            const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, request.source_id(), {request.process_key()});
+            const auto& stacks_analysis = storage.get_stacks_analysis({request.document_id()}, {request.process_key()});
             const auto& function        = stacks_analysis.get_function(request.function_id());
 
             if(function.file_id == std::nullopt || function.line_number == std::nullopt)
@@ -635,7 +668,7 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
                 return nullptr;
             }
 
-            const auto total_hits = storage.get_total_samples_count({request.document_id()}, request.source_id());
+            const auto& total_hits = storage.get_total_samples_counts({request.document_id()});
 
             const auto& file = stacks_analysis.get_file(*function.file_id);
 
@@ -647,19 +680,13 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
                 line_hits.push_back(
                     nlohmann::json{
                         {"lineNumber", line_number},
-                        {"totalSamples", hits.total},
-                        {"selfSamples", hits.self},
-                        {"totalPercent", make_percent(hits.total, total_hits)},
-                        {"selfPercent", make_percent(hits.self, total_hits)},
+                        {"hits", make_hits_json(hits, total_hits)},
                 });
             }
 
             return {
                 {"filePath", file.path},
-                {"totalSamples", function.hits.total},
-                {"selfSamples", function.hits.self},
-                {"totalPercent", make_percent(function.hits.total, total_hits)},
-                {"selfPercent", make_percent(function.hits.self, total_hits)},
+                {"hits", make_hits_json(function.hits, total_hits)},
                 {"lineNumber", *function.line_number},
                 {"lineHits", nlohmann::json(std::move(line_hits))}
             };

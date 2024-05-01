@@ -18,10 +18,9 @@ class samples_provider;
 
 struct stacks_analysis;
 
-stacks_analysis analyze_stacks(const samples_provider&  provider,
-                               sample_source_info::id_t source_id,
-                               unique_process_id        process_id,
-                               const sample_filter&     filter = {});
+stacks_analysis analyze_stacks(const samples_provider& provider,
+                               unique_process_id       process_id,
+                               const sample_filter&    filter = {});
 
 struct stacks_analysis
 {
@@ -42,10 +41,9 @@ struct stacks_analysis
     const std::vector<file_info>&     all_files() const;
 
 private:
-    friend stacks_analysis analyze_stacks(const samples_provider&  provider,
-                                          sample_source_info::id_t source_id,
-                                          unique_process_id        process_id,
-                                          const sample_filter&     filter);
+    friend stacks_analysis analyze_stacks(const samples_provider& provider,
+                                          unique_process_id       process_id,
+                                          const sample_filter&    filter);
 
     // FIXME: This is a workaround: we would like to use the max of std::size_t, but since we will
     //        serialize those values to JSON and eventually handle them in JavaScript which cannot

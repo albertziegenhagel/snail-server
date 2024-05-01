@@ -14,7 +14,7 @@ struct file_info
 
     std::string path;
 
-    hit_counts hits;
+    source_hit_counts hits;
 };
 
 } // namespace snail::analysis

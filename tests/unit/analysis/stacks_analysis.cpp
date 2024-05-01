@@ -61,9 +61,9 @@ public:
                                                   const sample_filter& /*filter*/) const override
     {
         if(process_id != expected_process_id_) co_return;
-        if(source_id != expected_source_id_) co_return;
+        if(!samples_.contains(source_id)) co_return;
 
-        for(const auto& sample : samples_)
+        for(const auto& sample : samples_.at(source_id))
         {
             co_yield sample;
         }
@@ -73,24 +73,23 @@ public:
                               const sample_filter& /*filter*/) const override
     {
         if(process_id != expected_process_id_) return 0;
-        if(source_id != expected_source_id_) return 0;
-        return samples_.size();
+        if(!samples_.contains(source_id)) return 0;
+        return samples_.at(source_id).size();
     }
 
     std::vector<sample_source_info> sources_;
 
-    unique_process_id             expected_process_id_;
-    sample_source_info::id_t      expected_source_id_;
-    std::vector<test_sample_data> samples_;
+    unique_process_id expected_process_id_;
+
+    std::unordered_map<sample_source_info::id_t, std::vector<test_sample_data>> samples_;
 };
 
-using line_hits_map = std::unordered_map<std::size_t, hit_counts>;
-using caller_map    = std::unordered_map<function_info::id_t, hit_counts>;
+using line_hits_map = std::unordered_map<std::size_t, source_hit_counts>;
+using caller_map    = std::unordered_map<function_info::id_t, source_hit_counts>;
 
 TEST(Analysis, SampleStacksFullInfo)
 {
     const auto process_id = unique_process_id{.key = 123};
-    const auto source_id  = sample_source_info::id_t{456};
 
     const std::string function_a_name = "func_a";
     const std::string function_b_name = "func_b";
@@ -104,51 +103,61 @@ TEST(Analysis, SampleStacksFullInfo)
 
     test_samples_provider samples_provider;
     samples_provider.expected_process_id_ = process_id;
-    samples_provider.expected_source_id_  = source_id;
-    samples_provider.samples_             = {
-        test_sample_data(
-            std::nullopt,
-            std::vector{stack_frame{
-                                        .symbol_name             = function_a_name,
-                                        .module_name             = module_a_name,
-                                        .file_path               = file_a_path,
-                                        .function_line_number    = 10,
-                                        .instruction_line_number = 15},
-                        stack_frame{
-                                        .symbol_name             = function_b_name,
-                                        .module_name             = module_b_name,
-                                        .file_path               = file_b_path,
-                                        .function_line_number    = 100,
-                                        .instruction_line_number = 100}}
-            ),
-        test_sample_data(
-            std::nullopt,
-            std::vector{stack_frame{
-                                        .symbol_name             = function_a_name,
-                                        .module_name             = module_a_name,
-                                        .file_path               = file_a_path,
-                                        .function_line_number    = 10,
-                                        .instruction_line_number = 15},
-                        stack_frame{
-                                        .symbol_name             = function_c_name,
-                                        .module_name             = module_a_name,
-                                        .file_path               = file_a_path,
-                                        .function_line_number    = 50,
-                                        .instruction_line_number = 60},
-                        stack_frame{
-                                        .symbol_name             = function_b_name,
-                                        .module_name             = module_b_name,
-                                        .file_path               = file_b_path,
-                                        .function_line_number    = 100,
-                                        .instruction_line_number = 110}}
-            ),
-        test_sample_data(
-            std::nullopt,
-            std::vector<stack_frame>{}
-            )
+    samples_provider.sources_             = {
+        {.id                    = 0,
+         .name                  = "source A",
+         .number_of_samples     = 0,
+         .average_sampling_rate = 1.0,
+         .has_stacks            = false},
+        {.id                    = 1,
+         .name                  = "source B",
+         .number_of_samples     = 0,
+         .average_sampling_rate = 1.0,
+         .has_stacks            = true }
+    };
+    const auto source_id      = samples_provider.sources_[1].id;
+    samples_provider.samples_ = {
+        {1,
+         {test_sample_data(
+              std::nullopt,
+              std::vector{stack_frame{
+                              .symbol_name             = function_a_name,
+                              .module_name             = module_a_name,
+                              .file_path               = file_a_path,
+                              .function_line_number    = 10,
+                              .instruction_line_number = 15},
+                          stack_frame{
+                              .symbol_name             = function_b_name,
+                              .module_name             = module_b_name,
+                              .file_path               = file_b_path,
+                              .function_line_number    = 100,
+                              .instruction_line_number = 100}}),
+          test_sample_data(
+              std::nullopt,
+              std::vector{stack_frame{
+                              .symbol_name             = function_a_name,
+                              .module_name             = module_a_name,
+                              .file_path               = file_a_path,
+                              .function_line_number    = 10,
+                              .instruction_line_number = 15},
+                          stack_frame{
+                              .symbol_name             = function_c_name,
+                              .module_name             = module_a_name,
+                              .file_path               = file_a_path,
+                              .function_line_number    = 50,
+                              .instruction_line_number = 60},
+                          stack_frame{
+                              .symbol_name             = function_b_name,
+                              .module_name             = module_b_name,
+                              .file_path               = file_b_path,
+                              .function_line_number    = 100,
+                              .instruction_line_number = 110}}),
+          test_sample_data(
+              std::nullopt,
+              std::vector<stack_frame>{})}}
     };
 
-    const auto analysis_result = analyze_stacks(samples_provider, source_id, process_id);
+    const auto analysis_result = analyze_stacks(samples_provider, process_id);
 
     EXPECT_EQ(analysis_result.process_id, process_id);
 
@@ -203,26 +212,26 @@ TEST(Analysis, SampleStacksFullInfo)
     EXPECT_EQ(&analysis_result.get_file(file_b_iter->id), &*file_b_iter);
 
     // Check function hits
-    EXPECT_EQ(function_root.hits.total, 3);
-    EXPECT_EQ(function_root.hits.self, 1);
-    EXPECT_EQ(func_a_iter->hits.total, 2);
-    EXPECT_EQ(func_a_iter->hits.self, 0);
-    EXPECT_EQ(func_b_iter->hits.total, 2);
-    EXPECT_EQ(func_b_iter->hits.self, 2);
-    EXPECT_EQ(func_c_iter->hits.total, 1);
-    EXPECT_EQ(func_c_iter->hits.self, 0);
+    EXPECT_EQ(function_root.hits.get(source_id).total, 3);
+    EXPECT_EQ(function_root.hits.get(source_id).self, 1);
+    EXPECT_EQ(func_a_iter->hits.get(source_id).total, 2);
+    EXPECT_EQ(func_a_iter->hits.get(source_id).self, 0);
+    EXPECT_EQ(func_b_iter->hits.get(source_id).total, 2);
+    EXPECT_EQ(func_b_iter->hits.get(source_id).self, 2);
+    EXPECT_EQ(func_c_iter->hits.get(source_id).total, 1);
+    EXPECT_EQ(func_c_iter->hits.get(source_id).self, 0);
 
     // Check module hits
-    EXPECT_EQ(mod_a_iter->hits.total, 3);
-    EXPECT_EQ(mod_a_iter->hits.self, 0);
-    EXPECT_EQ(mod_b_iter->hits.total, 2);
-    EXPECT_EQ(mod_b_iter->hits.self, 2);
+    EXPECT_EQ(mod_a_iter->hits.get(source_id).total, 3);
+    EXPECT_EQ(mod_a_iter->hits.get(source_id).self, 0);
+    EXPECT_EQ(mod_b_iter->hits.get(source_id).total, 2);
+    EXPECT_EQ(mod_b_iter->hits.get(source_id).self, 2);
 
     // Check file hits
-    EXPECT_EQ(file_a_iter->hits.total, 3);
-    EXPECT_EQ(file_a_iter->hits.self, 0);
-    EXPECT_EQ(file_b_iter->hits.total, 2);
-    EXPECT_EQ(file_b_iter->hits.self, 2);
+    EXPECT_EQ(file_a_iter->hits.get(source_id).total, 3);
+    EXPECT_EQ(file_a_iter->hits.get(source_id).self, 0);
+    EXPECT_EQ(file_b_iter->hits.get(source_id).total, 2);
+    EXPECT_EQ(file_b_iter->hits.get(source_id).self, 2);
 
     // Check function file associations
     EXPECT_EQ(func_a_iter->file_id, file_a_iter->id);
@@ -242,16 +251,16 @@ TEST(Analysis, SampleStacksFullInfo)
     // Check function line hits
     EXPECT_EQ(func_a_iter->hits_by_line,
               (line_hits_map{
-                  {15, {.total = 2, .self = 0}}
+                  {15, {{{}, {.total = 2, .self = 0}}}}
     }));
     EXPECT_EQ(func_b_iter->hits_by_line,
               (line_hits_map{
-                  {100, {.total = 1, .self = 1}},
-                  {110, {.total = 1, .self = 1}}
+                  {100, {{{}, {.total = 1, .self = 1}}}},
+                  {110, {{{}, {.total = 1, .self = 1}}}}
     }));
     EXPECT_EQ(func_c_iter->hits_by_line,
               (line_hits_map{
-                  {60, {.total = 1, .self = 0}}
+                  {60, {{{}, {.total = 1, .self = 0}}}}
     }));
 
     // Check function callers
@@ -259,46 +268,50 @@ TEST(Analysis, SampleStacksFullInfo)
               (caller_map{}));
     EXPECT_EQ(func_a_iter->callers,
               (caller_map{
-                  {function_root.id, {.total = 2, .self = 0}}
+                  {function_root.id, {{{}, {.total = 2, .self = 0}}}}
     }));
     EXPECT_EQ(func_b_iter->callers,
               (caller_map{
-                  {func_a_iter->id, {.total = 1, .self = 0}},
-                  {func_c_iter->id, {.total = 1, .self = 0}}
+                  {func_a_iter->id, {{{}, {.total = 1, .self = 0}}}},
+                  {func_c_iter->id, {{{}, {.total = 1, .self = 0}}}}
     }));
     EXPECT_EQ(func_c_iter->callers,
               (caller_map{
-                  {func_a_iter->id, {.total = 1, .self = 0}}
+                  {func_a_iter->id, {{{}, {.total = 1, .self = 0}}}}
     }));
 
     // Check function callees
     EXPECT_EQ(function_root.callees,
               (caller_map{
-                  {func_a_iter->id, {.total = 2, .self = 0}}
+                  {func_a_iter->id, {{{}, {.total = 2, .self = 0}}}}
     }));
     EXPECT_EQ(func_a_iter->callees,
               (caller_map{
-                  {func_b_iter->id, {.total = 1, .self = 0}},
-                  {func_c_iter->id, {.total = 1, .self = 0}}
+                  {func_b_iter->id, {{{}, {.total = 1, .self = 0}}}},
+                  {func_c_iter->id, {{{}, {.total = 1, .self = 0}}}}
     }));
     EXPECT_EQ(func_b_iter->callees,
               (caller_map{}));
     EXPECT_EQ(func_c_iter->callees,
               (caller_map{
-                  {func_b_iter->id, {.total = 1, .self = 0}}
+                  {func_b_iter->id, {{{}, {.total = 1, .self = 0}}}}
     }));
 
     // check call tree
     const auto& call_tree_root = analysis_result.get_call_tree_root();
     EXPECT_EQ(&analysis_result.get_call_tree_node(call_tree_root.id), &call_tree_root);
     EXPECT_EQ(call_tree_root.function_id, function_root.id);
-    EXPECT_EQ(call_tree_root.hits, (hit_counts{.total = 3, .self = 1}));
+    EXPECT_EQ(call_tree_root.hits, (source_hit_counts{
+                                       {{}, {.total = 3, .self = 1}}
+    }));
     EXPECT_EQ(call_tree_root.children.size(), 1);
 
     // root => func_a
     const auto call_tree_node_a = analysis_result.get_call_tree_node(call_tree_root.children[0]);
     EXPECT_EQ(call_tree_node_a.function_id, func_a_iter->id);
-    EXPECT_EQ(call_tree_node_a.hits, (hit_counts{.total = 2, .self = 0}));
+    EXPECT_EQ(call_tree_node_a.hits, (source_hit_counts{
+                                         {{}, {.total = 2, .self = 0}}
+    }));
     EXPECT_EQ(call_tree_node_a.children.size(), 2);
 
     // func_a => func_b
@@ -307,7 +320,9 @@ TEST(Analysis, SampleStacksFullInfo)
     EXPECT_NE(a_b_id_iter, call_tree_node_a.children.end());
     const auto call_tree_node_a_b = analysis_result.get_call_tree_node(*a_b_id_iter);
     EXPECT_EQ(call_tree_node_a_b.id, *a_b_id_iter);
-    EXPECT_EQ(call_tree_node_a_b.hits, (hit_counts{.total = 1, .self = 1}));
+    EXPECT_EQ(call_tree_node_a_b.hits, (source_hit_counts{
+                                           {{}, {.total = 1, .self = 1}}
+    }));
     EXPECT_EQ(call_tree_node_a_b.children.size(), 0);
 
     // func_a => func_c
@@ -316,20 +331,23 @@ TEST(Analysis, SampleStacksFullInfo)
     EXPECT_NE(a_c_id_iter, call_tree_node_a.children.end());
     const auto call_tree_node_a_c = analysis_result.get_call_tree_node(*a_c_id_iter);
     EXPECT_EQ(call_tree_node_a_c.id, *a_c_id_iter);
-    EXPECT_EQ(call_tree_node_a_c.hits, (hit_counts{.total = 1, .self = 0}));
+    EXPECT_EQ(call_tree_node_a_c.hits, (source_hit_counts{
+                                           {{}, {.total = 1, .self = 0}}
+    }));
     EXPECT_EQ(call_tree_node_a_c.children.size(), 1);
 
     // func_a => func_c => func_b
     const auto call_tree_node_a_c_b = analysis_result.get_call_tree_node(call_tree_node_a_c.children[0]);
     EXPECT_EQ(call_tree_node_a_c_b.function_id, func_b_iter->id);
-    EXPECT_EQ(call_tree_node_a_c_b.hits, (hit_counts{.total = 1, .self = 1}));
+    EXPECT_EQ(call_tree_node_a_c_b.hits, (source_hit_counts{
+                                             {{}, {.total = 1, .self = 1}}
+    }));
     EXPECT_EQ(call_tree_node_a_c_b.children.size(), 0);
 }
 
 TEST(Analysis, SampleStacksMissingFile)
 {
     const auto process_id = unique_process_id{.key = 123};
-    const auto source_id  = sample_source_info::id_t{456};
 
     const std::string function_a_name = "func_a";
     const std::string function_b_name = "func_b";
@@ -342,41 +360,52 @@ TEST(Analysis, SampleStacksMissingFile)
 
     test_samples_provider samples_provider;
     samples_provider.expected_process_id_ = process_id;
-    samples_provider.expected_source_id_  = source_id;
-    samples_provider.samples_             = {
-        test_sample_data(
-            std::nullopt,
-            std::vector{stack_frame{
-                                        .symbol_name             = function_a_name,
-                                        .module_name             = module_a_name,
-                                        .file_path               = file_a_path,
-                                        .function_line_number    = 10,
-                                        .instruction_line_number = 15},
-                        stack_frame{
-                                        .symbol_name             = function_b_name,
-                                        .module_name             = module_a_name,
-                                        .file_path               = {},
-                                        .function_line_number    = {},
-                                        .instruction_line_number = {}}}
-            ),
-        test_sample_data(
-            std::nullopt,
-            std::vector{stack_frame{
-                                        .symbol_name             = function_c_name,
-                                        .module_name             = module_a_name,
-                                        .file_path               = {},
-                                        .function_line_number    = {},
-                                        .instruction_line_number = {}},
-                        stack_frame{
-                                        .symbol_name             = function_d_name,
-                                        .module_name             = module_a_name,
-                                        .file_path               = file_a_path,
-                                        .function_line_number    = 50,
-                                        .instruction_line_number = 60}}
-            )
+    samples_provider.sources_             = {
+        {.id                    = 0,
+         .name                  = "source A",
+         .number_of_samples     = 0,
+         .average_sampling_rate = 1.0,
+         .has_stacks            = false},
+        {.id                    = 1,
+         .name                  = "source B",
+         .number_of_samples     = 0,
+         .average_sampling_rate = 1.0,
+         .has_stacks            = true }
+    };
+    const auto source_id      = samples_provider.sources_[1].id;
+    samples_provider.samples_ = {
+        {1,
+         {test_sample_data(
+              std::nullopt,
+              std::vector{stack_frame{
+                              .symbol_name             = function_a_name,
+                              .module_name             = module_a_name,
+                              .file_path               = file_a_path,
+                              .function_line_number    = 10,
+                              .instruction_line_number = 15},
+                          stack_frame{
+                              .symbol_name             = function_b_name,
+                              .module_name             = module_a_name,
+                              .file_path               = {},
+                              .function_line_number    = {},
+                              .instruction_line_number = {}}}),
+          test_sample_data(
+              std::nullopt,
+              std::vector{stack_frame{
+                              .symbol_name             = function_c_name,
+                              .module_name             = module_a_name,
+                              .file_path               = {},
+                              .function_line_number    = {},
+                              .instruction_line_number = {}},
+                          stack_frame{
+                              .symbol_name             = function_d_name,
+                              .module_name             = module_a_name,
+                              .file_path               = file_a_path,
+                              .function_line_number    = 50,
+                              .instruction_line_number = 60}})}}
     };
 
-    const auto analysis_result = analyze_stacks(samples_provider, source_id, process_id);
+    const auto analysis_result = analyze_stacks(samples_provider, process_id);
 
     EXPECT_EQ(analysis_result.process_id, process_id);
 
@@ -428,24 +457,24 @@ TEST(Analysis, SampleStacksMissingFile)
     EXPECT_EQ(&analysis_result.get_file(file_a_iter->id), &*file_a_iter);
 
     // Check function hits
-    EXPECT_EQ(function_root.hits.total, 2);
-    EXPECT_EQ(function_root.hits.self, 0);
-    EXPECT_EQ(func_a_iter->hits.total, 1);
-    EXPECT_EQ(func_a_iter->hits.self, 0);
-    EXPECT_EQ(func_b_iter->hits.total, 1);
-    EXPECT_EQ(func_b_iter->hits.self, 1);
-    EXPECT_EQ(func_c_iter->hits.total, 1);
-    EXPECT_EQ(func_c_iter->hits.self, 0);
-    EXPECT_EQ(func_d_iter->hits.total, 1);
-    EXPECT_EQ(func_d_iter->hits.self, 1);
+    EXPECT_EQ(function_root.hits.get(source_id).total, 2);
+    EXPECT_EQ(function_root.hits.get(source_id).self, 0);
+    EXPECT_EQ(func_a_iter->hits.get(source_id).total, 1);
+    EXPECT_EQ(func_a_iter->hits.get(source_id).self, 0);
+    EXPECT_EQ(func_b_iter->hits.get(source_id).total, 1);
+    EXPECT_EQ(func_b_iter->hits.get(source_id).self, 1);
+    EXPECT_EQ(func_c_iter->hits.get(source_id).total, 1);
+    EXPECT_EQ(func_c_iter->hits.get(source_id).self, 0);
+    EXPECT_EQ(func_d_iter->hits.get(source_id).total, 1);
+    EXPECT_EQ(func_d_iter->hits.get(source_id).self, 1);
 
     // Check module hits
-    EXPECT_EQ(mod_a_iter->hits.total, 4);
-    EXPECT_EQ(mod_a_iter->hits.self, 2);
+    EXPECT_EQ(mod_a_iter->hits.get(source_id).total, 4);
+    EXPECT_EQ(mod_a_iter->hits.get(source_id).self, 2);
 
     // Check file hits
-    EXPECT_EQ(file_a_iter->hits.total, 2);
-    EXPECT_EQ(file_a_iter->hits.self, 1);
+    EXPECT_EQ(file_a_iter->hits.get(source_id).total, 2);
+    EXPECT_EQ(file_a_iter->hits.get(source_id).self, 1);
 
     // Check function file associations
     EXPECT_EQ(func_a_iter->file_id, file_a_iter->id);
@@ -468,7 +497,7 @@ TEST(Analysis, SampleStacksMissingFile)
     // Check function line hits
     EXPECT_EQ(func_a_iter->hits_by_line,
               (line_hits_map{
-                  {15, {.total = 1, .self = 0}}
+                  {15, {{{}, {.total = 1, .self = 0}}}}
     }));
     EXPECT_EQ(func_b_iter->hits_by_line,
               (line_hits_map{}));
@@ -476,7 +505,7 @@ TEST(Analysis, SampleStacksMissingFile)
               (line_hits_map{}));
     EXPECT_EQ(func_d_iter->hits_by_line,
               (line_hits_map{
-                  {60, {.total = 1, .self = 1}}
+                  {60, {{{}, {.total = 1, .self = 1}}}}
     }));
 
     // Check function callers
@@ -484,36 +513,36 @@ TEST(Analysis, SampleStacksMissingFile)
               (caller_map{}));
     EXPECT_EQ(func_a_iter->callers,
               (caller_map{
-                  {function_root.id, {.total = 1, .self = 0}}
+                  {function_root.id, {{{}, {.total = 1, .self = 0}}}}
     }));
     EXPECT_EQ(func_b_iter->callers,
               (caller_map{
-                  {func_a_iter->id, {.total = 1, .self = 0}},
+                  {func_a_iter->id, {{{}, {.total = 1, .self = 0}}}},
     }));
     EXPECT_EQ(func_c_iter->callers,
               (caller_map{
-                  {function_root.id, {.total = 1, .self = 0}}
+                  {function_root.id, {{{}, {.total = 1, .self = 0}}}}
     }));
     EXPECT_EQ(func_d_iter->callers,
               (caller_map{
-                  {func_c_iter->id, {.total = 1, .self = 0}},
+                  {func_c_iter->id, {{{}, {.total = 1, .self = 0}}}},
     }));
 
     // Check function callees
     EXPECT_EQ(function_root.callees,
               (caller_map{
-                  {func_a_iter->id, {.total = 1, .self = 0}},
-                  {func_c_iter->id, {.total = 1, .self = 0}}
+                  {func_a_iter->id, {{{}, {.total = 1, .self = 0}}}},
+                  {func_c_iter->id, {{{}, {.total = 1, .self = 0}}}}
     }));
     EXPECT_EQ(func_a_iter->callees,
               (caller_map{
-                  {func_b_iter->id, {.total = 1, .self = 0}},
+                  {func_b_iter->id, {{{}, {.total = 1, .self = 0}}}},
     }));
     EXPECT_EQ(func_b_iter->callees,
               (caller_map{}));
     EXPECT_EQ(func_c_iter->callees,
               (caller_map{
-                  {func_d_iter->id, {.total = 1, .self = 0}}
+                  {func_d_iter->id, {{{}, {.total = 1, .self = 0}}}}
     }));
     EXPECT_EQ(func_d_iter->callees,
               (caller_map{}));
@@ -522,7 +551,9 @@ TEST(Analysis, SampleStacksMissingFile)
     const auto& call_tree_root = analysis_result.get_call_tree_root();
     EXPECT_EQ(&analysis_result.get_call_tree_node(call_tree_root.id), &call_tree_root);
     EXPECT_EQ(call_tree_root.function_id, function_root.id);
-    EXPECT_EQ(call_tree_root.hits, (hit_counts{.total = 2, .self = 0}));
+    EXPECT_EQ(call_tree_root.hits, (source_hit_counts{
+                                       {{}, {.total = 2, .self = 0}}
+    }));
     EXPECT_EQ(call_tree_root.children.size(), 2);
 
     // root => func_a
@@ -531,7 +562,9 @@ TEST(Analysis, SampleStacksMissingFile)
     EXPECT_NE(a_id_iter, call_tree_root.children.end());
     const auto call_tree_node_a = analysis_result.get_call_tree_node(*a_id_iter);
     EXPECT_EQ(call_tree_node_a.id, *a_id_iter);
-    EXPECT_EQ(call_tree_node_a.hits, (hit_counts{.total = 1, .self = 0}));
+    EXPECT_EQ(call_tree_node_a.hits, (source_hit_counts{
+                                         {{}, {.total = 1, .self = 0}}
+    }));
     EXPECT_EQ(call_tree_node_a.children.size(), 1);
 
     // root => func_c
@@ -540,26 +573,31 @@ TEST(Analysis, SampleStacksMissingFile)
     EXPECT_NE(c_id_iter, call_tree_root.children.end());
     const auto call_tree_node_c = analysis_result.get_call_tree_node(*c_id_iter);
     EXPECT_EQ(call_tree_node_c.id, *c_id_iter);
-    EXPECT_EQ(call_tree_node_c.hits, (hit_counts{.total = 1, .self = 0}));
+    EXPECT_EQ(call_tree_node_c.hits, (source_hit_counts{
+                                         {{}, {.total = 1, .self = 0}}
+    }));
     EXPECT_EQ(call_tree_node_c.children.size(), 1);
 
     // root => func_a => func_b
     const auto call_tree_node_a_b = analysis_result.get_call_tree_node(call_tree_node_a.children[0]);
     EXPECT_EQ(call_tree_node_a_b.function_id, func_b_iter->id);
-    EXPECT_EQ(call_tree_node_a_b.hits, (hit_counts{.total = 1, .self = 1}));
+    EXPECT_EQ(call_tree_node_a_b.hits, (source_hit_counts{
+                                           {{}, {.total = 1, .self = 1}}
+    }));
     EXPECT_EQ(call_tree_node_a_b.children.size(), 0);
 
     // root => func_c => func_d
     const auto call_tree_node_c_d = analysis_result.get_call_tree_node(call_tree_node_c.children[0]);
     EXPECT_EQ(call_tree_node_c_d.function_id, func_d_iter->id);
-    EXPECT_EQ(call_tree_node_c_d.hits, (hit_counts{.total = 1, .self = 1}));
+    EXPECT_EQ(call_tree_node_c_d.hits, (source_hit_counts{
+                                           {{}, {.total = 1, .self = 1}}
+    }));
     EXPECT_EQ(call_tree_node_c_d.children.size(), 0);
 }
 
 TEST(Analysis, SampleNoStacks)
 {
     const auto process_id = unique_process_id{.key = 123};
-    const auto source_id  = sample_source_info::id_t{456};
 
     const std::string function_a_name = "func_a";
     const std::string function_b_name = "func_b";
@@ -573,45 +611,60 @@ TEST(Analysis, SampleNoStacks)
 
     test_samples_provider samples_provider;
     samples_provider.expected_process_id_ = process_id;
-    samples_provider.expected_source_id_  = source_id;
-    samples_provider.samples_             = {
-        test_sample_data(
-            stack_frame{
-                            .symbol_name             = function_a_name,
-                            .module_name             = module_a_name,
-                            .file_path               = file_a_path,
-                            .function_line_number    = 10,
-                            .instruction_line_number = 15},
-            std::nullopt),
-        test_sample_data(
-            stack_frame{
-                            .symbol_name             = function_b_name,
-                            .module_name             = module_b_name,
-                            .file_path               = file_b_path,
-                            .function_line_number    = 100,
-                            .instruction_line_number = 100},
-            std::nullopt),
-        test_sample_data(
-            stack_frame{
-                            .symbol_name             = function_c_name,
-                            .module_name             = module_a_name,
-                            .file_path               = file_a_path,
-                            .function_line_number    = 50,
-                            .instruction_line_number = 60},
-            std::nullopt),
-        test_sample_data(
-            stack_frame{
-                            .symbol_name             = function_a_name,
-                            .module_name             = module_a_name,
-                            .file_path               = file_a_path,
-                            .function_line_number    = 10,
-                            .instruction_line_number = 12},
-            std::nullopt),
-        test_sample_data(
-            std::nullopt,
-            std::nullopt)};
 
-    const auto analysis_result = analyze_stacks(samples_provider, source_id, process_id);
+    samples_provider.sources_ = {
+        {.id                    = 0,
+         .name                  = "source A",
+         .number_of_samples     = 0,
+         .average_sampling_rate = 1.0,
+         .has_stacks            = false},
+        {.id                    = 1,
+         .name                  = "source B",
+         .number_of_samples     = 0,
+         .average_sampling_rate = 1.0,
+         .has_stacks            = true }
+    };
+    const auto source_id      = samples_provider.sources_[1].id;
+    samples_provider.samples_ = {
+        {1,
+         {test_sample_data(
+              stack_frame{
+                  .symbol_name             = function_a_name,
+                  .module_name             = module_a_name,
+                  .file_path               = file_a_path,
+                  .function_line_number    = 10,
+                  .instruction_line_number = 15},
+              std::nullopt),
+          test_sample_data(
+              stack_frame{
+                  .symbol_name             = function_b_name,
+                  .module_name             = module_b_name,
+                  .file_path               = file_b_path,
+                  .function_line_number    = 100,
+                  .instruction_line_number = 100},
+              std::nullopt),
+          test_sample_data(
+              stack_frame{
+                  .symbol_name             = function_c_name,
+                  .module_name             = module_a_name,
+                  .file_path               = file_a_path,
+                  .function_line_number    = 50,
+                  .instruction_line_number = 60},
+              std::nullopt),
+          test_sample_data(
+              stack_frame{
+                  .symbol_name             = function_a_name,
+                  .module_name             = module_a_name,
+                  .file_path               = file_a_path,
+                  .function_line_number    = 10,
+                  .instruction_line_number = 12},
+              std::nullopt),
+          test_sample_data(
+              std::nullopt,
+              std::nullopt)}}
+    };
+
+    const auto analysis_result = analyze_stacks(samples_provider, process_id);
 
     EXPECT_EQ(analysis_result.process_id, process_id);
 
@@ -666,26 +719,26 @@ TEST(Analysis, SampleNoStacks)
     EXPECT_EQ(&analysis_result.get_file(file_b_iter->id), &*file_b_iter);
 
     // Check function hits
-    EXPECT_EQ(function_root.hits.total, 0);
-    EXPECT_EQ(function_root.hits.self, 0);
-    EXPECT_EQ(func_a_iter->hits.total, 2);
-    EXPECT_EQ(func_a_iter->hits.self, 2);
-    EXPECT_EQ(func_b_iter->hits.total, 1);
-    EXPECT_EQ(func_b_iter->hits.self, 1);
-    EXPECT_EQ(func_c_iter->hits.total, 1);
-    EXPECT_EQ(func_c_iter->hits.self, 1);
+    EXPECT_EQ(function_root.hits.get(source_id).total, 0);
+    EXPECT_EQ(function_root.hits.get(source_id).self, 0);
+    EXPECT_EQ(func_a_iter->hits.get(source_id).total, 2);
+    EXPECT_EQ(func_a_iter->hits.get(source_id).self, 2);
+    EXPECT_EQ(func_b_iter->hits.get(source_id).total, 1);
+    EXPECT_EQ(func_b_iter->hits.get(source_id).self, 1);
+    EXPECT_EQ(func_c_iter->hits.get(source_id).total, 1);
+    EXPECT_EQ(func_c_iter->hits.get(source_id).self, 1);
 
     // Check module hits
-    EXPECT_EQ(mod_a_iter->hits.total, 3);
-    EXPECT_EQ(mod_a_iter->hits.self, 3);
-    EXPECT_EQ(mod_b_iter->hits.total, 1);
-    EXPECT_EQ(mod_b_iter->hits.self, 1);
+    EXPECT_EQ(mod_a_iter->hits.get(source_id).total, 3);
+    EXPECT_EQ(mod_a_iter->hits.get(source_id).self, 3);
+    EXPECT_EQ(mod_b_iter->hits.get(source_id).total, 1);
+    EXPECT_EQ(mod_b_iter->hits.get(source_id).self, 1);
 
     // Check file hits
-    EXPECT_EQ(file_a_iter->hits.total, 3);
-    EXPECT_EQ(file_a_iter->hits.self, 3);
-    EXPECT_EQ(file_b_iter->hits.total, 1);
-    EXPECT_EQ(file_b_iter->hits.self, 1);
+    EXPECT_EQ(file_a_iter->hits.get(source_id).total, 3);
+    EXPECT_EQ(file_a_iter->hits.get(source_id).self, 3);
+    EXPECT_EQ(file_b_iter->hits.get(source_id).total, 1);
+    EXPECT_EQ(file_b_iter->hits.get(source_id).self, 1);
 
     // Check function file associations
     EXPECT_EQ(func_a_iter->file_id, file_a_iter->id);
@@ -705,16 +758,16 @@ TEST(Analysis, SampleNoStacks)
     // Check function line hits
     EXPECT_EQ(func_a_iter->hits_by_line,
               (line_hits_map{
-                  {12, {.total = 1, .self = 1}},
-                  {15, {.total = 1, .self = 1}},
+                  {12, {{{}, {.total = 1, .self = 1}}}},
+                  {15, {{{}, {.total = 1, .self = 1}}}},
     }));
     EXPECT_EQ(func_b_iter->hits_by_line,
               (line_hits_map{
-                  {100, {.total = 1, .self = 1}},
+                  {100, {{{}, {.total = 1, .self = 1}}}},
     }));
     EXPECT_EQ(func_c_iter->hits_by_line,
               (line_hits_map{
-                  {60, {.total = 1, .self = 1}}
+                  {60, {{{}, {.total = 1, .self = 1}}}}
     }));
 
     // Check function callers
@@ -741,6 +794,8 @@ TEST(Analysis, SampleNoStacks)
     const auto& call_tree_root = analysis_result.get_call_tree_root();
     EXPECT_EQ(&analysis_result.get_call_tree_node(call_tree_root.id), &call_tree_root);
     EXPECT_EQ(call_tree_root.function_id, function_root.id);
-    EXPECT_EQ(call_tree_root.hits, (hit_counts{.total = 0, .self = 0}));
+    EXPECT_EQ(call_tree_root.hits, (source_hit_counts{
+                                       {{}, {.total = 0, .self = 0}}
+    }));
     EXPECT_EQ(call_tree_root.children.size(), 0);
 }
