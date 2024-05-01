@@ -67,7 +67,9 @@ struct next_event_priority_info
 
 buffer_info read_buffer(std::ifstream&                          file_stream,
                         std::streampos                          buffer_start_pos,
-                        std::array<std::byte, max_buffer_size>& buffer_data)
+                        std::array<std::byte, max_buffer_size>& buffer_data,
+                        const etl_file::header_data&            file_header_,
+                        event_observer&                         callbacks)
 {
     file_stream.seekg(buffer_start_pos);
     file_stream.read(reinterpret_cast<char*>(buffer_data.data()), common::narrow_cast<std::streamsize>(buffer_data.size()));
@@ -85,6 +87,8 @@ buffer_info read_buffer(std::ifstream&                          file_stream,
     const auto header_buffer = total_buffer.subspan(0, parser::wmi_buffer_header_view::static_size);
 
     const auto header = parser::wmi_buffer_header_view(header_buffer);
+
+    callbacks.handle_buffer(file_header_, header);
 
     if(header.wnode().buffer_size() > total_buffer.size())
     {
@@ -431,7 +435,10 @@ void etl_file::process(event_observer& callbacks)
 
         processor_data.current_buffer_info = read_buffer(file_stream_,
                                                          remaining_buffers.back().start_pos,
-                                                         processor_data.current_buffer_data);
+                                                         processor_data.current_buffer_data,
+                                                         header_,
+                                                         callbacks);
+
         remaining_buffers.pop_back();
 
         event_queue.push(next_event_priority_info{
@@ -466,8 +473,6 @@ void etl_file::process(event_observer& callbacks)
             const auto buffer_exhausted = buffer_info.current_payload_offset >= buffer_info.payload_buffer.size();
             if(buffer_exhausted)
             {
-                callbacks.handle_buffer(header_, parser::wmi_buffer_header_view(buffer_info.header_buffer));
-
                 auto& remaining_buffers = processor_data.remaining_buffers;
 
                 // If there are no remaining buffers for this processor, stop extracting events for it.
@@ -477,7 +482,10 @@ void etl_file::process(event_observer& callbacks)
                 // Keep in mind, that `remaining_buffers` is sorted.
                 buffer_info = read_buffer(file_stream_,
                                           remaining_buffers.back().start_pos,
-                                          processor_data.current_buffer_data);
+                                          processor_data.current_buffer_data,
+                                          header_,
+                                          callbacks);
+
                 remaining_buffers.pop_back();
             }
 
