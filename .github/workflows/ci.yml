@@ -187,7 +187,7 @@ jobs:
         with:
           name: snail-tools-${{ matrix.arch }}-${{ matrix.platform }}
           path: |
-            ${{ github.workspace }}/install/tools/bin/app_*
+            ${{ github.workspace }}/install/tools/bin/snail-tool-*
             ${{ github.workspace }}/install/tools/bin/info.txt
 
   deploy-head:
