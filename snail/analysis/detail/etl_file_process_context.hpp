@@ -7,6 +7,7 @@
 #include <span>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include <snail/etl/dispatching_event_observer.hpp>
@@ -32,10 +33,12 @@ struct process_v4_type_group1_event_view;
 struct thread_v3_type_group1_event_view;
 struct image_v3_load_event_view;
 struct perfinfo_v2_sampled_profile_event_view;
+struct perfinfo_v2_pmc_counter_profile_event_view;
+struct perfinfo_v3_sampled_profile_interval_event_view;
 struct stackwalk_v2_stack_event_view;
 struct image_id_v2_dbg_id_pdb_info_event_view;
 struct vs_diagnostics_hub_target_profiling_started_event_view;
-struct vs_diagnostics_hub_target_profiling_stopped_event_view;
+struct snail_profiler_profile_target_event_view;
 
 } // namespace snail::etl::parser
 
@@ -48,6 +51,8 @@ public:
     using os_tid_t              = std::uint32_t;
     using timestamp_t           = std::uint64_t;
     using instruction_pointer_t = std::uint64_t;
+
+    using sample_source_id_t = std::uint16_t;
 
     using process_key = id_at<os_pid_t, timestamp_t>;
     using thread_key  = id_at<os_tid_t, timestamp_t>;
@@ -125,7 +130,14 @@ public:
 
     const module_map<module_data, timestamp_t>& get_modules(os_pid_t process_id) const;
 
-    std::span<const sample_info> thread_samples(os_tid_t thread_id, timestamp_t start_time, std::optional<timestamp_t> end_time) const;
+    const std::unordered_map<sample_source_id_t, std::u16string>& sample_source_names() const;
+
+    bool sample_source_has_stacks(sample_source_id_t pmc_source) const;
+
+    std::span<const sample_info> thread_samples(os_tid_t                   thread_id,
+                                                timestamp_t                start_time,
+                                                std::optional<timestamp_t> end_time,
+                                                sample_source_id_t         pmc_source) const;
 
     const std::vector<instruction_pointer_t>& stack(std::size_t stack_index) const;
 
@@ -149,9 +161,12 @@ private:
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::thread_v3_type_group1_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::image_v3_load_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::perfinfo_v2_sampled_profile_event_view& event);
+    void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::perfinfo_v2_pmc_counter_profile_event_view& event);
+    void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::perfinfo_v3_sampled_profile_interval_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::stackwalk_v2_stack_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::image_id_v2_dbg_id_pdb_info_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::vs_diagnostics_hub_target_profiling_started_event_view& event);
+    void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::snail_profiler_profile_target_event_view& event);
 
     etl::dispatching_event_observer observer_;
 
@@ -179,6 +194,17 @@ private:
     std::unordered_map<os_pid_t, module_map<module_data, timestamp_t>> modules_per_process_id_;
 
     std::unordered_map<os_tid_t, std::vector<sample_info>> samples_per_thread_id_;
+
+    struct pmc_sample_storage
+    {
+        sample_source_id_t       source;
+        std::vector<sample_info> samples;
+    };
+
+    std::unordered_map<os_tid_t, std::vector<pmc_sample_storage>> pmc_samples_per_thread_id_;
+
+    std::unordered_map<sample_source_id_t, std::u16string> sample_source_names_;
+    std::unordered_set<sample_source_id_t>                 sources_with_stacks_;
 
     std::unordered_map<unique_process_id, std::set<unique_thread_id>> threads_per_process_;
 

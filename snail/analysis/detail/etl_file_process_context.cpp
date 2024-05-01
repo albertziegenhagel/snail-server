@@ -6,6 +6,8 @@
 
 #include <utf8/cpp17.h>
 
+#include <snail/common/cast.hpp>
+
 #include <snail/etl/parser/records/kernel/config.hpp>
 #include <snail/etl/parser/records/kernel/image.hpp>
 #include <snail/etl/parser/records/kernel/perfinfo.hpp>
@@ -14,6 +16,7 @@
 #include <snail/etl/parser/records/kernel/thread.hpp>
 #include <snail/etl/parser/records/kernel_trace_control/image_id.hpp>
 #include <snail/etl/parser/records/kernel_trace_control/system_config_ex.hpp>
+#include <snail/etl/parser/records/snail/profiler.hpp>
 #include <snail/etl/parser/records/visual_studio/diagnostics_hub.hpp>
 
 using namespace snail;
@@ -30,6 +33,9 @@ bool is_kernel_address(std::uint64_t address, std::uint32_t pointer_size)
                address >= 0x0000'8000'0000'0000; // 64bit
 }
 
+// The default `SampledProfile` events are always "Timer" PMC events, with the PMC source 0.
+inline constexpr etl_file_process_context::sample_source_id_t default_timer_pmc_source = 0;
+
 } // namespace
 
 etl_file_process_context::etl_file_process_context()
@@ -45,9 +51,12 @@ etl_file_process_context::etl_file_process_context()
     register_event<etl::parser::thread_v3_type_group1_event_view>();
     register_event<etl::parser::image_v3_load_event_view>();
     register_event<etl::parser::perfinfo_v2_sampled_profile_event_view>();
+    register_event<etl::parser::perfinfo_v2_pmc_counter_profile_event_view>();
+    register_event<etl::parser::perfinfo_v3_sampled_profile_interval_event_view>();
     register_event<etl::parser::stackwalk_v2_stack_event_view>();
     register_event<etl::parser::image_id_v2_dbg_id_pdb_info_event_view>();
     register_event<etl::parser::vs_diagnostics_hub_target_profiling_started_event_view>();
+    register_event<etl::parser::snail_profiler_profile_target_event_view>();
 }
 
 etl_file_process_context::~etl_file_process_context() = default;
@@ -74,7 +83,11 @@ void etl_file_process_context::finish()
             ++next_process_id.key;
 
             unique_process_id_to_key_[*entry.payload.unique_id] = process_key{id, entry.timestamp};
+
+            threads_per_process_[*entry.payload.unique_id]; // initialize the map
         }
+
+        modules_per_process_id_[id]; // initialize the map
     }
     unique_thread_id next_thread_id{.key = 0x2'0000'0000};
     for(auto& [id, entries] : threads.all_entries())
@@ -146,6 +159,68 @@ void etl_file_process_context::finish()
                 // Try to use the system root from an XPerf event if available. Otherwise fall back to the default.
                 const auto system_root = system_root_ ? std::string_view(*system_root_) : default_system_root;
                 module.payload.filename.replace(0, nt_system_root_name_prefix.size(), system_root);
+            }
+        }
+    }
+
+    // Just in case that we are missing the sample interval events, try to generate some names
+    // for all event sources that are present.
+    if(!sample_source_names_.contains(default_timer_pmc_source))
+    {
+        for(const auto& [tid, samples] : samples_per_thread_id_)
+        {
+            if(samples.empty()) continue;
+            sample_source_names_[default_timer_pmc_source] = utf8::utf8to16(std::format("Unknown ({})", default_timer_pmc_source));
+            break;
+        }
+    }
+    for(const auto& [tid, sample_storages] : pmc_samples_per_thread_id_)
+    {
+        for(const auto& storage : sample_storages)
+        {
+            if(sample_source_names_.contains(storage.source)) continue;
+            if(storage.samples.empty()) continue;
+            sample_source_names_[storage.source] = utf8::utf8to16(std::format("Unknown ({})", storage.source));
+            break;
+        }
+    }
+
+    if(profiler_processes_.empty())
+    {
+        for(auto& [id, entries] : processes.all_entries())
+        {
+            for(const auto& process_entry : entries)
+            {
+                bool has_samples = false;
+                for(const auto& unique_thread_id : get_process_threads(*process_entry.payload.unique_id))
+                {
+                    const auto        thread_key = unique_thread_id_to_key_.at(unique_thread_id);
+                    const auto* const thread     = threads.find_at(thread_key.id, thread_key.time);
+                    if(thread == nullptr) continue;
+
+                    {
+                        auto iter = samples_per_thread_id_.find(thread->id);
+                        if(iter != samples_per_thread_id_.end() && !iter->second.empty())
+                        {
+                            has_samples = true;
+                            break;
+                        }
+                    }
+                    {
+                        auto iter = pmc_samples_per_thread_id_.find(thread->id);
+                        if(iter != pmc_samples_per_thread_id_.end() && !iter->second.empty())
+                        {
+                            has_samples = true;
+                            break;
+                        }
+                    }
+                }
+
+                if(!has_samples) continue;
+
+                profiler_processes_[process_key{process_entry.id, process_entry.timestamp}] = profiler_process_info{
+                    .process_id      = process_entry.id,
+                    .start_timestamp = process_entry.timestamp};
             }
         }
     }
@@ -393,47 +468,108 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
     });
 }
 
+void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
+                                            const etl::common_trace_header&                                header,
+                                            const etl::parser::perfinfo_v2_pmc_counter_profile_event_view& event)
+{
+    const auto thread_id              = event.thread_id();
+    auto&      thread_sample_storages = pmc_samples_per_thread_id_[thread_id];
+
+    const auto profile_source = event.profile_source();
+    auto       iter           = std::ranges::find_if(thread_sample_storages, [profile_source](const pmc_sample_storage& entry)
+                                                     { return entry.source == profile_source; });
+
+    auto& samples = [iter, &thread_sample_storages, profile_source]() -> auto&
+    {
+        if(iter == thread_sample_storages.end())
+        {
+            thread_sample_storages.emplace_back();
+            thread_sample_storages.back().source = profile_source;
+            return thread_sample_storages.back().samples;
+        }
+        return iter->samples;
+    }();
+
+    samples.push_back(sample_info{
+        .thread_id           = thread_id,
+        .timestamp           = header.timestamp,
+        .instruction_pointer = event.instruction_pointer(),
+        .user_mode_stack     = {},
+        .user_timestamp      = {},
+        .kernel_mode_stack   = {},
+        .kernel_timestamp    = {},
+    });
+}
+
+void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
+                                            const etl::common_trace_header&                                     header,
+                                            const etl::parser::perfinfo_v3_sampled_profile_interval_event_view& event)
+{
+    if(header.type != 73) return; // only handle collection start events.
+
+    // If we receive multiple start events for the same source, we simply overwrite the last stored names.
+    // This assumes that the names do not change per source ID.
+    sample_source_names_[common::narrow_cast<sample_source_id_t>(event.source())] = event.source_name();
+}
+
 void etl_file_process_context::handle_event(const etl::etl_file::header_data&                 file_header,
                                             [[maybe_unused]] const etl::common_trace_header&  header,
                                             const etl::parser::stackwalk_v2_stack_event_view& event)
 {
     const auto thread_id = event.thread_id();
 
-    auto iter = samples_per_thread_id_.find(thread_id);
-    if(iter == samples_per_thread_id_.end()) return;
-
     const auto sample_timestamp = event.event_timestamp();
-
-    auto& thread_samples = iter->second;
 
     // We expect the samples to arrive before their stacks.
     assert(sample_timestamp <= header.timestamp);
 
-    // Try to find the sample for this stack by walking the last samples
-    // backwards. We expect that we there shouldn't be to many events
-    // between the sample and its corresponding stacks.
-    for(auto& sample : std::views::reverse(thread_samples))
+    const auto attach_stack_to_samples = [this, &file_header, &header, &event, sample_timestamp](std::vector<sample_info>& samples) -> bool
     {
-        if(sample.timestamp < sample_timestamp) break;
-        if(sample.timestamp > sample_timestamp) continue;
+        // Try to find the sample for this stack by walking the last samples
+        // backwards. We expect that we there shouldn't be to many events
+        // between the sample and its corresponding stacks.
+        for(auto& sample : std::views::reverse(samples))
+        {
+            if(sample.timestamp < sample_timestamp) break;
+            if(sample.timestamp > sample_timestamp) continue;
 
-        assert(sample.timestamp == sample_timestamp);
+            assert(sample.timestamp == sample_timestamp);
 
-        const auto starts_in_kernel       = is_kernel_address(event.stack().back(), file_header.pointer_size);
-        auto&      sample_stack_index     = starts_in_kernel ? sample.kernel_mode_stack : sample.user_mode_stack;
-        auto&      sample_stack_timestamp = starts_in_kernel ? sample.kernel_timestamp : sample.user_timestamp;
+            const auto starts_in_kernel       = is_kernel_address(event.stack().back(), file_header.pointer_size);
+            auto&      sample_stack_index     = starts_in_kernel ? sample.kernel_mode_stack : sample.user_mode_stack;
+            auto&      sample_stack_timestamp = starts_in_kernel ? sample.kernel_timestamp : sample.user_timestamp;
 
-        // Usually, we should have one user mode stack and optionally one kernel mode stack.
-        // But it seems that we can sometimes have multiple kernel mode stacks for a single sample.
-        // In this case we just replace the first kernel mode stack. Maybe the right thing to do would
-        // be to concatenate the stacks, but the kernel mode stacks are kind of useless anyways?! So,
-        // for know, we just replace the old stack.
-        assert(sample_stack_index == std::nullopt || starts_in_kernel);
+            // Usually, we should have one user mode stack and optionally one kernel mode stack.
+            // But it seems that we can sometimes have multiple kernel mode stacks for a single sample.
+            // In this case we just replace the first kernel mode stack. Maybe the right thing to do would
+            // be to concatenate the stacks, but the kernel mode stacks are kind of useless anyways?! So,
+            // for know, we just replace the old stack.
+            assert(sample_stack_index == std::nullopt || starts_in_kernel);
 
-        sample_stack_index     = stacks.insert(event.stack());
-        sample_stack_timestamp = header.timestamp;
+            sample_stack_index     = stacks.insert(event.stack());
+            sample_stack_timestamp = header.timestamp;
 
-        break;
+            return true;
+        }
+        return false;
+    };
+
+    // First try to attach to a matching regular sample
+    auto regular_samples_iter = samples_per_thread_id_.find(thread_id);
+    if(regular_samples_iter != samples_per_thread_id_.end())
+    {
+        const auto success = attach_stack_to_samples(regular_samples_iter->second);
+        if(success) sources_with_stacks_.insert(default_timer_pmc_source);
+    }
+
+    // Then, additionally try to attach to all matching PMC samples
+    auto pmc_samples_iter = pmc_samples_per_thread_id_.find(thread_id);
+    if(pmc_samples_iter == pmc_samples_per_thread_id_.end()) return;
+
+    for(auto& [pmc_source, thread_samples] : pmc_samples_iter->second)
+    {
+        const auto success = attach_stack_to_samples(thread_samples);
+        if(success) sources_with_stacks_.insert(pmc_source);
     }
 }
 
@@ -448,23 +584,78 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
         .start_timestamp = header.timestamp};
 }
 
-std::span<const etl_file_process_context::sample_info> etl_file_process_context::thread_samples(os_tid_t thread_id, timestamp_t start_time, std::optional<timestamp_t> end_time) const
+void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
+                                            const etl::common_trace_header&                              header,
+                                            const etl::parser::snail_profiler_profile_target_event_view& event)
 {
-    auto iter = samples_per_thread_id_.find(thread_id);
-    if(iter == samples_per_thread_id_.end()) return {};
+    const auto process_id = event.process_id();
 
-    const auto& thread_samples = iter->second;
+    profiler_processes_[process_key{process_id, header.timestamp}] = profiler_process_info{
+        .process_id      = process_id,
+        .start_timestamp = header.timestamp};
+}
 
-    const auto range_first_iter = std::ranges::lower_bound(thread_samples, start_time, std::less<>(), &sample_info::timestamp);
-    if(range_first_iter == thread_samples.end()) return {};
+const std::unordered_map<etl_file_process_context::sample_source_id_t, std::u16string>& etl_file_process_context::sample_source_names() const
+{
+    return sample_source_names_;
+}
+
+bool etl_file_process_context::sample_source_has_stacks(sample_source_id_t pmc_source) const
+{
+    return sources_with_stacks_.contains(pmc_source);
+}
+
+std::span<const etl_file_process_context::sample_info> etl_file_process_context::thread_samples(os_tid_t                   thread_id,
+                                                                                                timestamp_t                start_time,
+                                                                                                std::optional<timestamp_t> end_time,
+                                                                                                sample_source_id_t         pmc_source) const
+{
+    const auto samples = [this, thread_id, pmc_source]() -> std::span<const sample_info>
+    {
+        // First, try to find in the given source in the PMC samples. If we can't find the source
+        // there but the source is actually the default timer source, fall back to using the
+        // regular samples.
+        auto iter = pmc_samples_per_thread_id_.find(thread_id);
+        if(iter == pmc_samples_per_thread_id_.end())
+        {
+            if(pmc_source == default_timer_pmc_source)
+            {
+                auto iter2 = samples_per_thread_id_.find(thread_id);
+                if(iter2 == samples_per_thread_id_.end()) return {};
+                return std::span(iter2->second);
+            }
+            return {};
+        }
+
+        const auto& thread_sample_storages = iter->second;
+
+        auto iter2 = std::ranges::find_if(thread_sample_storages, [pmc_source](const pmc_sample_storage& entry)
+                                          { return entry.source == pmc_source; });
+        if(iter2 == thread_sample_storages.end())
+        {
+            if(pmc_source == default_timer_pmc_source)
+            {
+                auto iter3 = samples_per_thread_id_.find(thread_id);
+                if(iter3 == samples_per_thread_id_.end()) return {};
+                return std::span(iter3->second);
+            }
+            return {};
+        }
+        return std::span(iter2->samples);
+    }();
+
+    if(samples.empty()) return {};
+
+    const auto range_first_iter = std::ranges::lower_bound(samples, start_time, std::less<>(), &sample_info::timestamp);
+    if(range_first_iter == samples.end()) return {};
 
     const auto range_end_iter = end_time != std::nullopt ?
-                                    std::ranges::upper_bound(thread_samples, *end_time, std::less<>(), &sample_info::timestamp) :
-                                    thread_samples.end();
+                                    std::ranges::upper_bound(samples, *end_time, std::less<>(), &sample_info::timestamp) :
+                                    samples.end();
 
     if(range_first_iter > range_end_iter) return {};
 
-    return std::span(thread_samples).subspan(range_first_iter - thread_samples.begin(), range_end_iter - range_first_iter);
+    return samples.subspan(range_first_iter - samples.begin(), range_end_iter - range_first_iter);
 }
 
 const std::vector<etl_file_process_context::instruction_pointer_t>& etl_file_process_context::stack(std::size_t stack_index) const

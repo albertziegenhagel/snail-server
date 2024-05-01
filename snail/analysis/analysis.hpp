@@ -8,6 +8,7 @@
 #include <snail/analysis/data/ids.hpp>
 #include <snail/analysis/data/modules.hpp>
 #include <snail/analysis/data/process.hpp>
+#include <snail/analysis/data/sample_source.hpp>
 
 #include <snail/analysis/options.hpp>
 

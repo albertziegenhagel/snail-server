@@ -167,7 +167,7 @@ TEST(EtlDispatchEventObserver, Dispatch)
         variant_unknown_group_called               = false;
 
         const auto buffer       = std::as_bytes(std::span(perfinfo_buffer_data));
-        const auto trace_header = etl::parser::perfinfo_trace_header_view(buffer);
+        const auto trace_header = etl::parser::perfinfo_trace_header_view(buffer.subspan(0, etl::parser::perfinfo_trace_header_view::static_size));
         const auto user_buffer  = buffer.subspan(etl::parser::perfinfo_trace_header_view::static_size);
 
         observer.handle(file_header, trace_header, user_buffer);
@@ -187,7 +187,7 @@ TEST(EtlDispatchEventObserver, Dispatch)
         variant_unknown_group_called               = false;
 
         const auto buffer       = std::as_bytes(std::span(image_buffer_data));
-        const auto trace_header = etl::parser::full_header_trace_header_view(buffer);
+        const auto trace_header = etl::parser::full_header_trace_header_view(buffer.subspan(0, etl::parser::full_header_trace_header_view::static_size));
         const auto user_buffer  = buffer.subspan(etl::parser::full_header_trace_header_view::static_size);
 
         observer.handle(file_header, trace_header, user_buffer);
@@ -207,7 +207,7 @@ TEST(EtlDispatchEventObserver, Dispatch)
         variant_unknown_group_called               = false;
 
         const auto buffer       = std::as_bytes(std::span(volume_mapping_data));
-        const auto trace_header = etl::parser::full_header_trace_header_view(buffer);
+        const auto trace_header = etl::parser::full_header_trace_header_view(buffer.subspan(0, etl::parser::full_header_trace_header_view::static_size));
         const auto user_buffer  = buffer.subspan(etl::parser::full_header_trace_header_view::static_size);
 
         observer.handle(file_header, trace_header, user_buffer);
@@ -227,7 +227,7 @@ TEST(EtlDispatchEventObserver, Dispatch)
         variant_unknown_group_called               = false;
 
         const auto buffer       = std::as_bytes(std::span(log_disk_buffer_data));
-        const auto trace_header = etl::parser::system_trace_header_view(buffer);
+        const auto trace_header = etl::parser::system_trace_header_view(buffer.subspan(0, etl::parser::system_trace_header_view::static_size));
         const auto user_buffer  = buffer.subspan(etl::parser::system_trace_header_view::static_size);
 
         observer.handle(file_header, trace_header, user_buffer);

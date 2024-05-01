@@ -13,6 +13,7 @@
 #include <snail/etl/parser/records/kernel_trace_control/image_id.hpp>
 #include <snail/etl/parser/records/kernel_trace_control/system_config_ex.hpp>
 
+#include <snail/etl/parser/records/snail/profiler.hpp>
 #include <snail/etl/parser/records/visual_studio/diagnostics_hub.hpp>
 
 #include <snail/common/cast.hpp>
@@ -409,6 +410,33 @@ void push_build_info_event(const etl::etl_file::header_data& file_header,
     observer.handle(file_header, event_header, event_data.subspan(0, event_data_size));
 }
 
+void push_sample_interval_event(const etl::etl_file::header_data& file_header,
+                                etl::event_observer&              observer,
+                                std::span<std::byte>              buffer,
+                                std::uint64_t                     timestamp,
+                                std::uint32_t                     source,
+                                std::u16string_view               source_name,
+                                bool                              is_start)
+{
+    std::ranges::fill(buffer, std::byte{});
+
+    const auto event_data = buffer.subspan(etl::parser::perfinfo_trace_header_view::static_size);
+
+    set_at(event_data, 0, source);
+    set_at(event_data, 12, source_name);
+    const auto event_data_size = 12 + source_name.size() * 2 + 2;
+
+    assert(etl::parser::perfinfo_v3_sampled_profile_interval_event_view(event_data, file_header.pointer_size).source() == source);
+    assert(etl::parser::perfinfo_v3_sampled_profile_interval_event_view(event_data, file_header.pointer_size).source_name() == source_name);
+
+    const auto event_header = make_perfinfo_trace_header(file_header, buffer, timestamp, event_data_size,
+                                                         etl::parser::perfinfo_v3_sampled_profile_interval_event_view::event_version,
+                                                         etl::parser::event_trace_group::perfinfo,
+                                                         is_start ? 73 : 74);
+
+    observer.handle(file_header, event_header, event_data.subspan(0, event_data_size));
+}
+
 void push_sample_event(const etl::etl_file::header_data& file_header,
                        etl::event_observer&              observer,
                        std::span<std::byte>              buffer,
@@ -418,7 +446,7 @@ void push_sample_event(const etl::etl_file::header_data& file_header,
 {
     std::ranges::fill(buffer, std::byte{});
 
-    const auto event_data = buffer.subspan(etl::parser::system_trace_header_view::static_size);
+    const auto event_data = buffer.subspan(etl::parser::perfinfo_trace_header_view::static_size);
 
     set_at(event_data, 0, instruction_pointer);
     set_at(event_data, file_header.pointer_size, thread_id);
@@ -435,6 +463,34 @@ void push_sample_event(const etl::etl_file::header_data& file_header,
     observer.handle(file_header, event_header, event_data.subspan(0, event_data_size));
 }
 
+void push_pmc_sample_event(const etl::etl_file::header_data& file_header,
+                           etl::event_observer&              observer,
+                           std::span<std::byte>              buffer,
+                           std::uint64_t                     timestamp,
+                           std::uint32_t                     thread_id,
+                           std::uint16_t                     source,
+                           std::uint64_t                     instruction_pointer)
+{
+    std::ranges::fill(buffer, std::byte{});
+
+    const auto event_data = buffer.subspan(etl::parser::perfinfo_trace_header_view::static_size);
+
+    set_at(event_data, 0, instruction_pointer);
+    set_at(event_data, file_header.pointer_size, thread_id);
+    set_at(event_data, file_header.pointer_size + 4, source);
+    const auto event_data_size = 8 + file_header.pointer_size;
+
+    assert(etl::parser::perfinfo_v2_pmc_counter_profile_event_view(event_data, file_header.pointer_size).instruction_pointer() == instruction_pointer);
+    assert(etl::parser::perfinfo_v2_pmc_counter_profile_event_view(event_data, file_header.pointer_size).thread_id() == thread_id);
+
+    const auto event_header = make_perfinfo_trace_header(file_header, buffer, timestamp, event_data_size,
+                                                         etl::parser::perfinfo_v2_pmc_counter_profile_event_view::event_version,
+                                                         etl::parser::event_trace_group::perfinfo,
+                                                         47);
+
+    observer.handle(file_header, event_header, event_data.subspan(0, event_data_size));
+}
+
 void push_stack_event(const etl::etl_file::header_data& file_header,
                       etl::event_observer&              observer,
                       std::span<std::byte>              buffer,
@@ -445,7 +501,7 @@ void push_stack_event(const etl::etl_file::header_data& file_header,
 {
     std::ranges::fill(buffer, std::byte{});
 
-    const auto event_data = buffer.subspan(etl::parser::system_trace_header_view::static_size);
+    const auto event_data = buffer.subspan(etl::parser::perfinfo_trace_header_view::static_size);
 
     set_at(event_data, 0, event_timestamp);
     set_at(event_data, 12, thread_id);
@@ -484,6 +540,29 @@ void push_prof_started_event(const etl::etl_file::header_data& file_header,
     const auto event_header = make_full_trace_header(file_header, buffer, timestamp, event_data_size,
                                                      etl::parser::vs_diagnostics_hub_target_profiling_started_event_view::event_version,
                                                      etl::parser::vs_diagnostics_hub_guid,
+                                                     1);
+
+    observer.handle(file_header, event_header, event_data.subspan(0, event_data_size));
+}
+
+void push_snail_prof_target_event(const etl::etl_file::header_data& file_header,
+                                  etl::event_observer&              observer,
+                                  std::span<std::byte>              buffer,
+                                  std::uint64_t                     timestamp,
+                                  std::uint32_t                     process_id)
+{
+    std::ranges::fill(buffer, std::byte{});
+
+    const auto event_data = buffer.subspan(etl::parser::full_header_trace_header_view::static_size);
+
+    set_at(event_data, 0, process_id);
+    const auto event_data_size = 4;
+
+    assert(etl::parser::snail_profiler_profile_target_event_view(event_data, file_header.pointer_size).process_id() == process_id);
+
+    const auto event_header = make_full_trace_header(file_header, buffer, timestamp, event_data_size,
+                                                     etl::parser::snail_profiler_profile_target_event_view::event_version,
+                                                     etl::parser::snail_profiler_guid,
                                                      1);
 
     observer.handle(file_header, event_header, event_data.subspan(0, event_data_size));
@@ -878,6 +957,19 @@ TEST(EtlFileProcessContext, VolumeMappingXPerf)
     EXPECT_EQ(module_c.payload.pdb_info, std::nullopt);
 }
 
+TEST(EtlFileProcessContext, NoSamples)
+{
+    etl_file_process_context context;
+
+    context.finish();
+
+    const auto sample_sources = context.sample_source_names();
+    EXPECT_EQ(sample_sources.size(), 0);
+
+    EXPECT_EQ(context.thread_samples(111, 10, 15, 0).size(), 0);    // empty for regular samples
+    EXPECT_EQ(context.thread_samples(111, 10, 15, 1234).size(), 0); // empty for random pmc samples
+}
+
 TEST(EtlFileProcessContext, Samples)
 {
     etl_file_process_context context;
@@ -888,6 +980,10 @@ TEST(EtlFileProcessContext, Samples)
     // Fault tolerant: The first sample comes in before the thread it belongs to
     push_sample_event(file_header, context.observer(), writable_bytes_buffer,
                       10, 111, 0x1'234A);
+
+    // Now configure the sample interval
+    push_sample_interval_event(file_header, context.observer(), writable_bytes_buffer,
+                               10, 0, u"Timer", true);
 
     // Now the thread is started (in this test we do not care about the process)
     push_thread_event(file_header, context.observer(), writable_bytes_buffer,
@@ -908,10 +1004,20 @@ TEST(EtlFileProcessContext, Samples)
     push_sample_event(file_header, context.observer(), writable_bytes_buffer,
                       22, 111, 0x1'234C);
 
+    // And terminate the sampling
+    push_sample_interval_event(file_header, context.observer(), writable_bytes_buffer,
+                               35, 0, u"Timer", false);
+
     context.finish();
 
+    const auto& sample_sources = context.sample_source_names();
+    ASSERT_EQ(sample_sources.size(), 1);
+    ASSERT_TRUE(sample_sources.contains(0));
+    const auto sample_source_name = sample_sources.at(0);
+    EXPECT_EQ(sample_source_name, std::u16string(u"Timer"));
+
     // Check samples for the first thread
-    const auto thread_1_samples = context.thread_samples(111, 10, 15);
+    const auto thread_1_samples = context.thread_samples(111, 10, 15, 0);
     EXPECT_EQ(thread_1_samples.size(), 2);
     EXPECT_EQ(thread_1_samples[0].timestamp, 10);
     EXPECT_EQ(thread_1_samples[0].thread_id, 111);
@@ -921,18 +1027,87 @@ TEST(EtlFileProcessContext, Samples)
     EXPECT_EQ(thread_1_samples[1].instruction_pointer, 0x1'234B);
 
     // Check samples for the second thread
-    const auto thread_2_samples = context.thread_samples(111, 20, std::nullopt);
+    const auto thread_2_samples = context.thread_samples(111, 20, std::nullopt, 0);
     EXPECT_EQ(thread_2_samples.size(), 1);
     EXPECT_EQ(thread_2_samples[0].timestamp, 22);
     EXPECT_EQ(thread_2_samples[0].thread_id, 111);
     EXPECT_EQ(thread_2_samples[0].instruction_pointer, 0x1'234C);
 
     // Check samples for non existing threads
-    EXPECT_EQ(context.thread_samples(222, 0, std::nullopt).size(), 0);
+    EXPECT_EQ(context.thread_samples(222, 0, std::nullopt, 0).size(), 0);
 
     // Check samples out of range
-    EXPECT_EQ(context.thread_samples(111, 100, std::nullopt).size(), 0);
-    EXPECT_EQ(context.thread_samples(111, 0, 5).size(), 0);
+    EXPECT_EQ(context.thread_samples(111, 100, std::nullopt, 0).size(), 0);
+    EXPECT_EQ(context.thread_samples(111, 0, 5, 0).size(), 0);
+
+    // Check samples for non existing sample source id
+    EXPECT_EQ(context.thread_samples(111, 10, 15, 1234).size(), 0);
+}
+
+TEST(EtlFileProcessContext, PmcSamples)
+{
+    etl_file_process_context context;
+
+    std::array<std::uint8_t, 1024> buffer;
+    const auto                     writable_bytes_buffer = std::as_writable_bytes(std::span(buffer));
+
+    // Fault tolerant: The first sample comes in before the thread it belongs to
+    push_pmc_sample_event(file_header, context.observer(), writable_bytes_buffer,
+                          10, 111, 29, 0x1'234A);
+
+    // Now the thread is started (in this test we do not care about the process)
+    push_thread_event(file_header, context.observer(), writable_bytes_buffer,
+                      10, 123, 111, true);
+
+    // Another sample for this thread
+    push_pmc_sample_event(file_header, context.observer(), writable_bytes_buffer,
+                          12, 111, 29, 0x1'234B);
+
+    // The thread ends...
+    push_thread_event(file_header, context.observer(), writable_bytes_buffer,
+                      15, 123, 111, false);
+    // And another one starts under the same thread-ID
+    push_thread_event(file_header, context.observer(), writable_bytes_buffer,
+                      20, 123, 111, true);
+
+    // Now there is a sample for the second thread
+    push_pmc_sample_event(file_header, context.observer(), writable_bytes_buffer,
+                          22, 111, 29, 0x1'234C);
+
+    context.finish();
+
+    const auto& sample_sources = context.sample_source_names();
+    ASSERT_EQ(sample_sources.size(), 1);
+    ASSERT_TRUE(sample_sources.contains(29));
+    const auto sample_source_name = sample_sources.at(29);
+    EXPECT_EQ(sample_source_name, std::u16string(u"Unknown (29)"));
+
+    // Check samples for the first thread
+    const auto thread_1_samples = context.thread_samples(111, 10, 15, 29);
+    EXPECT_EQ(thread_1_samples.size(), 2);
+    EXPECT_EQ(thread_1_samples[0].timestamp, 10);
+    EXPECT_EQ(thread_1_samples[0].thread_id, 111);
+    EXPECT_EQ(thread_1_samples[0].instruction_pointer, 0x1'234A);
+    EXPECT_EQ(thread_1_samples[1].timestamp, 12);
+    EXPECT_EQ(thread_1_samples[1].thread_id, 111);
+    EXPECT_EQ(thread_1_samples[1].instruction_pointer, 0x1'234B);
+
+    // Check samples for the second thread
+    const auto thread_2_samples = context.thread_samples(111, 20, std::nullopt, 29);
+    EXPECT_EQ(thread_2_samples.size(), 1);
+    EXPECT_EQ(thread_2_samples[0].timestamp, 22);
+    EXPECT_EQ(thread_2_samples[0].thread_id, 111);
+    EXPECT_EQ(thread_2_samples[0].instruction_pointer, 0x1'234C);
+
+    // Check samples for non existing threads
+    EXPECT_EQ(context.thread_samples(222, 0, std::nullopt, 29).size(), 0);
+
+    // Check samples out of range
+    EXPECT_EQ(context.thread_samples(111, 100, std::nullopt, 29).size(), 0);
+    EXPECT_EQ(context.thread_samples(111, 0, 5, 29).size(), 0);
+
+    // Check samples for non existing sample source id
+    EXPECT_EQ(context.thread_samples(111, 10, 15, 1234).size(), 0);
 }
 
 TEST(EtlFileProcessContext, Stacks)
@@ -970,8 +1145,14 @@ TEST(EtlFileProcessContext, Stacks)
 
     context.finish();
 
+    const auto& sample_sources = context.sample_source_names();
+    ASSERT_EQ(sample_sources.size(), 1);
+    ASSERT_TRUE(sample_sources.contains(0));
+    const auto sample_source_name = sample_sources.at(0);
+    EXPECT_EQ(sample_source_name, std::u16string(u"Unknown (0)"));
+
     // Check samples for the first thread
-    const auto thread_1_samples = context.thread_samples(111, 10, std::nullopt);
+    const auto thread_1_samples = context.thread_samples(111, 10, std::nullopt, 0);
     EXPECT_EQ(thread_1_samples.size(), 2);
     EXPECT_EQ(thread_1_samples[0].timestamp, 10);
     EXPECT_EQ(thread_1_samples[0].thread_id, 111);
@@ -987,6 +1168,100 @@ TEST(EtlFileProcessContext, Stacks)
     EXPECT_NE(thread_1_samples[1].user_mode_stack, std::nullopt);
     EXPECT_EQ(context.stack(*thread_1_samples[1].user_mode_stack), (std::vector<std::uint64_t>{0x5'678B, 0x5'678C, 0x5'678D}));
     EXPECT_EQ(thread_1_samples[1].kernel_mode_stack, std::nullopt);
+}
+
+TEST(EtlFileProcessContext, MixedSamplesStacks)
+{
+    etl_file_process_context context;
+
+    std::array<std::uint8_t, 1024> buffer;
+    const auto                     writable_bytes_buffer = std::as_writable_bytes(std::span(buffer));
+
+    // This tests a case where the regular profiler samples where enabled and additionally the "Timer"
+    // PMC, which is basically exactly the same source.
+    // And we additionally have some "BranchMispredictions" PMC samples.
+
+    push_sample_interval_event(file_header, context.observer(), writable_bytes_buffer,
+                               5, 0, u"Timer", true);
+    push_sample_interval_event(file_header, context.observer(), writable_bytes_buffer,
+                               5, 0, u"Timer", true);
+    push_sample_interval_event(file_header, context.observer(), writable_bytes_buffer,
+                               5, 11, u"BranchMispredictions", true);
+
+    push_thread_event(file_header, context.observer(), writable_bytes_buffer,
+                      10, 123, 111, true);
+
+    // First "Timer" sample is present two times.
+    push_sample_event(file_header, context.observer(), writable_bytes_buffer,
+                      10, 111, 0x1'234A);
+    push_pmc_sample_event(file_header, context.observer(), writable_bytes_buffer,
+                          10, 111, 0, 0x1'234A);
+    push_stack_event(file_header, context.observer(), writable_bytes_buffer,
+                     11, 111, 10, {0x1'234B, 0x1'234C, 0x1'234D});
+    push_stack_event(file_header, context.observer(), writable_bytes_buffer,
+                     11, 111, 10, {0x1234'B000'0000'0000, 0x1234'C000'0000'0000, 0x1234'D000'0000'0000});
+
+    // Now an unrelated "BranchMispredictions" sample.
+    push_pmc_sample_event(file_header, context.observer(), writable_bytes_buffer,
+                          15, 111, 11, 0x5'678A);
+    push_stack_event(file_header, context.observer(), writable_bytes_buffer,
+                     15, 111, 15, {0x5'678B, 0x5'678C, 0x5'678D});
+
+    // Second "Timer" sample is only present as PMC event.
+    // This should usually not happen, but we test for it anyways. Additionally, this allows us to
+    // distinguish the samples we retrieve later on.
+    push_pmc_sample_event(file_header, context.observer(), writable_bytes_buffer,
+                          20, 111, 0, 0x9'101A);
+    push_stack_event(file_header, context.observer(), writable_bytes_buffer,
+                     20, 111, 20, {0x9'101B, 0x9'101C, 0x9'101D});
+
+    push_sample_interval_event(file_header, context.observer(), writable_bytes_buffer,
+                               25, 0, u"Timer", false);
+    push_sample_interval_event(file_header, context.observer(), writable_bytes_buffer,
+                               25, 0, u"Timer", false);
+    push_sample_interval_event(file_header, context.observer(), writable_bytes_buffer,
+                               25, 11, u"BranchMispredictions", false);
+
+    context.finish();
+
+    const auto& sample_sources = context.sample_source_names();
+    ASSERT_EQ(sample_sources.size(), 2);
+    ASSERT_TRUE(sample_sources.contains(0));
+    const auto sample_source_name_1 = sample_sources.at(0);
+    EXPECT_EQ(sample_source_name_1, std::u16string(u"Timer"));
+    ASSERT_TRUE(sample_sources.contains(11));
+    const auto sample_source_name_2 = sample_sources.at(11);
+    EXPECT_EQ(sample_source_name_2, std::u16string(u"BranchMispredictions"));
+
+    // Check samples for the "Timer" samples.
+    // We expect to get the PMC samples when both are present.
+    const auto samples_1 = context.thread_samples(111, 10, std::nullopt, 0);
+    EXPECT_EQ(samples_1.size(), 2);
+    EXPECT_EQ(samples_1[0].timestamp, 10);
+    EXPECT_EQ(samples_1[0].thread_id, 111);
+    EXPECT_EQ(samples_1[0].instruction_pointer, 0x1'234A);
+    EXPECT_NE(samples_1[0].user_mode_stack, std::nullopt);
+    EXPECT_EQ(context.stack(*samples_1[0].user_mode_stack), (std::vector<std::uint64_t>{0x1'234B, 0x1'234C, 0x1'234D}));
+    EXPECT_NE(samples_1[0].kernel_mode_stack, std::nullopt);
+    EXPECT_EQ(context.stack(*samples_1[0].kernel_mode_stack), (std::vector<std::uint64_t>{0x1234'B000'0000'0000, 0x1234'C000'0000'0000, 0x1234'D000'0000'0000}));
+
+    EXPECT_EQ(samples_1[1].timestamp, 20);
+    EXPECT_EQ(samples_1[1].thread_id, 111);
+    EXPECT_EQ(samples_1[1].instruction_pointer, 0x9'101A);
+    EXPECT_NE(samples_1[1].user_mode_stack, std::nullopt);
+    EXPECT_EQ(context.stack(*samples_1[1].user_mode_stack), (std::vector<std::uint64_t>{0x9'101B, 0x9'101C, 0x9'101D}));
+    EXPECT_EQ(samples_1[1].kernel_mode_stack, std::nullopt);
+
+    // Check samples for the "BranchMispredictions" samples.
+    const auto samples_2 = context.thread_samples(111, 10, std::nullopt, 11);
+    EXPECT_EQ(samples_2.size(), 1);
+
+    EXPECT_EQ(samples_2[0].timestamp, 15);
+    EXPECT_EQ(samples_2[0].thread_id, 111);
+    EXPECT_EQ(samples_2[0].instruction_pointer, 0x5'678A);
+    EXPECT_NE(samples_2[0].user_mode_stack, std::nullopt);
+    EXPECT_EQ(context.stack(*samples_2[0].user_mode_stack), (std::vector<std::uint64_t>{0x5'678B, 0x5'678C, 0x5'678D}));
+    EXPECT_EQ(samples_2[0].kernel_mode_stack, std::nullopt);
 }
 
 TEST(EtlFileProcessContext, SystemInfo)
@@ -1032,6 +1307,32 @@ TEST(EtlFileProcessContext, VsDiagnosticsHub)
                             10, 123);
     push_prof_started_event(file_header, context.observer(), writable_bytes_buffer,
                             20, 456);
+
+    context.finish();
+
+    const auto& processes = context.profiler_processes();
+    EXPECT_EQ(processes.size(), 2);
+
+    const auto process_123 = processes.at(etl_file_process_context::process_key{123, 10});
+    EXPECT_EQ(process_123.process_id, 123);
+    EXPECT_EQ(process_123.start_timestamp, 10);
+
+    const auto process_456 = processes.at(etl_file_process_context::process_key{456, 20});
+    EXPECT_EQ(process_456.process_id, 456);
+    EXPECT_EQ(process_456.start_timestamp, 20);
+}
+
+TEST(EtlFileProcessContext, SnailProfiler)
+{
+    etl_file_process_context context;
+
+    std::array<std::uint8_t, 1024> buffer;
+    const auto                     writable_bytes_buffer = std::as_writable_bytes(std::span(buffer));
+
+    push_snail_prof_target_event(file_header, context.observer(), writable_bytes_buffer,
+                                 10, 123);
+    push_snail_prof_target_event(file_header, context.observer(), writable_bytes_buffer,
+                                 20, 456);
 
     context.finish();
 

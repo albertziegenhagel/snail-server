@@ -48,62 +48,65 @@ Duration from_relative_qpc_ticks(std::uint64_t ticks, std::uint64_t start, std::
 
 struct etl_sample_data : public sample_data
 {
+    static constexpr detail::etl_file_process_context::os_pid_t kernel_process_id  = 0;
+    static constexpr std::string_view                           unkown_module_name = "[unknown]";
+
+    stack_frame resolve_frame(detail::etl_file_process_context::os_pid_t pid,
+                              std::uint64_t                              instruction_pointer,
+                              std::uint64_t                              timestamp) const
+    {
+        const auto [module, load_timestamp] = context->get_modules(pid).find(instruction_pointer, timestamp);
+
+        const auto& symbol = (module == nullptr) ?
+                                 resolver->make_generic_symbol(instruction_pointer) :
+                                 resolver->resolve_symbol(detail::pdb_resolver::module_info{
+                                                              .image_filename = module->payload.filename,
+                                                              .image_base     = module->base,
+                                                              .checksum       = module->payload.checksum,
+                                                              .pdb_info       = module->payload.pdb_info,
+                                                              .process_id     = pid,
+                                                              .load_timestamp = load_timestamp},
+                                                          instruction_pointer);
+
+        return stack_frame{
+            .symbol_name             = symbol.name,
+            .module_name             = module == nullptr ? unkown_module_name : module->payload.filename,
+            .file_path               = symbol.file_path,
+            .function_line_number    = symbol.function_line_number,
+            .instruction_line_number = symbol.instruction_line_number};
+    }
+
+    bool has_frame() const override
+    {
+        return true;
+    }
+
+    bool has_stack() const override
+    {
+        return user_stack != nullptr || kernel_stack != nullptr;
+    }
+
     common::generator<stack_frame> reversed_stack() const override
     {
-        static const std::string unkown_module_name = "[unknown]";
-
         if(user_stack != nullptr)
         {
             for(const auto instruction_pointer : std::views::reverse(*user_stack))
             {
-                const auto [module, load_timestamp] = context->get_modules(process_id).find(instruction_pointer, user_timestamp);
-
-                const auto& symbol = (module == nullptr) ?
-                                         resolver->make_generic_symbol(instruction_pointer) :
-                                         resolver->resolve_symbol(detail::pdb_resolver::module_info{
-                                                                      .image_filename = module->payload.filename,
-                                                                      .image_base     = module->base,
-                                                                      .checksum       = module->payload.checksum,
-                                                                      .pdb_info       = module->payload.pdb_info,
-                                                                      .process_id     = process_id,
-                                                                      .load_timestamp = load_timestamp},
-                                                                  instruction_pointer);
-
-                co_yield stack_frame{
-                    .symbol_name             = symbol.name,
-                    .module_name             = module == nullptr ? unkown_module_name : module->payload.filename,
-                    .file_path               = symbol.file_path,
-                    .function_line_number    = symbol.function_line_number,
-                    .instruction_line_number = symbol.instruction_line_number};
+                co_yield resolve_frame(process_id, instruction_pointer, user_timestamp);
             }
         }
         if(kernel_stack != nullptr)
         {
-            static constexpr detail::etl_file_process_context::os_pid_t kernel_process_id = 0;
             for(const auto instruction_pointer : std::views::reverse(*kernel_stack))
             {
-                auto [module, load_timestamp] = context->get_modules(kernel_process_id).find(instruction_pointer, kernel_timestamp);
-
-                const auto& symbol = (module == nullptr) ?
-                                         resolver->make_generic_symbol(instruction_pointer) :
-                                         resolver->resolve_symbol(detail::pdb_resolver::module_info{
-                                                                      .image_filename = module->payload.filename,
-                                                                      .image_base     = module->base,
-                                                                      .checksum       = module->payload.checksum,
-                                                                      .pdb_info       = module->payload.pdb_info,
-                                                                      .process_id     = kernel_process_id,
-                                                                      .load_timestamp = load_timestamp,
-                                                                  },
-                                                                  instruction_pointer);
-
-                co_yield stack_frame{
-                    .symbol_name             = symbol.name,
-                    .module_name             = module == nullptr ? unkown_module_name : module->payload.filename,
-                    .file_path               = symbol.file_path,
-                    .function_line_number    = symbol.function_line_number,
-                    .instruction_line_number = symbol.instruction_line_number};
+                co_yield resolve_frame(kernel_process_id, instruction_pointer, kernel_timestamp);
             }
         }
+    }
+
+    stack_frame frame() const override
+    {
+        return resolve_frame(process_id, instruction_pointer_, sample_timestamp);
     }
 
     std::chrono::nanoseconds timestamp() const override
@@ -120,9 +123,12 @@ struct etl_sample_data : public sample_data
     detail::pdb_resolver*                      resolver;
     detail::etl_file_process_context*          context;
 
+    std::uint64_t instruction_pointer_;
+
     detail::etl_file_process_context::timestamp_t sample_timestamp;
-    std::uint64_t                                 session_start_qpc_ticks;
-    std::uint64_t                                 qpc_frequency;
+
+    std::uint64_t session_start_qpc_ticks;
+    std::uint64_t qpc_frequency;
 };
 
 std::string win_architecture_to_str(std::uint16_t arch)
@@ -187,6 +193,40 @@ void etl_data_provider::process(const std::filesystem::path& file_path)
 
     using namespace std::chrono;
 
+    struct time_range
+    {
+        detail::etl_file_process_context::timestamp_t start;
+        detail::etl_file_process_context::timestamp_t end;
+    };
+
+    const auto& sample_source_names = process_context_->sample_source_names();
+
+    sample_source_internal_ids_.clear();
+    for(const auto& [internal_id, name] : sample_source_names)
+    {
+        sample_source_internal_ids_.push_back(internal_id);
+    }
+
+    std::ranges::sort(sample_source_internal_ids_);
+
+    sample_sources_.clear();
+    std::vector<time_range> sample_source_times;
+    for(const auto internal_id : sample_source_internal_ids_)
+    {
+        sample_sources_.push_back(sample_source_info{
+            .id                    = sample_sources_.size(),
+            .name                  = utf8::utf16to8(sample_source_names.at(internal_id)),
+            .number_of_samples     = 0,
+            .average_sampling_rate = 0.0,
+            .has_stacks            = process_context_->sample_source_has_stacks(internal_id),
+        });
+
+        sample_source_times.push_back(time_range{
+            .start = std::numeric_limits<detail::etl_file_process_context::timestamp_t>::max(),
+            .end   = std::numeric_limits<detail::etl_file_process_context::timestamp_t>::min(),
+        });
+    }
+
     std::size_t total_sample_count = 0;
     std::size_t total_thread_count = 0;
     for(const auto& [process_key, profiler_process_info] : process_context_->profiler_processes())
@@ -204,11 +244,37 @@ void etl_data_provider::process(const std::filesystem::path& file_path)
             const auto* const thread     = process_context_->get_threads().find_at(thread_key.id, thread_key.time);
             if(thread == nullptr) continue;
 
-            const auto samples = process_context_->thread_samples(thread_key.id, thread->timestamp, thread->payload.end_time);
-            total_sample_count += std::ranges::size(samples);
+            for(sample_source_info::id_t source_id = 0; source_id < sample_sources_.size(); ++source_id)
+            {
+                const auto source_internal_id = sample_source_internal_ids_[source_id];
+                const auto samples            = process_context_->thread_samples(thread_key.id, thread->timestamp, thread->payload.end_time, source_internal_id);
+
+                auto& source_time_range = sample_source_times[source_id];
+
+                if(!samples.empty())
+                {
+                    source_time_range.start = std::min(source_time_range.start, samples.front().timestamp);
+                    source_time_range.end   = std::max(source_time_range.end, samples.back().timestamp);
+                }
+
+                sample_sources_[source_id].number_of_samples += std::ranges::size(samples);
+                total_sample_count += std::ranges::size(samples);
+            }
         }
     }
 
+    for(sample_source_info::id_t source_id = 0; source_id < sample_sources_.size(); ++source_id)
+    {
+        const auto& source_time_range = sample_source_times[source_id];
+
+        if(source_time_range.start > source_time_range.end) continue; // skip empty
+
+        auto& source_info = sample_sources_[source_id];
+
+        const auto sampling_runtime = common::nt_duration(source_time_range.end) - common::nt_duration(source_time_range.start);
+
+        source_info.average_sampling_rate = sampling_runtime.count() == 0 ? 0.0 : ((double)source_info.number_of_samples / duration_cast<duration<double>>(sampling_runtime).count());
+    }
     pointer_size_ = file.header().pointer_size;
 
     const auto runtime = file.header().end_time - file.header().start_time;
@@ -216,8 +282,6 @@ void etl_data_provider::process(const std::filesystem::path& file_path)
     session_start_qpc_ticks_ = file.header().start_time_qpc_ticks;
     session_end_qpc_ticks_   = session_start_qpc_ticks_ + to_qpc_ticks(runtime, file.header().qpc_frequency);
     qpc_frequency_           = file.header().qpc_frequency;
-
-    const auto average_sampling_rate = runtime.count() == 0 ? 0.0 : ((double)total_sample_count / duration_cast<duration<double>>(runtime).count());
 
     // This is a very rudimentary way to find the command line used to create the profile:
     // We assume that the profile has been collected via "vsdiagnostics.exe start"
@@ -230,16 +294,23 @@ void etl_data_provider::process(const std::filesystem::path& file_path)
             command_line = utf8::utf16to8(infos.front().payload.command_line);
             break;
         }
+        if(common::ascii_iequals(infos.front().payload.image_filename, "xperf.exe") &&
+           (infos.front().payload.command_line.contains(u" -start ") ||
+            infos.front().payload.command_line.contains(u" -on ")))
+        {
+            command_line = utf8::utf16to8(infos.front().payload.command_line);
+            break;
+        }
     }
 
     session_info_ = analysis::session_info{
-        .command_line          = std::move(command_line),
-        .date                  = time_point_cast<seconds>(file.header().start_time),
-        .runtime               = std::chrono::duration_cast<std::chrono::nanoseconds>(runtime),
-        .number_of_processes   = process_context_->profiler_processes().size(),
-        .number_of_threads     = total_thread_count,
-        .number_of_samples     = total_sample_count,
-        .average_sampling_rate = average_sampling_rate};
+        .command_line        = std::move(command_line),
+        .date                = time_point_cast<seconds>(file.header().start_time),
+        .runtime             = std::chrono::duration_cast<std::chrono::nanoseconds>(runtime),
+        .number_of_processes = process_context_->profiler_processes().size(),
+        .number_of_threads   = total_thread_count,
+        .number_of_samples   = total_sample_count,
+    };
 
     system_info_ = analysis::system_info{
         .hostname             = process_context_->computer_name() ? utf8::utf16to8(*process_context_->computer_name()) : "[unknown]",
@@ -318,12 +389,20 @@ common::generator<analysis::thread_info> etl_data_provider::threads_info(unique_
     }
 }
 
-common::generator<const sample_data&> etl_data_provider::samples(unique_process_id    process_id,
-                                                                 const sample_filter& filter) const
+const std::vector<sample_source_info>& etl_data_provider::sample_sources() const
+{
+    return sample_sources_;
+}
+
+common::generator<const sample_data&> etl_data_provider::samples(sample_source_info::id_t source_id,
+                                                                 unique_process_id        process_id,
+                                                                 const sample_filter&     filter) const
 {
     if(process_context_ == nullptr) co_return;
 
     if(filter.excluded_processes.contains(process_id)) co_return;
+
+    if(source_id >= sample_source_internal_ids_.size()) co_return;
 
     assert(symbol_resolver_ != nullptr);
 
@@ -370,7 +449,7 @@ common::generator<const sample_data&> etl_data_provider::samples(unique_process_
                                               *filter_max_timestamp) :
                                          thread->payload.end_time;
 
-        const auto samples = process_context.thread_samples(thread_key.id, sample_min_time, sample_max_time);
+        const auto samples = process_context.thread_samples(thread_key.id, sample_min_time, sample_max_time, sample_source_internal_ids_[source_id]);
 
         if(samples.empty()) continue;
 
@@ -399,7 +478,8 @@ common::generator<const sample_data&> etl_data_provider::samples(unique_process_
 
             const auto& sample = thread_data.samples[current_sample_index];
 
-            current_sample_data.sample_timestamp = sample.timestamp;
+            current_sample_data.sample_timestamp     = sample.timestamp;
+            current_sample_data.instruction_pointer_ = sample.instruction_pointer;
 
             if(sample.user_mode_stack)
             {
@@ -443,12 +523,15 @@ common::generator<const sample_data&> etl_data_provider::samples(unique_process_
     }
 }
 
-std::size_t etl_data_provider::count_samples(unique_process_id    process_id,
-                                             const sample_filter& filter) const
+std::size_t etl_data_provider::count_samples(sample_source_info::id_t source_id,
+                                             unique_process_id        process_id,
+                                             const sample_filter&     filter) const
 {
     if(process_context_ == nullptr) return 0;
 
     if(filter.excluded_processes.contains(process_id)) return 0;
+
+    if(source_id >= sample_source_internal_ids_.size()) return 0;
 
     // TODO: remove code duplication
 
@@ -483,7 +566,7 @@ std::size_t etl_data_provider::count_samples(unique_process_id    process_id,
                                               *filter_max_timestamp) :
                                          thread->payload.end_time;
 
-        total_samples_count += process_context.thread_samples(thread_key.id, sample_min_time, sample_max_time).size();
+        total_samples_count += process_context.thread_samples(thread_key.id, sample_min_time, sample_max_time, sample_source_internal_ids_[source_id]).size();
     }
     return total_samples_count;
 }

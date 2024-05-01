@@ -19,7 +19,7 @@ struct call_tree_node
 
     function_info::id_t function_id;
 
-    hit_counts hits;
+    source_hit_counts hits;
 
     std::vector<id_t> children;
 };

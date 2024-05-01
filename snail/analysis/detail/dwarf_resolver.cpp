@@ -210,7 +210,7 @@ const dwarf_resolver::symbol_info& dwarf_resolver::resolve_symbol(const module_i
         return make_generic_symbol(module, address);
     }
 
-    auto line_info = inlining_info.getFrame(number_of_inlined_frames - 1);
+    const auto& line_info = inlining_info.getFrame(number_of_inlined_frames - 1);
 
     if(line_info.FunctionName == llvm::DILineInfo::BadString)
     {

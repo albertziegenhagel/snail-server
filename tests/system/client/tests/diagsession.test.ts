@@ -8,6 +8,7 @@ describe("InnerDiagsession", function () {
     this.timeout(60 * 1000);
 
     let documentId: number | undefined = undefined;
+    let sourceId: number | undefined = undefined;
 
     let tempPdbFile: string;
 
@@ -62,6 +63,8 @@ describe("InnerDiagsession", function () {
         assert.isAtLeast(response.documentId, 0);
 
         documentId = response.documentId;
+
+        sourceId = 0; // FIXME: modify the test to retrieve this?
     });
 
     after(async function () {
@@ -82,6 +85,22 @@ describe("InnerDiagsession", function () {
         assert.strictEqual(response.systemInfo.numberOfProcessors, 2);
     });
 
+    it("sampleSources", async () => {
+        const response = await fixture.connection.sendRequest(snail.retrieveSampleSourcesRequestType, {
+            documentId: documentId
+        });
+
+        assert.strictEqual(response.sampleSources.length, 1);
+
+        const timerSource = response.sampleSources.find(sourceInfo => sourceInfo.name == "Timer");
+        assert.isDefined(timerSource);
+        assert.strictEqual(timerSource!.id, sourceId);
+        assert.strictEqual(timerSource!.name, "Timer");
+        assert.strictEqual(timerSource!.numberOfSamples, 292);
+        assert.strictEqual(timerSource!.averageSamplingRate, 195.95397980519758);
+        assert.isTrue(timerSource!.hasStacks);
+    });
+
     it("sessionInfo", async () => {
         const response = await fixture.connection.sendRequest(snail.retrieveSessionInfoRequestType, {
             documentId: documentId
@@ -93,7 +112,6 @@ describe("InnerDiagsession", function () {
         assert.strictEqual(response.sessionInfo.numberOfProcesses, 1);
         assert.strictEqual(response.sessionInfo.numberOfThreads, 4);
         assert.strictEqual(response.sessionInfo.numberOfSamples, 292);
-        assert.strictEqual(response.sessionInfo.averageSamplingRate, 84.267008906157088);
     });
 
     it("processes", async () => {
@@ -147,7 +165,8 @@ describe("InnerDiagsession", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveHottestFunctionsRequestType, {
             documentId: documentId,
-            count: 1
+            count: 1,
+            sourceId: sourceId
         });
 
         assert.strictEqual(response.functions.length, 1);
@@ -156,10 +175,12 @@ describe("InnerDiagsession", function () {
         assert.isAtLeast(response.functions[0].function.id, 0);
         assert.strictEqual(response.functions[0].function.module, "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe");
         assert.strictEqual(response.functions[0].function.type, "function");
-        assert.strictEqual(response.functions[0].function.totalSamples, 108);
-        assert.strictEqual(response.functions[0].function.selfSamples, 34);
-        assert.strictEqual(response.functions[0].function.totalPercent, 36.986301369863014);
-        assert.strictEqual(response.functions[0].function.selfPercent, 11.643835616438356);
+        assert.strictEqual(response.functions[0].function.hits.length, 1);
+        assert.strictEqual(response.functions[0].function.hits[0].sourceId, 0);
+        assert.strictEqual(response.functions[0].function.hits[0].totalSamples, 108);
+        assert.strictEqual(response.functions[0].function.hits[0].selfSamples, 34);
+        assert.strictEqual(response.functions[0].function.hits[0].totalPercent, 36.986301369863014);
+        assert.strictEqual(response.functions[0].function.hits[0].selfPercent, 11.643835616438356);
     });
 
     it("hottestFunctions_3", async () => {
@@ -171,7 +192,8 @@ describe("InnerDiagsession", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveHottestFunctionsRequestType, {
             documentId: documentId,
-            count: 3
+            count: 3,
+            sourceId: sourceId
         });
 
         assert.strictEqual(response.functions.length, 3);
@@ -181,30 +203,36 @@ describe("InnerDiagsession", function () {
         assert.isAtLeast(response.functions[0].function.id, 0);
         assert.strictEqual(response.functions[0].function.module, "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe");
         assert.strictEqual(response.functions[0].function.type, "function");
-        assert.strictEqual(response.functions[0].function.totalSamples, 108);
-        assert.strictEqual(response.functions[0].function.selfSamples, 34);
-        assert.strictEqual(response.functions[0].function.totalPercent, 36.986301369863014);
-        assert.strictEqual(response.functions[0].function.selfPercent, 11.643835616438356);
+        assert.strictEqual(response.functions[0].function.hits.length, 1);
+        assert.strictEqual(response.functions[0].function.hits[0].sourceId, 0);
+        assert.strictEqual(response.functions[0].function.hits[0].totalSamples, 108);
+        assert.strictEqual(response.functions[0].function.hits[0].selfSamples, 34);
+        assert.strictEqual(response.functions[0].function.hits[0].totalPercent, 36.986301369863014);
+        assert.strictEqual(response.functions[0].function.hits[0].selfPercent, 11.643835616438356);
 
         assert.strictEqual(response.functions[1].processKey, process!.key);
         assert.strictEqual(response.functions[1].function.name, "public: unsigned int __cdecl std::mersenne_twister<unsigned int, 32, 624, 397, 31, 2567483615, 11, 7, 2636928640, 15, 4022730752, 18>::operator()(void)");
         assert.isAtLeast(response.functions[1].function.id, 0);
         assert.strictEqual(response.functions[1].function.module, "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe");
         assert.strictEqual(response.functions[1].function.type, "function");
-        assert.strictEqual(response.functions[1].function.totalSamples, 73);
-        assert.strictEqual(response.functions[1].function.selfSamples, 30);
-        assert.strictEqual(response.functions[1].function.totalPercent, 25);
-        assert.strictEqual(response.functions[1].function.selfPercent, 10.273972602739725);
+        assert.strictEqual(response.functions[1].function.hits.length, 1);
+        assert.strictEqual(response.functions[1].function.hits[0].sourceId, 0);
+        assert.strictEqual(response.functions[1].function.hits[0].totalSamples, 73);
+        assert.strictEqual(response.functions[1].function.hits[0].selfSamples, 30);
+        assert.strictEqual(response.functions[1].function.hits[0].totalPercent, 25);
+        assert.strictEqual(response.functions[1].function.hits[0].selfPercent, 10.273972602739725);
 
         assert.strictEqual(response.functions[2].processKey, process!.key);
         assert.strictEqual(response.functions[2].function.name, "private: void __cdecl std::vector<double, class std::allocator<double>>::_Orphan_range_locked(double *, double *) const");
         assert.isAtLeast(response.functions[2].function.id, 0);
         assert.strictEqual(response.functions[2].function.module, "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe");
         assert.strictEqual(response.functions[2].function.type, "function");
-        assert.strictEqual(response.functions[2].function.totalSamples, 84);
-        assert.strictEqual(response.functions[2].function.selfSamples, 24);
-        assert.strictEqual(response.functions[2].function.totalPercent, 28.767123287671232);
-        assert.strictEqual(response.functions[2].function.selfPercent, 8.219178082191782);
+        assert.strictEqual(response.functions[2].function.hits.length, 1);
+        assert.strictEqual(response.functions[2].function.hits[0].sourceId, 0);
+        assert.strictEqual(response.functions[2].function.hits[0].totalSamples, 84);
+        assert.strictEqual(response.functions[2].function.hits[0].selfSamples, 24);
+        assert.strictEqual(response.functions[2].function.hits[0].totalPercent, 28.767123287671232);
+        assert.strictEqual(response.functions[2].function.hits[0].selfPercent, 8.219178082191782);
     });
 
     it("callTreeHotPath", async () => {
@@ -216,6 +244,7 @@ describe("InnerDiagsession", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveCallTreeHotPathRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             processKey: process!.key
         });
 
@@ -226,10 +255,12 @@ describe("InnerDiagsession", function () {
         assert.isTrue(response.root.isHot);
         assert.strictEqual(response.root.module, "[multiple]");
         assert.strictEqual(response.root.name, "inner.exe (PID: 4140)");
-        assert.strictEqual(response.root.totalSamples, 292);
-        assert.strictEqual(response.root.selfSamples, 0);
-        assert.strictEqual(response.root.totalPercent, 100);
-        assert.strictEqual(response.root.selfPercent, 0);
+        assert.strictEqual(response.root.hits.length, 1);
+        assert.strictEqual(response.root.hits[0].sourceId, 0);
+        assert.strictEqual(response.root.hits[0].totalSamples, 292);
+        assert.strictEqual(response.root.hits[0].selfSamples, 0);
+        assert.strictEqual(response.root.hits[0].totalPercent, 100);
+        assert.strictEqual(response.root.hits[0].selfPercent, 0);
         assert.strictEqual(response.root.type, "process");
         assert.strictEqual(response.root.children?.length, 3);
 
@@ -315,7 +346,7 @@ describe("InnerDiagsession", function () {
         }
     });
 
-    it("functionPage", async () => {
+    it("functionPageSelf", async () => {
         const processesResponse = await fixture.connection.sendRequest(snail.retrieveProcessesRequestType, {
             documentId: documentId
         });
@@ -323,7 +354,10 @@ describe("InnerDiagsession", function () {
         assert.isDefined(process);
 
         const response = await fixture.connection.sendRequest(snail.retrieveFunctionsPageRequestType, {
-            documentId: documentId,
+            documentId: documentId!,
+            sortBy: snail.FunctionsSortBy.selfSamples,
+            sortOrder: snail.SortDirection.descending,
+            sortSourceId: sourceId!,
             processKey: process!.key,
             pageSize: 3,
             pageIndex: 0
@@ -334,29 +368,144 @@ describe("InnerDiagsession", function () {
         assert.isAtLeast(response.functions[0].id, 0);
         assert.strictEqual(response.functions[0].module, "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe");
         assert.strictEqual(response.functions[0].name, "double __cdecl std::generate_canonical<double, 53, class std::mersenne_twister_engine<unsigned int, 32, 624, 397, 31, 2567483615, 11, 4294967295, 7, 2636928640, 15, 4022730752, 18, 1812433253>>(class std::mersenne_twister_engine<unsigned int, 32, 624, 397, 31, 2567483615, 11, 4294967295, 7, 2636928640, 15, 4022730752, 18, 1812433253> &)");
-        assert.strictEqual(response.functions[0].totalSamples, 108);
-        assert.strictEqual(response.functions[0].selfSamples, 34);
-        assert.strictEqual(response.functions[0].totalPercent, 36.986301369863014);
-        assert.strictEqual(response.functions[0].selfPercent, 11.643835616438356);
+        assert.strictEqual(response.functions[0].hits.length, 1);
+        assert.strictEqual(response.functions[0].hits[0].sourceId, 0);
+        assert.strictEqual(response.functions[0].hits[0].totalSamples, 108);
+        assert.strictEqual(response.functions[0].hits[0].selfSamples, 34);
+        assert.strictEqual(response.functions[0].hits[0].totalPercent, 36.986301369863014);
+        assert.strictEqual(response.functions[0].hits[0].selfPercent, 11.643835616438356);
         assert.strictEqual(response.functions[0].type, "function");
 
         assert.isAtLeast(response.functions[1].id, 0);
         assert.strictEqual(response.functions[1].module, "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe");
         assert.strictEqual(response.functions[1].name, "public: unsigned int __cdecl std::mersenne_twister<unsigned int, 32, 624, 397, 31, 2567483615, 11, 7, 2636928640, 15, 4022730752, 18>::operator()(void)");
-        assert.strictEqual(response.functions[1].totalSamples, 73);
-        assert.strictEqual(response.functions[1].selfSamples, 30);
-        assert.strictEqual(response.functions[1].totalPercent, 25);
-        assert.strictEqual(response.functions[1].selfPercent, 10.273972602739725);
+        assert.strictEqual(response.functions[1].hits.length, 1);
+        assert.strictEqual(response.functions[1].hits[0].sourceId, 0);
+        assert.strictEqual(response.functions[1].hits[0].totalSamples, 73);
+        assert.strictEqual(response.functions[1].hits[0].selfSamples, 30);
+        assert.strictEqual(response.functions[1].hits[0].totalPercent, 25);
+        assert.strictEqual(response.functions[1].hits[0].selfPercent, 10.273972602739725);
         assert.strictEqual(response.functions[1].type, "function");
 
         assert.isAtLeast(response.functions[2].id, 0);
         assert.strictEqual(response.functions[2].module, "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe");
         assert.strictEqual(response.functions[2].name, "private: void __cdecl std::vector<double, class std::allocator<double>>::_Orphan_range_locked(double *, double *) const");
-        assert.strictEqual(response.functions[2].totalSamples, 84);
-        assert.strictEqual(response.functions[2].selfSamples, 24);
-        assert.strictEqual(response.functions[2].totalPercent, 28.767123287671232);
-        assert.strictEqual(response.functions[2].selfPercent, 8.219178082191782);
+        assert.strictEqual(response.functions[2].hits.length, 1);
+        assert.strictEqual(response.functions[2].hits[0].sourceId, 0);
+        assert.strictEqual(response.functions[2].hits[0].totalSamples, 84);
+        assert.strictEqual(response.functions[2].hits[0].selfSamples, 24);
+        assert.strictEqual(response.functions[2].hits[0].totalPercent, 28.767123287671232);
+        assert.strictEqual(response.functions[2].hits[0].selfPercent, 8.219178082191782);
         assert.strictEqual(response.functions[2].type, "function");
+    });
+
+
+    it("functionPageTotal", async () => {
+        const processesResponse = await fixture.connection.sendRequest(snail.retrieveProcessesRequestType, {
+            documentId: documentId
+        });
+        const process = processesResponse.processes.find(proc => proc.osId == 4140);
+        assert.isDefined(process);
+
+        const response = await fixture.connection.sendRequest(snail.retrieveFunctionsPageRequestType, {
+            documentId: documentId!,
+            sortBy: snail.FunctionsSortBy.totalSamples,
+            sortOrder: snail.SortDirection.descending,
+            sortSourceId: sourceId!,
+            processKey: process!.key,
+            pageSize: 3,
+            pageIndex: 0
+        });
+
+        assert.strictEqual(response.functions.length, 3);
+
+        assert.isAtLeast(response.functions[0].id, 0);
+        assert.strictEqual(response.functions[0].module, "C:\\Windows\\System32\\kernel32.dll");
+        assert.strictEqual(response.functions[0].name, "kernel32.dll!0x00007ffde2e54de0");
+        assert.strictEqual(response.functions[0].hits.length, 1);
+        assert.strictEqual(response.functions[0].hits[0].sourceId, 0);
+        assert.strictEqual(response.functions[0].hits[0].totalSamples, 283);
+        assert.strictEqual(response.functions[0].hits[0].selfSamples, 0);
+        assert.strictEqual(response.functions[0].hits[0].totalPercent, 96.91780821917808);
+        assert.strictEqual(response.functions[0].hits[0].selfPercent, 0.0);
+        assert.strictEqual(response.functions[0].type, "function");
+
+        assert.isAtLeast(response.functions[1].id, 0);
+        assert.strictEqual(response.functions[1].module, "C:\\Windows\\System32\\ntdll.dll");
+        assert.strictEqual(response.functions[1].name, "RtlUserThreadStart");
+        assert.strictEqual(response.functions[1].hits.length, 1);
+        assert.strictEqual(response.functions[1].hits[0].sourceId, 0);
+        assert.strictEqual(response.functions[1].hits[0].totalSamples, 283);
+        assert.strictEqual(response.functions[1].hits[0].selfSamples, 0);
+        assert.strictEqual(response.functions[1].hits[0].totalPercent, 96.91780821917808);
+        assert.strictEqual(response.functions[1].hits[0].selfPercent, 0.0);
+        assert.strictEqual(response.functions[1].type, "function");
+
+        assert.isAtLeast(response.functions[2].id, 0);
+        assert.strictEqual(response.functions[2].module, "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe");
+        assert.strictEqual(response.functions[2].name, "mainCRTStartup");
+        assert.strictEqual(response.functions[2].hits.length, 1);
+        assert.strictEqual(response.functions[2].hits[0].sourceId, 0);
+        assert.strictEqual(response.functions[2].hits[0].totalSamples, 277);
+        assert.strictEqual(response.functions[2].hits[0].selfSamples, 0);
+        assert.strictEqual(response.functions[2].hits[0].totalPercent, 94.86301369863014);
+        assert.strictEqual(response.functions[2].hits[0].selfPercent, 0.0);
+        assert.strictEqual(response.functions[2].type, "function");
+    });
+
+    it("functionPageName", async () => {
+        const processesResponse = await fixture.connection.sendRequest(snail.retrieveProcessesRequestType, {
+            documentId: documentId
+        });
+        const process = processesResponse.processes.find(proc => proc.osId == 4140);
+        assert.isDefined(process);
+
+        const response = await fixture.connection.sendRequest(snail.retrieveFunctionsPageRequestType, {
+            documentId: documentId!,
+            sortBy: snail.FunctionsSortBy.name,
+            sortOrder: snail.SortDirection.ascending,
+            sortSourceId: null,
+            processKey: process!.key,
+            pageSize: 3,
+            pageIndex: 0
+        });
+
+        assert.strictEqual(response.functions.length, 3);
+
+        // FIXME: the following is unstable, since Windows uses the DIA SDK to resolve symbols,
+        //        while on Linux we use LLVM only. This introduces very slight changes to the function names.
+        // assert.isAtLeast(response.functions[0].id, 0);
+        // assert.strictEqual(response.functions[0].module, "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe");
+        // assert.strictEqual(response.functions[0].name, "@ILT+1020(_RTC_CheckStackVars)");
+        // assert.strictEqual(response.functions[0].hits.length, 1);
+        // assert.strictEqual(response.functions[0].hits[0].sourceId, 0);
+        // assert.strictEqual(response.functions[0].hits[0].totalSamples, 1);
+        // assert.strictEqual(response.functions[0].hits[0].selfSamples, 1);
+        // assert.strictEqual(response.functions[0].hits[0].totalPercent, 0.3424657534246575);
+        // assert.strictEqual(response.functions[0].hits[0].selfPercent, 0.3424657534246575);
+        // assert.strictEqual(response.functions[0].type, "function");
+
+        // assert.isAtLeast(response.functions[1].id, 0);
+        // assert.strictEqual(response.functions[1].module, "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe");
+        // assert.strictEqual(response.functions[1].name, "@ILT+130(??$forward@N@std@@YA$$QEANAEAN@Z)");
+        // assert.strictEqual(response.functions[1].hits.length, 1);
+        // assert.strictEqual(response.functions[1].hits[0].sourceId, 0);
+        // assert.strictEqual(response.functions[1].hits[0].totalSamples, 1);
+        // assert.strictEqual(response.functions[1].hits[0].selfSamples, 1);
+        // assert.strictEqual(response.functions[1].hits[0].totalPercent, 0.3424657534246575);
+        // assert.strictEqual(response.functions[1].hits[0].selfPercent, 0.3424657534246575);
+        // assert.strictEqual(response.functions[1].type, "function");
+
+        // assert.isAtLeast(response.functions[2].id, 0);
+        // assert.strictEqual(response.functions[2].module, "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe");
+        // assert.strictEqual(response.functions[2].name, "@ILT+225(??R?$mersenne_twister@I$0CA@$0CHA@$0BIN@$0BP@$0JJAILANP@$0L@$06$0JNCMFGIA@$0P@$0OPMGAAAA@$0BC@@std@@QEAAIXZ)");
+        // assert.strictEqual(response.functions[2].hits.length, 1);
+        // assert.strictEqual(response.functions[2].hits[0].sourceId, 0);
+        // assert.strictEqual(response.functions[2].hits[0].totalSamples, 1);
+        // assert.strictEqual(response.functions[2].hits[0].selfSamples, 1);
+        // assert.strictEqual(response.functions[2].hits[0].totalPercent, 0.3424657534246575);
+        // assert.strictEqual(response.functions[2].hits[0].selfPercent, 0.3424657534246575);
+        // assert.strictEqual(response.functions[2].type, "function");
     });
 
     it("expandCallTreeNode", async () => {
@@ -368,6 +517,7 @@ describe("InnerDiagsession", function () {
 
         const hotPathResponse = await fixture.connection.sendRequest(snail.retrieveCallTreeHotPathRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             processKey: process!.key
         });
 
@@ -396,9 +546,10 @@ describe("InnerDiagsession", function () {
         }
 
         const response = await fixture.connection.sendRequest(snail.expandCallTreeNodeRequestType, {
-            documentId: documentId,
+            documentId: documentId!,
+            hotSourceId: sourceId!,
             processKey: process!.key,
-            nodeId: current?.id
+            nodeId: current!.id
         });
 
         assert.strictEqual(response.children.length, 1);
@@ -408,10 +559,12 @@ describe("InnerDiagsession", function () {
         assert.isFalse(response.children[0].isHot);
         assert.strictEqual(response.children[0].module, "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe");
         assert.strictEqual(response.children[0].name, "public: double const & __cdecl std::vector<double, class std::allocator<double>>::operator[](unsigned __int64) const");
-        assert.strictEqual(response.children[0].totalSamples, 4);
-        assert.strictEqual(response.children[0].selfSamples, 4);
-        assert.strictEqual(response.children[0].totalPercent, 1.36986301369863);
-        assert.strictEqual(response.children[0].selfPercent, 1.36986301369863);
+        assert.strictEqual(response.children[0].hits.length, 1);
+        assert.strictEqual(response.children[0].hits[0].sourceId, 0);
+        assert.strictEqual(response.children[0].hits[0].totalSamples, 4);
+        assert.strictEqual(response.children[0].hits[0].selfSamples, 4);
+        assert.strictEqual(response.children[0].hits[0].totalPercent, 1.36986301369863);
+        assert.strictEqual(response.children[0].hits[0].selfPercent, 1.36986301369863);
         assert.strictEqual(response.children[0].type, "function");
         assert.strictEqual(response.children[0].children?.length, 0);
     });
@@ -424,7 +577,10 @@ describe("InnerDiagsession", function () {
         assert.isDefined(process);
 
         const functionsPage = await fixture.connection.sendRequest(snail.retrieveFunctionsPageRequestType, {
-            documentId: documentId,
+            documentId: documentId!,
+            sortBy: snail.FunctionsSortBy.selfSamples,
+            sortOrder: snail.SortDirection.descending,
+            sortSourceId: sourceId!,
             processKey: process!.key,
             pageSize: 500,
             pageIndex: 0
@@ -435,6 +591,7 @@ describe("InnerDiagsession", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveCallersCalleesRequestType, {
             documentId: documentId,
+            sortSourceId: sourceId,
             processKey: process!.key,
             functionId: func!.id,
             maxEntries: 2
@@ -457,7 +614,10 @@ describe("InnerDiagsession", function () {
         assert.isDefined(process);
 
         const functionsPage = await fixture.connection.sendRequest(snail.retrieveFunctionsPageRequestType, {
-            documentId: documentId,
+            documentId: documentId!,
+            sortBy: snail.FunctionsSortBy.selfSamples,
+            sortOrder: snail.SortDirection.descending,
+            sortSourceId: sourceId!,
             processKey: process!.key,
             pageSize: 500,
             pageIndex: 0
@@ -475,10 +635,12 @@ describe("InnerDiagsession", function () {
 
         assert.strictEqual(response!.filePath, "D:\\a\\snail-server\\snail-server\\tests\\apps\\inner\\main.cpp");
         assert.strictEqual(response!.lineNumber, 57);
-        assert.strictEqual(response!.totalSamples, 275);
-        assert.strictEqual(response!.selfSamples, 0);
-        assert.strictEqual(response!.totalPercent, 94.17808219178082);
-        assert.strictEqual(response!.selfPercent, 0);
+        assert.strictEqual(response!.hits.length, 1);
+        assert.strictEqual(response!.hits[0].sourceId, 0);
+        assert.strictEqual(response!.hits[0].totalSamples, 275);
+        assert.strictEqual(response!.hits[0].selfSamples, 0);
+        assert.strictEqual(response!.hits[0].totalPercent, 94.17808219178082);
+        assert.strictEqual(response!.hits[0].selfPercent, 0);
 
         response!.lineHits.sort((a, b) => {
             return a.lineNumber - b.lineNumber;
@@ -487,28 +649,36 @@ describe("InnerDiagsession", function () {
         assert.strictEqual(response!.lineHits.length, 4);
 
         assert.strictEqual(response!.lineHits[0].lineNumber, 63);
-        assert.strictEqual(response!.lineHits[0].totalSamples, 1);
-        assert.strictEqual(response!.lineHits[0].selfSamples, 0);
-        assert.strictEqual(response!.lineHits[0].totalPercent, 0.3424657534246575);
-        assert.strictEqual(response!.lineHits[0].selfPercent, 0);
+        assert.strictEqual(response!.lineHits[0].hits.length, 1);
+        assert.strictEqual(response!.lineHits[0].hits[0].sourceId, 0);
+        assert.strictEqual(response!.lineHits[0].hits[0].totalSamples, 1);
+        assert.strictEqual(response!.lineHits[0].hits[0].selfSamples, 0);
+        assert.strictEqual(response!.lineHits[0].hits[0].totalPercent, 0.3424657534246575);
+        assert.strictEqual(response!.lineHits[0].hits[0].selfPercent, 0);
 
         assert.strictEqual(response!.lineHits[1].lineNumber, 69);
-        assert.strictEqual(response!.lineHits[1].totalSamples, 133);
-        assert.strictEqual(response!.lineHits[1].selfSamples, 0);
-        assert.strictEqual(response!.lineHits[1].totalPercent, 45.54794520547945);
-        assert.strictEqual(response!.lineHits[1].selfPercent, 0);
+        assert.strictEqual(response!.lineHits[1].hits.length, 1);
+        assert.strictEqual(response!.lineHits[1].hits[0].sourceId, 0);
+        assert.strictEqual(response!.lineHits[1].hits[0].totalSamples, 133);
+        assert.strictEqual(response!.lineHits[1].hits[0].selfSamples, 0);
+        assert.strictEqual(response!.lineHits[1].hits[0].totalPercent, 45.54794520547945);
+        assert.strictEqual(response!.lineHits[1].hits[0].selfPercent, 0);
 
         assert.strictEqual(response!.lineHits[2].lineNumber, 71);
-        assert.strictEqual(response!.lineHits[2].totalSamples, 138);
-        assert.strictEqual(response!.lineHits[2].selfSamples, 0);
-        assert.strictEqual(response!.lineHits[2].totalPercent, 47.26027397260274);
-        assert.strictEqual(response!.lineHits[2].selfPercent, 0);
+        assert.strictEqual(response!.lineHits[2].hits.length, 1);
+        assert.strictEqual(response!.lineHits[2].hits[0].sourceId, 0);
+        assert.strictEqual(response!.lineHits[2].hits[0].totalSamples, 138);
+        assert.strictEqual(response!.lineHits[2].hits[0].selfSamples, 0);
+        assert.strictEqual(response!.lineHits[2].hits[0].totalPercent, 47.26027397260274);
+        assert.strictEqual(response!.lineHits[2].hits[0].selfPercent, 0);
 
         assert.strictEqual(response!.lineHits[3].lineNumber, 75);
-        assert.strictEqual(response!.lineHits[3].totalSamples, 3);
-        assert.strictEqual(response!.lineHits[3].selfSamples, 0);
-        assert.strictEqual(response!.lineHits[3].totalPercent, 1.0273972602739727);
-        assert.strictEqual(response!.lineHits[3].selfPercent, 0);
+        assert.strictEqual(response!.lineHits[3].hits.length, 1);
+        assert.strictEqual(response!.lineHits[3].hits[0].sourceId, 0);
+        assert.strictEqual(response!.lineHits[3].hits[0].totalSamples, 3);
+        assert.strictEqual(response!.lineHits[3].hits[0].selfSamples, 0);
+        assert.strictEqual(response!.lineHits[3].hits[0].totalPercent, 1.0273972602739727);
+        assert.strictEqual(response!.lineHits[3].hits[0].selfPercent, 0);
     });
 
     it("lineInfoUnknown", async () => {
@@ -519,7 +689,10 @@ describe("InnerDiagsession", function () {
         assert.isDefined(process);
 
         const functionsPage = await fixture.connection.sendRequest(snail.retrieveFunctionsPageRequestType, {
-            documentId: documentId,
+            documentId: documentId!,
+            sortBy: snail.FunctionsSortBy.selfSamples,
+            sortOrder: snail.SortDirection.descending,
+            sortSourceId: sourceId!,
             processKey: process!.key,
             pageSize: 50,
             pageIndex: 0
@@ -553,6 +726,7 @@ describe("InnerDiagsession", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveHottestFunctionsRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             count: 1
         });
 
@@ -562,10 +736,12 @@ describe("InnerDiagsession", function () {
         assert.isAtLeast(response.functions[0].function.id, 0);
         assert.strictEqual(response.functions[0].function.module, "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe");
         assert.strictEqual(response.functions[0].function.type, "function");
-        assert.strictEqual(response.functions[0].function.totalSamples, 42);
-        assert.strictEqual(response.functions[0].function.selfSamples, 15);
-        assert.strictEqual(response.functions[0].function.totalPercent, 42.42424242424242);
-        assert.strictEqual(response.functions[0].function.selfPercent, 15.151515151515152);
+        assert.strictEqual(response.functions[0].function.hits.length, 1);
+        assert.strictEqual(response.functions[0].function.hits[0].sourceId, 0);
+        assert.strictEqual(response.functions[0].function.hits[0].totalSamples, 42);
+        assert.strictEqual(response.functions[0].function.hits[0].selfSamples, 15);
+        assert.strictEqual(response.functions[0].function.hits[0].totalPercent, 42.42424242424242);
+        assert.strictEqual(response.functions[0].function.hits[0].selfPercent, 15.151515151515152);
     });
 
     it("filterProcess", async () => {
@@ -586,6 +762,7 @@ describe("InnerDiagsession", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveHottestFunctionsRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             count: 10
         });
 
@@ -616,19 +793,21 @@ describe("InnerDiagsession", function () {
 
         const response = await fixture.connection.sendRequest(snail.retrieveHottestFunctionsRequestType, {
             documentId: documentId,
+            sourceId: sourceId,
             count: 1
         });
 
         assert.strictEqual(response.functions.length, 1);
-        console.log(response.functions[0])
         assert.strictEqual(response.functions[0].processKey, process!.key);
-        assert.strictEqual(response.functions[0].function.name, "RtlpHeapGenerateRandomValue32");
+        assert.strictEqual(response.functions[0].function.name, "ntoskrnl.exe!0xfffff80483a2fc56");
         assert.isAtLeast(response.functions[0].function.id, 0);
-        assert.strictEqual(response.functions[0].function.module, "C:\\Windows\\System32\\ntdll.dll");
+        assert.strictEqual(response.functions[0].function.module, "C:\\Windows\\system32\\ntoskrnl.exe");
         assert.strictEqual(response.functions[0].function.type, "function");
-        assert.strictEqual(response.functions[0].function.totalSamples, 1);
-        assert.strictEqual(response.functions[0].function.selfSamples, 1);
-        assert.strictEqual(response.functions[0].function.totalPercent, 33.333333333333336);
-        assert.strictEqual(response.functions[0].function.selfPercent, 33.333333333333336);
+        assert.strictEqual(response.functions[0].function.hits.length, 1);
+        assert.strictEqual(response.functions[0].function.hits[0].sourceId, 0);
+        assert.strictEqual(response.functions[0].function.hits[0].totalSamples, 1);
+        assert.strictEqual(response.functions[0].function.hits[0].selfSamples, 1);
+        assert.strictEqual(response.functions[0].function.hits[0].totalPercent, 33.333333333333336);
+        assert.strictEqual(response.functions[0].function.hits[0].selfPercent, 33.333333333333336);
     });
 });

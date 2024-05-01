@@ -20,14 +20,14 @@ struct function_info
 
     std::string name;
 
-    hit_counts hits;
+    source_hit_counts hits;
 
-    std::unordered_map<function_info::id_t, hit_counts> callers;
-    std::unordered_map<function_info::id_t, hit_counts> callees;
+    std::unordered_map<function_info::id_t, source_hit_counts> callers;
+    std::unordered_map<function_info::id_t, source_hit_counts> callees;
 
-    std::optional<file_info::id_t>              file_id;
-    std::optional<std::size_t>                  line_number;
-    std::unordered_map<std::size_t, hit_counts> hits_by_line;
+    std::optional<file_info::id_t>                     file_id;
+    std::optional<std::size_t>                         line_number;
+    std::unordered_map<std::size_t, source_hit_counts> hits_by_line;
 };
 
 } // namespace snail::analysis

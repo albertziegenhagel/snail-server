@@ -16,6 +16,14 @@ using namespace snail::detail::tests;
 
 namespace {
 
+// std::string_view guid_to_string(const common::guid& guid)
+// {
+//     if(guid == etl::parser::system_config_ex_guid) return "system_config_ex_guid";
+//     else if(guid == etl::parser::image_id_guid) return "image_id_guid";
+//     else if(guid == etl::parser::vs_diagnostics_hub_guid) return "vs_diagnostics_hub_guid";
+//     return "unknown";
+// }
+
 std::string_view group_to_string(etl::parser::event_trace_group group)
 {
     switch(group)
@@ -221,4 +229,125 @@ TEST(EtlFile, ReadInner)
 
     EXPECT_EQ(guid_event_counts, expected_guid_event_counts);
     EXPECT_EQ(group_event_counts, expected_group_event_counts);
+}
+
+TEST(EtlFile, ReadOrdered)
+{
+    ASSERT_TRUE(get_root_dir().has_value()) << "Missing root dir. Did you forget to pass --snail-root-dir=<dir> to the test executable?";
+    const auto file_path = get_root_dir().value() / "tests" / "apps" / "ordered" / "dist" / "windows" / "deb" / "record" / "ordered_merged.etl";
+    ASSERT_TRUE(std::filesystem::exists(file_path)) << "Missing test file:\n  " << file_path << "\nDid you forget checking out GIT LFS files?";
+
+    etl::etl_file file(file_path);
+
+    EXPECT_EQ(file.header().start_time, common::nt_sys_time(common::nt_duration(17131983583517451)));
+    EXPECT_EQ(file.header().end_time, common::nt_sys_time(common::nt_duration(17131983640883772)));
+    EXPECT_EQ(file.header().start_time_qpc_ticks, 368418466025);
+    EXPECT_EQ(file.header().qpc_frequency, 10000000);
+    EXPECT_EQ(file.header().pointer_size, 8);
+    EXPECT_EQ(file.header().number_of_processors, 8);
+    EXPECT_EQ(file.header().number_of_buffers, 168);
+
+    etl::dispatching_event_observer counting_observer;
+
+    std::unordered_map<etl::detail::guid_handler_key, std::size_t>  guid_event_counts;
+    std::unordered_map<etl::detail::group_handler_key, std::size_t> group_event_counts;
+
+    counting_observer.register_unknown_event(
+        [&guid_event_counts]([[maybe_unused]] const etl::etl_file::header_data& file_header,
+                             const etl::any_guid_trace_header&                  header,
+                             [[maybe_unused]] const std::span<const std::byte>& event_data)
+        {
+            const auto header_key = std::visit([](const auto& header)
+                                               { return make_key(header); },
+                                               header);
+            ++guid_event_counts[header_key];
+        });
+    counting_observer.register_unknown_event(
+        [&group_event_counts]([[maybe_unused]] const etl::etl_file::header_data& file_header,
+                              const etl::any_group_trace_header&                 header,
+                              [[maybe_unused]] const std::span<const std::byte>& event_data)
+        {
+            const auto header_key = std::visit([](const auto& header)
+                                               { return make_key(header); },
+                                               header);
+            ++group_event_counts[header_key];
+        });
+
+    file.process(counting_observer);
+
+    const std::unordered_map<etl::detail::guid_handler_key, std::size_t> expected_guid_event_counts = {
+        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 0, 2},          7574},
+        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 32, 2},         30  },
+        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 36, 2},         7544},
+        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 38, 2},         7409},
+        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 40, 1},         7383},
+        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 64, 0},         883 },
+        {etl::detail::guid_handler_key{etl::parser::system_config_ex_guid, 32, 0}, 1   },
+        {etl::detail::guid_handler_key{etl::parser::system_config_ex_guid, 33, 0}, 1   },
+        {etl::detail::guid_handler_key{etl::parser::system_config_ex_guid, 35, 0}, 11  },
+        {etl::detail::guid_handler_key{etl::parser::system_config_ex_guid, 36, 0}, 6   },
+        {etl::detail::guid_handler_key{etl::parser::system_config_ex_guid, 37, 0}, 1   },
+    };
+
+    const std::unordered_map<etl::detail::group_handler_key, std::size_t> expected_group_event_counts = {
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 10, 3},    1    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 11, 2},    1    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 12, 2},    1    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 13, 2},    2    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 15, 3},    179  },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 16, 2},    1    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 19, 2},    1    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 21, 3},    3    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 22, 5},    62   },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 24, 2},    1    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 26, 2},    1    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 27, 2},    1    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 28, 2},    1    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 29, 2},    1    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 33, 2},    1    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 34, 2},    1    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 35, 2},    8    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 36, 2},    1    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::config, 37, 2},    1    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::header, 0, 2},     1    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::header, 32, 2},    2    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::header, 5, 2},     3    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::header, 8, 2},     2    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::header, 80, 2},    1    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::image, 2, 3},      64   },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::image, 3, 3},      3739 },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::image, 33, 2},     1    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::image, 34, 2},     1    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::image, 4, 3},      3722 },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::perfinfo, 46, 2},  29246},
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::perfinfo, 47, 2},  13669},
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::perfinfo, 73, 3},  4    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::perfinfo, 74, 3},  4    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::process, 1, 4},    1    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::process, 10, 3},   49   },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::process, 11, 2},   3    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::process, 2, 4},    3    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::process, 3, 4},    68   },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::process, 39, 5},   1    },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::process, 4, 4},    66   },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::stackwalk, 32, 2}, 32076},
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::thread, 1, 3},     17   },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::thread, 2, 3},     20   },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::thread, 3, 3},     825  },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::thread, 4, 3},     830  },
+    };
+
+    EXPECT_EQ(guid_event_counts, expected_guid_event_counts);
+    EXPECT_EQ(group_event_counts, expected_group_event_counts);
+
+    // std::cout << "START TIME " << file.header().start_time.time_since_epoch().count() << "\n";
+    // std::cout << "END TIME " << file.header().end_time.time_since_epoch().count() << "\n";
+    // for(const auto& [key, count] : guid_event_counts)
+    // {
+    //     std::cout << "{etl::detail::guid_handler_key{etl::parser::" << guid_to_string(key.guid) << ", " << (int)key.type << ", " << (int)key.version << "}, " << count << "},\n";
+    // }
+    // for(const auto& [key, count] : group_event_counts)
+    // {
+    //     std::cout << "{etl::detail::group_handler_key{etl::parser::event_trace_group::" << group_to_string(key.group) << ", " << (int)key.type << ", " << (int)key.version << "}, " << count << "},\n";
+    // }
 }

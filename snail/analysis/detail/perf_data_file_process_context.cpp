@@ -122,40 +122,40 @@ void perf_data_file_process_context::finish()
         }
     }
 
-    for(const auto& [id, thread_entries] : threads.all_entries())
+    // revert the event to source map, so that we can look-up the event descriptor
+    // (if available) from the file metadata for each source later.
+    for(const auto& [used_event_id, sample_source_id] : event_id_to_source_id_)
     {
-        const auto iter = samples_per_thread_id_.find(id);
-        if(iter == samples_per_thread_id_.end()) continue;
-        const auto& samples = iter->second;
+        event_ids_per_sample_source_[sample_source_id].push_back(used_event_id);
+    }
+    assert(event_ids_per_sample_source_.size() == samples_per_source_and_thread_id_.size());
 
-        for(const auto& thread_entry : thread_entries)
+    for(const auto& [sample_id, samples_per_thread] : samples_per_source_and_thread_id_)
+    {
+        for(const auto& [thread_id, thread_entries] : threads.all_entries())
         {
-            if(samples.last_sample_time < thread_entry.timestamp ||
-               (thread_entry.payload.end_time && samples.first_sample_time > *thread_entry.payload.end_time)) continue;
+            const auto iter = samples_per_thread.find(thread_id);
+            if(iter == samples_per_thread.end()) continue;
+            const auto& samples = iter->second;
 
-            const auto* process = processes.find_at(thread_entry.payload.process_id, thread_entry.timestamp);
-            if(process == nullptr) continue;
-
-            const auto sampled_process_key = process_key{process->id, process->timestamp};
-
-            const auto first_sample_time = std::max(samples.first_sample_time, thread_entry.timestamp);
-            const auto last_sample_time  = thread_entry.payload.end_time ?
-                                               std::min(samples.last_sample_time, *thread_entry.payload.end_time) :
-                                               samples.last_sample_time;
-
-            auto proc_iter = sampled_processes_.find(sampled_process_key);
-            if(proc_iter == sampled_processes_.end())
+            for(const auto& thread_entry : thread_entries)
             {
-                sampled_processes_[sampled_process_key] = sampled_process_info{
-                    .process_id        = process->id,
-                    .process_timestamp = process->timestamp,
-                    .first_sample_time = first_sample_time,
-                    .last_sample_time  = last_sample_time};
-            }
-            else
-            {
-                proc_iter->second.first_sample_time = std::min(proc_iter->second.first_sample_time, first_sample_time);
-                proc_iter->second.last_sample_time  = std::max(proc_iter->second.last_sample_time, last_sample_time);
+                if(samples.last_sample_time < thread_entry.timestamp ||
+                   (thread_entry.payload.end_time && samples.first_sample_time > *thread_entry.payload.end_time)) continue;
+
+                const auto* process = processes.find_at(thread_entry.payload.process_id, thread_entry.timestamp);
+                if(process == nullptr) continue;
+
+                const auto sampled_process_key = process_key{process->id, process->timestamp};
+
+                auto proc_iter = sampled_processes_.find(sampled_process_key);
+                if(proc_iter == sampled_processes_.end())
+                {
+                    sampled_processes_[sampled_process_key] = sampled_process_info{
+                        .process_id        = process->id,
+                        .process_timestamp = process->timestamp,
+                    };
+                }
             }
         }
     }
@@ -255,12 +255,18 @@ void perf_data_file_process_context::handle_event(const perf_data::parser::sampl
     if(event.tid == std::nullopt ||
        event.time == std::nullopt) return;
 
-    assert(event.ip);
-    assert(event.ips);
+    const auto unique_key            = reinterpret_cast<std::uintptr_t>(event.attributes);
+    const auto [iter, is_new_source] = unique_sample_sources_.insert({unique_key, unique_sample_sources_.size()});
 
-    const auto stack_index = stacks.insert(*event.ips);
+    const auto source_id = iter->second;
+    if(is_new_source)
+    {
+        assert(!event_id_to_source_id_.contains(event.id) ||
+               event_id_to_source_id_.at(event.id) == source_id);
+        event_id_to_source_id_[event.id] = source_id;
+    }
 
-    auto& storage = samples_per_thread_id_[*event.tid];
+    auto& storage = samples_per_source_and_thread_id_[iter->second][*event.tid];
 
     storage.first_sample_time = std::min(storage.first_sample_time, *event.time);
     storage.last_sample_time  = std::max(storage.last_sample_time, *event.time);
@@ -268,8 +274,10 @@ void perf_data_file_process_context::handle_event(const perf_data::parser::sampl
     storage.samples.push_back(sample_info{
         .thread_id           = *event.tid,
         .timestamp           = *event.time,
-        .instruction_pointer = *event.ip,
-        .stack_index         = stack_index});
+        .instruction_pointer = event.ip,
+        .stack_index         = event.ips ? std::make_optional(stacks.insert(*event.ips)) : std::nullopt});
+
+    if(event.ips) sources_with_stacks_.insert(source_id);
 }
 
 const std::unordered_map<perf_data_file_process_context::process_key, perf_data_file_process_context::sampled_process_info>& perf_data_file_process_context::sampled_processes() const
@@ -277,12 +285,25 @@ const std::unordered_map<perf_data_file_process_context::process_key, perf_data_
     return sampled_processes_;
 }
 
-std::span<const perf_data_file_process_context::sample_info> perf_data_file_process_context::thread_samples(os_tid_t thread_id, timestamp_t start_time, std::optional<timestamp_t> end_time) const
+const std::unordered_map<perf_data_file_process_context::sample_source_id_t, std::vector<std::optional<std::uint64_t>>>& perf_data_file_process_context::event_ids_per_sample_source() const
 {
-    auto iter = samples_per_thread_id_.find(thread_id);
-    if(iter == samples_per_thread_id_.end()) return {};
+    return event_ids_per_sample_source_;
+}
 
-    const auto& thread_samples = iter->second.samples;
+bool perf_data_file_process_context::sample_source_has_stacks(sample_source_id_t source_id) const
+{
+    return sources_with_stacks_.contains(source_id);
+}
+
+std::span<const perf_data_file_process_context::sample_info> perf_data_file_process_context::thread_samples(os_tid_t thread_id, timestamp_t start_time, std::optional<timestamp_t> end_time, sample_source_id_t source_id) const
+{
+    auto iter = samples_per_source_and_thread_id_.find(source_id);
+    if(iter == samples_per_source_and_thread_id_.end()) return {};
+
+    auto iter2 = iter->second.find(thread_id);
+    if(iter2 == iter->second.end()) return {};
+
+    const auto& thread_samples = iter2->second.samples;
 
     const auto range_first_iter = std::ranges::lower_bound(thread_samples, start_time, std::less<>(), &sample_info::timestamp);
     if(range_first_iter == thread_samples.end()) return {};

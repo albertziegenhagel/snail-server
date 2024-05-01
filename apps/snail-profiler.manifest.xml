@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<instrumentationManifest
+    xsi:schemaLocation="http://schemas.microsoft.com/win/2004/08/events eventman.xsd"
+    xmlns="http://schemas.microsoft.com/win/2004/08/events"
+    xmlns:win="http://manifests.microsoft.com/win/2004/08/windows/events"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    xmlns:trace="http://schemas.microsoft.com/win/2004/08/events/trace">
+    <instrumentation>
+        <events>
+            <provider name="Snail-Profiler"
+                guid="{460B83B6-FC11-481B-B7AA-4038CA4C4C48}" symbol="SnailProfiler"
+                resourceFileName="." messageFileName=".">
+                <events>
+                    <event symbol="ProfilingTarget" value="1" version="0"
+                        level="win:Informational" template="ProfilingTargetTemplate"
+                        message="$(string.Snail-Profiler.event.1.message)">
+                    </event>
+                </events>
+                <levels>
+                </levels>
+                <templates>
+                    <template tid="ProfilingTargetTemplate">
+                        <data name="ProcessId" inType="win:UInt32" outType="xs:unsignedInt">
+                        </data>
+                    </template>
+                </templates>
+            </provider>
+        </events>
+    </instrumentation>
+    <localization>
+        <resources culture="en-US">
+            <stringTable>
+                <string id="level.Informational" value="Information">
+                </string>
+                <string id="Snail-Profiler.event.1.message"
+                    value="Profiling target (%1).">
+                </string>
+            </stringTable>
+        </resources>
+    </localization>
+</instrumentationManifest>

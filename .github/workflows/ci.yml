@@ -65,7 +65,21 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
-          lfs: 'true'
+          lfs: 'false'
+
+      - name: Create LFS file list
+        shell: pwsh
+        run: git lfs ls-files -l | ForEach-Object { $_.split(" ")[0] } | Sort-Object | Out-File .lfs-assets-id
+
+      - name: Restore LFS cache
+        uses: actions/cache@v4
+        id: lfs-cache
+        with:
+          path: .git/lfs
+          key: ${{ runner.os }}-lfs-${{ hashFiles('.lfs-assets-id') }}-v1
+
+      - name: Git LFS Pull
+        run: git lfs pull
 
       - uses: lukka/get-cmake@latest
         with:

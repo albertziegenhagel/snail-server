@@ -85,6 +85,7 @@ const parser::event_attributes& event_attributes_database::get_event_attributes(
     std::span<const std::byte> event_data) const
 {
     assert(!all_attributes.empty());
+    assert(parser::is_kernel_event(event_type));
 
     const auto& main_attributes = all_attributes.front();
 

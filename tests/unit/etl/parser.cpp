@@ -21,6 +21,7 @@
 #include <snail/etl/parser/records/kernel_trace_control/image_id.hpp>
 #include <snail/etl/parser/records/kernel_trace_control/system_config_ex.hpp>
 
+#include <snail/etl/parser/records/snail/profiler.hpp>
 #include <snail/etl/parser/records/visual_studio/diagnostics_hub.hpp>
 
 using namespace snail;
@@ -87,6 +88,51 @@ TEST(EtlParser, PerfInfoTraceHeader)
     EXPECT_EQ(trace_header.packet().size(), 32);
     EXPECT_EQ(trace_header.packet().type(), 46);
     EXPECT_EQ(trace_header.packet().group(), etl::parser::event_trace_group::perfinfo);
+    EXPECT_FALSE(trace_header.has_ext_pebs());
+    EXPECT_EQ(trace_header.ext_pmc_count(), 0);
+}
+
+TEST(EtlParser, PerfInfoTraceHeaderExtPmc)
+{
+    const std::array<std::uint8_t, 32> buffer = {
+        0x04, 0x02, 0x11, 0xc0, 0x38, 0x00, 0x24, 0x05, 0xff, 0x2e, 0xfc, 0xcd, 0x61, 0x01, 0x00, 0x00,
+        0x38, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xb8, 0x24, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+    const auto trace_header = etl::parser::perfinfo_trace_header_view(std::as_bytes(std::span(buffer)));
+
+    EXPECT_EQ(trace_header.version(), 4);
+    EXPECT_EQ(trace_header.header_type(), etl::parser::trace_header_type::perfinfo64);
+    EXPECT_EQ(trace_header.header_flags(), etl::parser::generic_trace_marker::trace_header_flag | etl::parser::generic_trace_marker::trace_header_event_trace_flag);
+    EXPECT_EQ(trace_header.packet().size(), 56);
+    EXPECT_EQ(trace_header.packet().type(), 36);
+    EXPECT_EQ(trace_header.packet().group(), etl::parser::event_trace_group::thread);
+    EXPECT_FALSE(trace_header.has_ext_pebs());
+    EXPECT_EQ(trace_header.ext_pmc_count(), 2);
+    EXPECT_EQ(trace_header.ext_pmc(0), 3896);
+    EXPECT_EQ(trace_header.ext_pmc(1), 9400);
+}
+
+TEST(EtlParser, PerfInfoTraceHeaderExtPebsExtPmc)
+{
+    // NOTE: This has been created artificially and is not a buffer taken from an actual ETL file.
+    const std::array<std::uint8_t, 40> buffer = {
+        0x04, 0x82, 0x11, 0xc0, 0x38, 0x00, 0x24, 0x05, 0xff, 0x2e, 0xfc, 0xcd, 0x61, 0x01, 0x00, 0x00,
+        0x59, 0x45, 0xc9, 0x4f, 0xf7, 0x7f, 0x00, 0x00,
+        0x38, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xb8, 0x24, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+    const auto trace_header = etl::parser::perfinfo_trace_header_view(std::as_bytes(std::span(buffer)));
+
+    EXPECT_EQ(trace_header.version(), 4);
+    EXPECT_EQ(trace_header.header_type(), etl::parser::trace_header_type::perfinfo64);
+    EXPECT_EQ(trace_header.header_flags(), etl::parser::generic_trace_marker::trace_header_flag | etl::parser::generic_trace_marker::trace_header_event_trace_flag);
+    EXPECT_EQ(trace_header.packet().size(), 56);
+    EXPECT_EQ(trace_header.packet().type(), 36);
+    EXPECT_EQ(trace_header.packet().group(), etl::parser::event_trace_group::thread);
+    EXPECT_TRUE(trace_header.has_ext_pebs());
+    EXPECT_EQ(trace_header.ext_pebs(), 0x0000'7ff7'4fc9'4559);
+    EXPECT_EQ(trace_header.ext_pmc_count(), 2);
+    EXPECT_EQ(trace_header.ext_pmc(0), 3896);
+    EXPECT_EQ(trace_header.ext_pmc(1), 9400);
 }
 
 TEST(EtlParser, FullHeaderTraceHeader)
@@ -238,6 +284,38 @@ TEST(EtlParser, Kernel_PerfinfoV2SampledProfileEventView)
     EXPECT_EQ(event.thread_id(), 26400);
     EXPECT_EQ(event.count(), 1);
     EXPECT_EQ(event.reserved(), 72);
+}
+
+TEST(EtlParser, Kernel_PerfinfoV2PmcCounterProfileEventView)
+{
+    const std::array<std::uint8_t, 16> buffer = {
+        0xc9, 0x0e, 0xac, 0x8c, 0xfc, 0x7f, 0x00, 0x00, 0x94, 0x0f, 0x00, 0x00, 0x1d, 0x00, 0x00, 0x00};
+
+    const auto event = etl::parser::perfinfo_v2_pmc_counter_profile_event_view(std::as_bytes(std::span(buffer)), 8);
+
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
+
+    EXPECT_EQ(event.instruction_pointer(), 0x7ffc'8cac'0ec9);
+    EXPECT_EQ(event.thread_id(), 3988);
+    EXPECT_EQ(event.profile_source(), 29);
+}
+
+TEST(EtlParser, Kernel_PerfinfoV2PmcCounterConfigEventView)
+{
+    const std::array<std::uint8_t, 68> buffer = {
+        0x02, 0x00, 0x00, 0x00, 0x42, 0x00, 0x72, 0x00, 0x61, 0x00, 0x6e, 0x00, 0x63, 0x00, 0x68, 0x00,
+        0x49, 0x00, 0x6e, 0x00, 0x73, 0x00, 0x74, 0x00, 0x72, 0x00, 0x75, 0x00, 0x63, 0x00, 0x74, 0x00,
+        0x69, 0x00, 0x6f, 0x00, 0x6e, 0x00, 0x73, 0x00, 0x00, 0x00, 0x4c, 0x00, 0x4c, 0x00, 0x43, 0x00,
+        0x52, 0x00, 0x65, 0x00, 0x66, 0x00, 0x65, 0x00, 0x72, 0x00, 0x65, 0x00, 0x6e, 0x00, 0x63, 0x00,
+        0x65, 0x00, 0x00, 0x00};
+
+    const auto event = etl::parser::perfinfo_v2_pmc_counter_config_event_view(std::as_bytes(std::span(buffer)), 8);
+
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
+
+    EXPECT_EQ(event.counter_count(), 2);
+    EXPECT_EQ(event.counter_name(0), std::u16string(u"BranchInstructions"));
+    EXPECT_EQ(event.counter_name(1), std::u16string(u"LLCReference"));
 }
 
 TEST(EtlParser, Kernel_PerfinfoV2SampledProfileIntervalEventView)
@@ -869,4 +947,16 @@ TEST(EtlParser, VsDiagHub_CounterInfoV0EventView)
     EXPECT_EQ(event.counter(), etl::parser::counter_type::CPU);
     EXPECT_EQ(event.timestamp(), 2925795820);
     EXPECT_EQ(event.value(), 21.428571428571427);
+}
+
+TEST(EtlParser, SnailProfiler_ProfileTarget)
+{
+    const std::array<std::uint8_t, 4> buffer = {
+        0x90, 0x59, 0x00, 0x00};
+
+    const auto event = etl::parser::snail_profiler_profile_target_event_view(std::as_bytes(std::span(buffer)), 8);
+
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
+
+    EXPECT_EQ(event.process_id(), 22928);
 }

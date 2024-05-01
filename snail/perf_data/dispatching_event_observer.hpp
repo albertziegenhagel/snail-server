@@ -16,10 +16,17 @@
 namespace snail::perf_data {
 
 template<typename T>
-concept event_record_view =
+concept kernel_event_record_view =
     std::is_base_of_v<parser::event_view_base, T> &&
-    (std::constructible_from<T, std::span<const std::byte>, std::endian> ||
-     std::constructible_from<T, const parser::event_attributes&, std::span<const std::byte>, std::endian>);
+    std::constructible_from<T, const parser::event_attributes&, std::span<const std::byte>, std::endian>;
+
+template<typename T>
+concept non_kernel_event_record_view =
+    std::is_base_of_v<parser::event_view_base, T> &&
+    std::constructible_from<T, std::span<const std::byte>, std::endian>;
+
+template<typename T>
+concept event_record_view = kernel_event_record_view<T> || non_kernel_event_record_view<T>;
 
 template<typename T>
 concept parsable_event_record = requires(const parser::event_attributes& attributes,
@@ -41,6 +48,10 @@ public:
                         std::span<const std::byte>       event_data,
                         std::endian                      byte_order) override;
 
+    virtual void handle(const parser::event_header_view& event_header,
+                        std::span<const std::byte>       event_data,
+                        std::endian                      byte_order) override;
+
     template<typename EventType, typename HandlerType>
         requires(event_record_view<EventType> || parsable_event_record<EventType>) && event_handler<HandlerType, EventType>
     inline void register_event(std::uint32_t event_type, HandlerType&& handler);
@@ -50,37 +61,41 @@ public:
     inline void register_event(HandlerType&& handler);
 
 private:
-    using handler_dispatch_type = std::function<void(const parser::event_attributes&, std::span<const std::byte>, std::endian)>;
+    using kernel_handler_dispatch_type     = std::function<void(const parser::event_attributes&, std::span<const std::byte>, std::endian)>;
+    using non_kernel_handler_dispatch_type = std::function<void(std::span<const std::byte>, std::endian)>;
 
-    std::unordered_map<std::uint32_t, std::vector<handler_dispatch_type>> handlers_;
+    std::unordered_map<std::uint32_t, std::vector<kernel_handler_dispatch_type>>     kernel_handlers_;
+    std::unordered_map<std::uint32_t, std::vector<non_kernel_handler_dispatch_type>> non_kernel_handlers_;
 };
 
 template<typename EventType, typename HandlerType>
     requires(event_record_view<EventType> || parsable_event_record<EventType>) && event_handler<HandlerType, EventType>
 inline void dispatching_event_observer::register_event(std::uint32_t event_type, HandlerType&& handler)
 {
-    if constexpr(event_record_view<EventType>)
+    if constexpr(kernel_event_record_view<EventType>)
     {
-        handlers_[event_type].push_back(
+        kernel_handlers_[event_type].push_back(
             [handler = std::forward<HandlerType>(handler)]([[maybe_unused]] const parser::event_attributes& attributes,
                                                            std::span<const std::byte>                       event_data,
                                                            std::endian                                      byte_order)
             {
-                if constexpr(std::constructible_from<EventType, std::span<const std::byte>, std::endian>)
-                {
-                    const auto event = EventType(event_data, byte_order);
-                    std::invoke(handler, event);
-                }
-                else
-                {
-                    const auto event = EventType(attributes, event_data, byte_order);
-                    std::invoke(handler, event);
-                }
+                const auto event = EventType(attributes, event_data, byte_order);
+                std::invoke(handler, event);
+            });
+    }
+    else if constexpr(non_kernel_event_record_view<EventType>)
+    {
+        non_kernel_handlers_[event_type].push_back(
+            [handler = std::forward<HandlerType>(handler)](std::span<const std::byte> event_data,
+                                                           std::endian                byte_order)
+            {
+                const auto event = EventType(event_data, byte_order);
+                std::invoke(handler, event);
             });
     }
     else
     {
-        handlers_[event_type].push_back(
+        kernel_handlers_[event_type].push_back(
             [handler = std::forward<HandlerType>(handler)](const parser::event_attributes& attributes,
                                                            std::span<const std::byte>      event_data,
                                                            std::endian                     byte_order)

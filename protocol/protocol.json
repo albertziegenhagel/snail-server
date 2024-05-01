@@ -36,6 +36,18 @@
             }
         },
         {
+            "method": "retrieveSampleSources",
+            "result": {
+                "kind": "reference",
+                "name": "RetrieveSampleSourcesResult"
+            },
+            "messageDirection": "clientToServer",
+            "params": {
+                "kind": "reference",
+                "name": "RetrieveSampleSourcesParams"
+            }
+        },
+        {
             "method": "retrieveSessionInfo",
             "result": {
                 "kind": "reference",
@@ -213,6 +225,46 @@
     ],
     "structures": [
         {
+            "name": "SampleSourceInfo",
+            "properties": [
+                {
+                    "name": "id",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "name",
+                    "type": {
+                        "kind": "base",
+                        "name": "string"
+                    }
+                },
+                {
+                    "name": "numberOfSamples",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "averageSamplingRate",
+                    "type": {
+                        "kind": "base",
+                        "name": "decimal"
+                    }
+                },
+                {
+                    "name": "hasStacks",
+                    "type": {
+                        "kind": "base",
+                        "name": "boolean"
+                    }
+                }
+            ]
+        },
+        {
             "name": "ThreadInfo",
             "properties": [
                 {
@@ -352,13 +404,6 @@
                         "kind": "base",
                         "name": "integer"
                     }
-                },
-                {
-                    "name": "averageSamplingRate",
-                    "type": {
-                        "kind": "base",
-                        "name": "decimal"
-                    }
                 }
             ]
         },
@@ -403,6 +448,46 @@
             ]
         },
         {
+            "name": "HitCounts",
+            "properties": [
+                {
+                    "name": "sourceId",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "totalSamples",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "selfSamples",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "totalPercent",
+                    "type": {
+                        "kind": "base",
+                        "name": "decimal"
+                    }
+                },
+                {
+                    "name": "selfPercent",
+                    "type": {
+                        "kind": "base",
+                        "name": "decimal"
+                    }
+                }
+            ]
+        },
+        {
             "name": "CallTreeNode",
             "properties": [
                 {
@@ -441,31 +526,13 @@
                     }
                 },
                 {
-                    "name": "totalSamples",
+                    "name": "hits",
                     "type": {
-                        "kind": "base",
-                        "name": "uinteger"
-                    }
-                },
-                {
-                    "name": "selfSamples",
-                    "type": {
-                        "kind": "base",
-                        "name": "uinteger"
-                    }
-                },
-                {
-                    "name": "totalPercent",
-                    "type": {
-                        "kind": "base",
-                        "name": "decimal"
-                    }
-                },
-                {
-                    "name": "selfPercent",
-                    "type": {
-                        "kind": "base",
-                        "name": "decimal"
+                        "kind": "array",
+                        "element": {
+                            "kind": "reference",
+                            "name": "HitCounts"
+                        }
                     }
                 },
                 {
@@ -520,31 +587,13 @@
                     }
                 },
                 {
-                    "name": "totalSamples",
+                    "name": "hits",
                     "type": {
-                        "kind": "base",
-                        "name": "uinteger"
-                    }
-                },
-                {
-                    "name": "selfSamples",
-                    "type": {
-                        "kind": "base",
-                        "name": "uinteger"
-                    }
-                },
-                {
-                    "name": "totalPercent",
-                    "type": {
-                        "kind": "base",
-                        "name": "decimal"
-                    }
-                },
-                {
-                    "name": "selfPercent",
-                    "type": {
-                        "kind": "base",
-                        "name": "decimal"
+                        "kind": "array",
+                        "element": {
+                            "kind": "reference",
+                            "name": "HitCounts"
+                        }
                     }
                 }
             ]
@@ -579,31 +628,13 @@
                     }
                 },
                 {
-                    "name": "totalSamples",
+                    "name": "hits",
                     "type": {
-                        "kind": "base",
-                        "name": "uinteger"
-                    }
-                },
-                {
-                    "name": "selfSamples",
-                    "type": {
-                        "kind": "base",
-                        "name": "uinteger"
-                    }
-                },
-                {
-                    "name": "totalPercent",
-                    "type": {
-                        "kind": "base",
-                        "name": "decimal"
-                    }
-                },
-                {
-                    "name": "selfPercent",
-                    "type": {
-                        "kind": "base",
-                        "name": "decimal"
+                        "kind": "array",
+                        "element": {
+                            "kind": "reference",
+                            "name": "HitCounts"
+                        }
                     }
                 }
             ]
@@ -698,12 +729,37 @@
             ]
         },
         {
+            "name": "RetrieveSampleSourcesParams",
+            "properties": [],
+            "extends": [
+                {
+                    "kind": "reference",
+                    "name": "_DocumentIdParams"
+                }
+            ]
+        },
+        {
             "name": "RetrieveSessionInfoParams",
             "properties": [],
             "extends": [
                 {
                     "kind": "reference",
                     "name": "_DocumentIdParams"
+                }
+            ]
+        },
+        {
+            "name": "RetrieveSampleSourcesResult",
+            "properties": [
+                {
+                    "name": "sampleSources",
+                    "type": {
+                        "kind": "array",
+                        "element": {
+                            "kind": "reference",
+                            "name": "SampleSourceInfo"
+                        }
+                    }
                 }
             ]
         },
@@ -775,6 +831,13 @@
                         "kind": "base",
                         "name": "uinteger"
                     }
+                },
+                {
+                    "name": "sourceId",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
                 }
             ],
             "extends": [
@@ -801,7 +864,15 @@
         },
         {
             "name": "RetrieveCallTreeHotPathParams",
-            "properties": [],
+            "properties": [
+                {
+                    "name": "sourceId",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                }
+            ],
             "extends": [
                 {
                     "kind": "reference",
@@ -824,6 +895,28 @@
         {
             "name": "RetrieveFunctionsPageParams",
             "properties": [
+                {
+                    "name": "sortBy",
+                    "type": {
+                        "kind": "reference",
+                        "name": "FunctionsSortBy"
+                    }
+                },
+                {
+                    "name": "sortOrder",
+                    "type": {
+                        "kind": "reference",
+                        "name": "SortDirection"
+                    }
+                },
+                {
+                    "name": "sortSourceId",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    },
+                    "optional": true
+                },
                 {
                     "name": "pageSize",
                     "type": {
@@ -870,6 +963,14 @@
                         "kind": "base",
                         "name": "uinteger"
                     }
+                },
+                {
+                    "name": "hotSourceId",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    },
+                    "optional": true
                 }
             ],
             "extends": [
@@ -897,6 +998,13 @@
         {
             "name": "RetrieveCallersCalleesParams",
             "properties": [
+                {
+                    "name": "sortSourceId",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
                 {
                     "name": "maxEntries",
                     "type": {
@@ -972,31 +1080,13 @@
                     }
                 },
                 {
-                    "name": "totalSamples",
+                    "name": "hits",
                     "type": {
-                        "kind": "base",
-                        "name": "uinteger"
-                    }
-                },
-                {
-                    "name": "selfSamples",
-                    "type": {
-                        "kind": "base",
-                        "name": "uinteger"
-                    }
-                },
-                {
-                    "name": "totalPercent",
-                    "type": {
-                        "kind": "base",
-                        "name": "decimal"
-                    }
-                },
-                {
-                    "name": "selfPercent",
-                    "type": {
-                        "kind": "base",
-                        "name": "decimal"
+                        "kind": "array",
+                        "element": {
+                            "kind": "reference",
+                            "name": "HitCounts"
+                        }
                     }
                 },
                 {
@@ -1224,6 +1314,46 @@
                 {
                     "name": "onlyIncluded",
                     "value": "only_included"
+                }
+            ],
+            "supportsCustomValues": false
+        },
+        {
+            "name": "FunctionsSortBy",
+            "type": {
+                "kind": "base",
+                "name": "string"
+            },
+            "values": [
+                {
+                    "name": "name",
+                    "value": "name"
+                },
+                {
+                    "name": "selfSamples",
+                    "value": "self_samples"
+                },
+                {
+                    "name": "totalSamples",
+                    "value": "total_samples"
+                }
+            ],
+            "supportsCustomValues": false
+        },
+        {
+            "name": "SortDirection",
+            "type": {
+                "kind": "base",
+                "name": "string"
+            },
+            "values": [
+                {
+                    "name": "ascending",
+                    "value": "ascending"
+                },
+                {
+                    "name": "descending",
+                    "value": "descending"
                 }
             ],
             "supportsCustomValues": false

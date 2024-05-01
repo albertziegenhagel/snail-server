@@ -58,7 +58,7 @@ std::ostream& operator<<(std::ostream& stream, const analysis::stack_frame& fram
 
 } // namespace snail::analysis
 
-TEST(DiagsessionDataProvider, Process)
+TEST(DiagsessionDataProvider, ProcessInner)
 {
     ASSERT_TRUE(get_root_dir().has_value()) << "Missing root dir. Did you forget to pass --snail-root-dir=<dir> to the test executable?";
     const auto data_dir  = get_root_dir().value() / "tests" / "apps" / "inner" / "dist" / "windows" / "deb";
@@ -84,13 +84,19 @@ TEST(DiagsessionDataProvider, Process)
     EXPECT_EQ(data_provider.session_info().number_of_processes, 1);
     EXPECT_EQ(data_provider.session_info().number_of_threads, 4);
     EXPECT_EQ(data_provider.session_info().number_of_samples, 292);
-    EXPECT_EQ(data_provider.session_info().average_sampling_rate, 84.267008906157088);
 
     EXPECT_EQ(data_provider.system_info().hostname, "fv-az448-164");
     EXPECT_EQ(data_provider.system_info().platform, "Windows Server 2022 Datacenter");
     EXPECT_EQ(data_provider.system_info().architecture, "x64");
     EXPECT_EQ(data_provider.system_info().cpu_name, "Intel(R) Xeon(R) Platinum 8272CL CPU @ 2.60GHz");
     EXPECT_EQ(data_provider.system_info().number_of_processors, 2);
+
+    ASSERT_EQ(data_provider.sample_sources().size(), 1);
+    const auto& sample_source = data_provider.sample_sources()[0];
+    EXPECT_EQ(sample_source.name, "Timer");
+    EXPECT_EQ(sample_source.number_of_samples, 292);
+    EXPECT_EQ(sample_source.average_sampling_rate, 195.95397980519758);
+    EXPECT_TRUE(sample_source.has_stacks);
 
     const auto sampling_processes = to_vector(data_provider.sampling_processes());
     ASSERT_EQ(sampling_processes.size(), 1);
@@ -231,7 +237,7 @@ TEST(DiagsessionDataProvider, Process)
     // No filter
     sample_count   = 0;
     last_timestamp = 0ns;
-    for(const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    for(const auto& sample : data_provider.samples(sample_source.id, unique_sampling_process_id, filter))
     {
         ++sample_count;
 
@@ -249,14 +255,14 @@ TEST(DiagsessionDataProvider, Process)
         EXPECT_EQ(stack, expected_stack);
     }
     EXPECT_EQ(sample_count, 292);
-    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 292);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 292);
 
     // Filter complete range
     filter.min_time = 1073706700ns;
     filter.max_time = 2563852500ns;
     sample_count    = 0;
     last_timestamp  = 0ns;
-    for(const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    for(const auto& sample : data_provider.samples(sample_source.id, unique_sampling_process_id, filter))
     {
         ++sample_count;
 
@@ -274,14 +280,14 @@ TEST(DiagsessionDataProvider, Process)
         EXPECT_EQ(stack, expected_stack);
     }
     EXPECT_EQ(sample_count, 292);
-    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 292);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 292);
 
     // Filter first half
     filter.min_time = std::nullopt;
     filter.max_time = 1818779600ns;
     sample_count    = 0;
     last_timestamp  = 0ns;
-    for(const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    for(const auto& sample : data_provider.samples(sample_source.id, unique_sampling_process_id, filter))
     {
         ++sample_count;
 
@@ -299,14 +305,14 @@ TEST(DiagsessionDataProvider, Process)
         EXPECT_EQ(stack, expected_stack);
     }
     EXPECT_EQ(sample_count, 11);
-    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 11);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 11);
 
     // Filter second half
     filter.min_time = 1818779600ns;
     filter.max_time = std::nullopt;
     sample_count    = 0;
     last_timestamp  = 0ns;
-    for(const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    for(const auto& sample : data_provider.samples(sample_source.id, unique_sampling_process_id, filter))
     {
         ++sample_count;
 
@@ -324,14 +330,14 @@ TEST(DiagsessionDataProvider, Process)
         EXPECT_EQ(stack, expected_stack);
     }
     EXPECT_EQ(sample_count, 281);
-    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 281);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 281);
 
     // Filter somewhere in the middle
     filter.min_time = 2200000000ns;
     filter.max_time = 2300000000ns;
     sample_count    = 0;
     last_timestamp  = 0ns;
-    for(const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    for(const auto& sample : data_provider.samples(sample_source.id, unique_sampling_process_id, filter))
     {
         ++sample_count;
 
@@ -349,19 +355,19 @@ TEST(DiagsessionDataProvider, Process)
         EXPECT_EQ(stack, expected_stack);
     }
     EXPECT_EQ(sample_count, 99);
-    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 99);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 99);
 
     // None empty
     filter.min_time = 2300000000ns;
     filter.max_time = 2200000000ns;
     sample_count    = 0;
     last_timestamp  = 0ns;
-    for([[maybe_unused]] const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    for([[maybe_unused]] const auto& sample : data_provider.samples(sample_source.id, unique_sampling_process_id, filter))
     {
         ++sample_count;
     }
     EXPECT_EQ(sample_count, 0);
-    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 0);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 0);
 
     // Filter one unimportant thread
     filter.min_time = std::nullopt;
@@ -370,7 +376,7 @@ TEST(DiagsessionDataProvider, Process)
     filter.excluded_threads.insert(thread_3148.unique_id);
     sample_count   = 0;
     last_timestamp = 0ns;
-    for([[maybe_unused]] const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    for([[maybe_unused]] const auto& sample : data_provider.samples(sample_source.id, unique_sampling_process_id, filter))
     {
         ++sample_count;
 
@@ -388,7 +394,7 @@ TEST(DiagsessionDataProvider, Process)
         EXPECT_EQ(stack, expected_stack);
     }
     EXPECT_EQ(sample_count, 291);
-    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 291);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 291);
 
     // Filter the main thread and another one
     filter.min_time = std::nullopt;
@@ -398,7 +404,7 @@ TEST(DiagsessionDataProvider, Process)
     filter.excluded_threads.insert(thread_4224.unique_id);
     sample_count   = 0;
     last_timestamp = 0ns;
-    for([[maybe_unused]] const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    for([[maybe_unused]] const auto& sample : data_provider.samples(sample_source.id, unique_sampling_process_id, filter))
     {
         ++sample_count;
 
@@ -407,7 +413,7 @@ TEST(DiagsessionDataProvider, Process)
         last_timestamp = timestamp;
     }
     EXPECT_EQ(sample_count, 3);
-    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 3);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 3);
 
     // Filter the process
     filter.min_time = std::nullopt;
@@ -416,15 +422,136 @@ TEST(DiagsessionDataProvider, Process)
     filter.excluded_processes.insert(unique_sampling_process_id);
     sample_count   = 0;
     last_timestamp = 0ns;
-    for([[maybe_unused]] const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    for([[maybe_unused]] const auto& sample : data_provider.samples(sample_source.id, unique_sampling_process_id, filter))
     {
         ++sample_count;
     }
     EXPECT_EQ(sample_count, 0);
-    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 0);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 0);
 }
 
-TEST(PerfDataDataProvider, Process)
+TEST(EtlDataProvider, ProcessOrdered)
+{
+    ASSERT_TRUE(get_root_dir().has_value()) << "Missing root dir. Did you forget to pass --snail-root-dir=<dir> to the test executable?";
+    const auto data_dir  = get_root_dir().value() / "tests" / "apps" / "ordered" / "dist" / "windows" / "deb";
+    const auto file_path = data_dir / "record" / "ordered_merged.etl";
+    ASSERT_TRUE(std::filesystem::exists(file_path)) << "Missing test file:\n  " << file_path << "\nDid you forget checking out GIT LFS files?";
+
+    // Disable all symbol downloading & caching
+    analysis::pdb_symbol_find_options symbol_options;
+    symbol_options.symbol_server_urls_.clear();
+    symbol_options.symbol_cache_dir_ = common::get_temp_dir() / "should-not-exist-2f4f23da-ef58-4f0c-8f99-a83aed90fbbe";
+
+    // Make sure the executable & pdb is found
+    symbol_options.search_dirs_.clear();
+    symbol_options.search_dirs_.push_back(data_dir / "bin");
+
+    analysis::etl_data_provider data_provider(symbol_options);
+
+    data_provider.process(file_path);
+
+    EXPECT_EQ(data_provider.session_info().command_line, "\"C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit\\xperf.exe\" -SetProfInt 2000 -on PROC_THREAD+LOADER+PMC_PROFILE+PROFILE -PmcProfile BranchMispredictions,LLCReference,LLCMisses -stackwalk Profile -PidNewProcess \"C:\\data\\sandbox\\ordered\\dist\\windows\\deb\\bin\\ordered.exe 10000000\" -WaitForNewProcess -f ordered.etl");
+    EXPECT_EQ(data_provider.session_info().date, std::chrono::sys_seconds(1713198358s));
+    EXPECT_EQ(data_provider.session_info().runtime, 5736632100ns);
+    EXPECT_EQ(data_provider.session_info().number_of_processes, 25);
+    EXPECT_EQ(data_provider.session_info().number_of_threads, 519);
+    EXPECT_EQ(data_provider.session_info().number_of_samples, 41920);
+
+    EXPECT_EQ(data_provider.system_info().hostname, "EE50C3DA-EC93-4");
+    EXPECT_EQ(data_provider.system_info().platform, "Windows 10 Enterprise");
+    EXPECT_EQ(data_provider.system_info().architecture, "x64");
+    EXPECT_EQ(data_provider.system_info().cpu_name, "Intel(R) Core(TM) i7-7700HQ CPU @ 2.80GHz");
+    EXPECT_EQ(data_provider.system_info().number_of_processors, 8);
+
+    ASSERT_EQ(data_provider.sample_sources().size(), 4);
+    const auto& sample_source_0 = data_provider.sample_sources()[0];
+    EXPECT_EQ(sample_source_0.name, "Timer");
+    EXPECT_EQ(sample_source_0.number_of_samples, 28439);
+    EXPECT_EQ(sample_source_0.average_sampling_rate, 5025.1791709883873);
+    EXPECT_TRUE(sample_source_0.has_stacks);
+    const auto& sample_source_1 = data_provider.sample_sources()[1];
+    EXPECT_EQ(sample_source_1.name, "BranchMispredictions");
+    EXPECT_EQ(sample_source_1.number_of_samples, 393);
+    EXPECT_EQ(sample_source_1.average_sampling_rate, 72.165883253669918);
+    EXPECT_FALSE(sample_source_1.has_stacks);
+    const auto& sample_source_2 = data_provider.sample_sources()[2];
+    EXPECT_EQ(sample_source_2.name, "LLCReference");
+    EXPECT_EQ(sample_source_2.number_of_samples, 9616);
+    EXPECT_EQ(sample_source_2.average_sampling_rate, 1699.7192776447603);
+    EXPECT_FALSE(sample_source_2.has_stacks);
+    const auto& sample_source_3 = data_provider.sample_sources()[3];
+    EXPECT_EQ(sample_source_3.name, "LLCMisses");
+    EXPECT_EQ(sample_source_3.number_of_samples, 3472);
+    EXPECT_EQ(sample_source_3.average_sampling_rate, 619.66920729851813);
+    EXPECT_FALSE(sample_source_3.has_stacks);
+
+    const auto sampling_processes = to_vector(data_provider.sampling_processes());
+    EXPECT_EQ(sampling_processes.size(), 25);
+    const auto proccess_4692_iter = std::ranges::find_if(sampling_processes, [&data_provider](analysis::unique_process_id id)
+                                                         { return data_provider.process_info(id).os_id == 4692; });
+    ASSERT_TRUE(proccess_4692_iter != sampling_processes.end());
+
+    const auto unique_sampling_process_id = *proccess_4692_iter;
+
+    const auto process_info = data_provider.process_info(unique_sampling_process_id);
+    EXPECT_EQ(process_info.unique_id, unique_sampling_process_id);
+    EXPECT_EQ(process_info.os_id, 4692);
+    EXPECT_EQ(process_info.name, "ordered.exe");
+    EXPECT_EQ(process_info.start_time, 229926800ns);
+    EXPECT_EQ(process_info.end_time, 4628548400ns);
+
+    const auto threads = to_vector(data_provider.threads_info(unique_sampling_process_id));
+    ASSERT_EQ(threads.size(), 4);
+
+    const auto thread_5844_iter = std::ranges::find_if(threads, [](const analysis::thread_info& thread)
+                                                       { return thread.os_id == 5844; });
+    ASSERT_TRUE(thread_5844_iter != threads.end());
+    const auto& thread_5844 = *thread_5844_iter;
+
+    const auto thread_5852_iter = std::ranges::find_if(threads, [](const analysis::thread_info& thread)
+                                                       { return thread.os_id == 5852; });
+    ASSERT_TRUE(thread_5852_iter != threads.end());
+    const auto& thread_5852 = *thread_5852_iter;
+
+    const auto thread_2140_iter = std::ranges::find_if(threads, [](const analysis::thread_info& thread)
+                                                       { return thread.os_id == 2140; });
+    ASSERT_TRUE(thread_2140_iter != threads.end());
+    const auto& thread_2140 = *thread_2140_iter;
+
+    const auto thread_1704_iter = std::ranges::find_if(threads, [](const analysis::thread_info& thread)
+                                                       { return thread.os_id == 1704; });
+    ASSERT_TRUE(thread_1704_iter != threads.end());
+    const auto& thread_1704 = *thread_1704_iter;
+
+    EXPECT_EQ(thread_5844.os_id, 5844);
+    EXPECT_EQ(thread_5844.name, std::nullopt);
+    EXPECT_EQ(thread_5844.start_time, 229928900ns);
+    EXPECT_EQ(thread_5844.end_time, 4628091500ns);
+
+    EXPECT_EQ(thread_5852.os_id, 5852);
+    EXPECT_EQ(thread_5852.name, std::nullopt);
+    EXPECT_EQ(thread_5852.start_time, 237485400ns);
+    EXPECT_EQ(thread_5852.end_time, 4625613800ns);
+
+    EXPECT_EQ(thread_2140.os_id, 2140);
+    EXPECT_EQ(thread_2140.name, std::nullopt);
+    EXPECT_EQ(thread_2140.start_time, 237709500ns);
+    EXPECT_EQ(thread_2140.end_time, 4624691400ns);
+
+    EXPECT_EQ(thread_1704.os_id, 1704);
+    EXPECT_EQ(thread_1704.name, std::nullopt);
+    EXPECT_EQ(thread_1704.start_time, 237956000ns);
+    EXPECT_EQ(thread_1704.end_time, 4624748300ns);
+
+    analysis::sample_filter filter;
+
+    EXPECT_EQ(data_provider.count_samples(sample_source_0.id, unique_sampling_process_id, filter), 21501);
+    EXPECT_EQ(data_provider.count_samples(sample_source_1.id, unique_sampling_process_id, filter), 257);
+    EXPECT_EQ(data_provider.count_samples(sample_source_2.id, unique_sampling_process_id, filter), 7303);
+    EXPECT_EQ(data_provider.count_samples(sample_source_3.id, unique_sampling_process_id, filter), 3059);
+}
+
+TEST(PerfDataDataProvider, ProcessInner)
 {
     ASSERT_TRUE(get_root_dir().has_value()) << "Missing root dir. Did you forget to pass --snail-root-dir=<dir> to the test executable?";
     const auto data_dir  = get_root_dir().value() / "tests" / "apps" / "inner" / "dist" / "linux" / "deb";
@@ -450,13 +577,19 @@ TEST(PerfDataDataProvider, Process)
     EXPECT_EQ(data_provider.session_info().number_of_processes, 1);
     EXPECT_EQ(data_provider.session_info().number_of_threads, 1);
     EXPECT_EQ(data_provider.session_info().number_of_samples, 1524);
-    EXPECT_EQ(data_provider.session_info().average_sampling_rate, 3933.9346780988258);
 
     EXPECT_EQ(data_provider.system_info().hostname, "DESKTOP-0RH3TEF");
     EXPECT_EQ(data_provider.system_info().platform, "5.15.90.1-microsoft-standard-WSL2");
     EXPECT_EQ(data_provider.system_info().architecture, "x86_64");
     EXPECT_EQ(data_provider.system_info().cpu_name, "Intel(R) Core(TM) i7-7700HQ CPU @ 2.80GHz");
     EXPECT_EQ(data_provider.system_info().number_of_processors, 8);
+
+    ASSERT_EQ(data_provider.sample_sources().size(), 1);
+    const auto& sample_source = data_provider.sample_sources()[0];
+    EXPECT_EQ(sample_source.name, "cycles:u");
+    EXPECT_EQ(sample_source.number_of_samples, 1524);
+    EXPECT_EQ(sample_source.average_sampling_rate, 3933.9346780988258);
+    EXPECT_TRUE(sample_source.has_stacks);
 
     const auto sampling_processes = to_vector(data_provider.sampling_processes());
     ASSERT_EQ(sampling_processes.size(), 1);
@@ -503,7 +636,7 @@ TEST(PerfDataDataProvider, Process)
     // No filter
     sample_count   = 0;
     last_timestamp = 0ns;
-    for(const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    for(const auto& sample : data_provider.samples(sample_source.id, unique_sampling_process_id, filter))
     {
         ++sample_count;
 
@@ -522,14 +655,14 @@ TEST(PerfDataDataProvider, Process)
         EXPECT_EQ(stack, expected_stack);
     }
     EXPECT_EQ(sample_count, 1524);
-    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 1524);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 1524);
 
     // Filter complete range
     filter.min_time = 0ns;
     filter.max_time = 387398400ns;
     sample_count    = 0;
     last_timestamp  = 0ns;
-    for(const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    for(const auto& sample : data_provider.samples(sample_source.id, unique_sampling_process_id, filter))
     {
         ++sample_count;
 
@@ -547,14 +680,14 @@ TEST(PerfDataDataProvider, Process)
         EXPECT_EQ(stack, expected_stack);
     }
     EXPECT_EQ(sample_count, 1524);
-    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 1524);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 1524);
 
     // Filter first half
     filter.min_time = std::nullopt;
     filter.max_time = 193699200ns;
     sample_count    = 0;
     last_timestamp  = 0ns;
-    for(const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    for(const auto& sample : data_provider.samples(sample_source.id, unique_sampling_process_id, filter))
     {
         ++sample_count;
 
@@ -572,14 +705,14 @@ TEST(PerfDataDataProvider, Process)
         EXPECT_EQ(stack, expected_stack);
     }
     EXPECT_EQ(sample_count, 755);
-    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 755);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 755);
 
     // Filter second half
     filter.min_time = 193699200ns;
     filter.max_time = std::nullopt;
     sample_count    = 0;
     last_timestamp  = 0ns;
-    for(const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    for(const auto& sample : data_provider.samples(sample_source.id, unique_sampling_process_id, filter))
     {
         ++sample_count;
 
@@ -597,14 +730,14 @@ TEST(PerfDataDataProvider, Process)
         EXPECT_EQ(stack, expected_stack);
     }
     EXPECT_EQ(sample_count, 769);
-    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 769);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 769);
 
     // Filter somewhere in the middle
     filter.min_time = 180000000ns;
     filter.max_time = 200000000ns;
     sample_count    = 0;
     last_timestamp  = 0ns;
-    for(const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    for(const auto& sample : data_provider.samples(sample_source.id, unique_sampling_process_id, filter))
     {
         ++sample_count;
 
@@ -622,19 +755,19 @@ TEST(PerfDataDataProvider, Process)
         EXPECT_EQ(stack, expected_stack);
     }
     EXPECT_EQ(sample_count, 80);
-    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 80);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 80);
 
     // None empty
     filter.min_time = 230000000ns;
     filter.max_time = 220000000ns;
     sample_count    = 0;
     last_timestamp  = 0ns;
-    for([[maybe_unused]] const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    for([[maybe_unused]] const auto& sample : data_provider.samples(sample_source.id, unique_sampling_process_id, filter))
     {
         ++sample_count;
     }
     EXPECT_EQ(sample_count, 0);
-    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 0);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 0);
 
     // Filter the only thread
     filter.min_time = std::nullopt;
@@ -643,12 +776,12 @@ TEST(PerfDataDataProvider, Process)
     filter.excluded_threads.insert(threads[0].unique_id);
     sample_count   = 0;
     last_timestamp = 0ns;
-    for([[maybe_unused]] const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    for([[maybe_unused]] const auto& sample : data_provider.samples(sample_source.id, unique_sampling_process_id, filter))
     {
         ++sample_count;
     }
     EXPECT_EQ(sample_count, 0);
-    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 0);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 0);
 
     // Filter the process
     filter.min_time = std::nullopt;
@@ -657,10 +790,92 @@ TEST(PerfDataDataProvider, Process)
     filter.excluded_processes.insert(unique_sampling_process_id);
     sample_count   = 0;
     last_timestamp = 0ns;
-    for([[maybe_unused]] const auto& sample : data_provider.samples(unique_sampling_process_id, filter))
+    for([[maybe_unused]] const auto& sample : data_provider.samples(sample_source.id, unique_sampling_process_id, filter))
     {
         ++sample_count;
     }
     EXPECT_EQ(sample_count, 0);
-    EXPECT_EQ(data_provider.count_samples(unique_sampling_process_id, filter), 0);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 0);
+}
+
+TEST(PerfDataDataProvider, ProcessOrdered)
+{
+    ASSERT_TRUE(get_root_dir().has_value()) << "Missing root dir. Did you forget to pass --snail-root-dir=<dir> to the test executable?";
+    const auto data_dir  = get_root_dir().value() / "tests" / "apps" / "ordered" / "dist" / "linux" / "deb";
+    const auto file_path = data_dir / "record" / "ordered-perf.data";
+    ASSERT_TRUE(std::filesystem::exists(file_path)) << "Missing test file:\n  " << file_path << "\nDid you forget checking out GIT LFS files?";
+
+    // Disable all symbol downloading & caching
+    analysis::dwarf_symbol_find_options symbol_options;
+    symbol_options.debuginfod_urls_.clear();
+    symbol_options.debuginfod_cache_dir_ = common::get_temp_dir() / "should-not-exist-2f4f23da-ef58-4f0c-8f99-a83aed90fbbe";
+
+    // Make sure the executable with debug info is found
+    symbol_options.search_dirs_.clear();
+    symbol_options.search_dirs_.push_back(data_dir / "bin");
+
+    analysis::perf_data_data_provider data_provider(symbol_options);
+
+    data_provider.process(file_path);
+
+    EXPECT_EQ(data_provider.session_info().command_line, "/usr/bin/perf record -g -e cycles,branch-misses,cache-references,cache-misses -F 5000 -o ordered-perf.data /tmp/build/ordered/Debug/build/ordered");
+    // EXPECT_EQ(data_provider.session_info().date, std::chrono::sys_seconds(1688327245s)); // This is not stable
+    EXPECT_EQ(data_provider.session_info().runtime, 3865225900ns);
+    EXPECT_EQ(data_provider.session_info().number_of_processes, 1);
+    EXPECT_EQ(data_provider.session_info().number_of_threads, 1);
+    EXPECT_EQ(data_provider.session_info().number_of_samples, 65139);
+
+    EXPECT_EQ(data_provider.system_info().hostname, "DESKTOP-0RH3TEF");
+    EXPECT_EQ(data_provider.system_info().platform, "5.15.146.1-microsoft-standard-WSL2");
+    EXPECT_EQ(data_provider.system_info().architecture, "x86_64");
+    EXPECT_EQ(data_provider.system_info().cpu_name, "Intel(R) Core(TM) i7-7700HQ CPU @ 2.80GHz");
+    EXPECT_EQ(data_provider.system_info().number_of_processors, 8);
+
+    ASSERT_EQ(data_provider.sample_sources().size(), 4);
+    const auto& sample_source_0 = data_provider.sample_sources()[0];
+    EXPECT_EQ(sample_source_0.name, "cache-references:u");
+    EXPECT_EQ(sample_source_0.number_of_samples, 18603);
+    EXPECT_EQ(sample_source_0.average_sampling_rate, 4812.9501500945526);
+    EXPECT_TRUE(sample_source_0.has_stacks);
+    const auto& sample_source_1 = data_provider.sample_sources()[1];
+    EXPECT_EQ(sample_source_1.name, "cache-misses:u");
+    EXPECT_EQ(sample_source_1.number_of_samples, 18128);
+    EXPECT_EQ(sample_source_1.average_sampling_rate, 4690.0279109439043);
+    EXPECT_TRUE(sample_source_1.has_stacks);
+    const auto& sample_source_2 = data_provider.sample_sources()[2];
+    EXPECT_EQ(sample_source_2.name, "cycles:u");
+    EXPECT_EQ(sample_source_2.number_of_samples, 18716);
+    EXPECT_EQ(sample_source_2.average_sampling_rate, 4842.2677087908423);
+    EXPECT_TRUE(sample_source_2.has_stacks);
+    const auto& sample_source_3 = data_provider.sample_sources()[3];
+    EXPECT_EQ(sample_source_3.name, "branch-misses:u");
+    EXPECT_EQ(sample_source_3.number_of_samples, 9692);
+    EXPECT_EQ(sample_source_3.average_sampling_rate, 2569.6341831976838);
+    EXPECT_TRUE(sample_source_3.has_stacks);
+
+    const auto sampling_processes = to_vector(data_provider.sampling_processes());
+    ASSERT_EQ(sampling_processes.size(), 1);
+    const auto unique_sampling_process_id = sampling_processes[0];
+
+    const auto process_info = data_provider.process_info(unique_sampling_process_id);
+    EXPECT_EQ(process_info.unique_id, unique_sampling_process_id);
+    EXPECT_EQ(process_info.os_id, 53);
+    EXPECT_EQ(process_info.name, "ordered");
+    EXPECT_EQ(process_info.start_time, 0ns);
+    EXPECT_EQ(process_info.end_time, 3865225900ns);
+
+    const auto threads = to_vector(data_provider.threads_info(unique_sampling_process_id));
+    ASSERT_EQ(threads.size(), 1);
+
+    EXPECT_EQ(threads[0].os_id, 53);
+    EXPECT_EQ(threads[0].name, "ordered");
+    EXPECT_EQ(threads[0].start_time, 0ns);
+    EXPECT_EQ(threads[0].end_time, 3865225900ns);
+
+    analysis::sample_filter filter;
+
+    EXPECT_EQ(data_provider.count_samples(sample_source_0.id, unique_sampling_process_id, filter), 18603);
+    EXPECT_EQ(data_provider.count_samples(sample_source_1.id, unique_sampling_process_id, filter), 18128);
+    EXPECT_EQ(data_provider.count_samples(sample_source_2.id, unique_sampling_process_id, filter), 18716);
+    EXPECT_EQ(data_provider.count_samples(sample_source_3.id, unique_sampling_process_id, filter), 9692);
 }

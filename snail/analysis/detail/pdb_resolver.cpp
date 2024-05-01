@@ -106,8 +106,16 @@ check_pdb_result check_pdb(const std::filesystem::path&           pdb_path,
     {
         return check_pdb_result::invalid_pdb;
     }
-    if(file->parseFileHeaders()) return check_pdb_result::invalid_pdb;
-    if(file->parseStreamData()) return check_pdb_result::invalid_pdb;
+    if(auto error = file->parseFileHeaders())
+    {
+        llvm::consumeError(std::move(error));
+        return check_pdb_result::invalid_pdb;
+    }
+    if(auto error = file->parseStreamData())
+    {
+        llvm::consumeError(std::move(error));
+        return check_pdb_result::invalid_pdb;
+    }
 
     auto info_stream = file->getPDBInfoStream();
     if(!info_stream)

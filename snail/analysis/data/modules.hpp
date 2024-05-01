@@ -15,7 +15,7 @@ struct module_info
 
     std::string name;
 
-    hit_counts hits;
+    source_hit_counts hits;
 };
 
 } // namespace snail::analysis

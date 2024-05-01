@@ -9,6 +9,7 @@
 
 #include <snail/analysis/data/ids.hpp>
 #include <snail/analysis/data/process.hpp>
+#include <snail/analysis/data/sample_source.hpp>
 #include <snail/analysis/data/session.hpp>
 #include <snail/analysis/data/stack.hpp>
 #include <snail/analysis/data/system.hpp>
@@ -23,6 +24,11 @@ struct sample_data
 {
     virtual ~sample_data() = default;
 
+    virtual bool has_frame() const = 0;
+    virtual bool has_stack() const = 0;
+
+    virtual stack_frame frame() const = 0;
+
     virtual common::generator<stack_frame> reversed_stack() const = 0;
 
     // Time since session start
@@ -34,11 +40,15 @@ class samples_provider
 public:
     virtual ~samples_provider() = default;
 
-    virtual common::generator<const sample_data&> samples(unique_process_id    process_id,
-                                                          const sample_filter& filter = {}) const = 0;
+    virtual const std::vector<sample_source_info>& sample_sources() const = 0;
 
-    virtual std::size_t count_samples(unique_process_id    process_id,
-                                      const sample_filter& filter = {}) const = 0;
+    virtual common::generator<const sample_data&> samples(sample_source_info::id_t source_id,
+                                                          unique_process_id        process_id,
+                                                          const sample_filter&     filter = {}) const = 0;
+
+    virtual std::size_t count_samples(sample_source_info::id_t source_id,
+                                      unique_process_id        process_id,
+                                      const sample_filter&     filter = {}) const = 0;
 };
 
 class info_provider

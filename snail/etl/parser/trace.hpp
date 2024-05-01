@@ -72,9 +72,9 @@ struct generic_trace_marker
     trace_header_type header_type;
     std::uint8_t      header_flags;
 
-    static constexpr inline std::uint32_t trace_header_flag             = 0x80; // shifted `TRACE_HEADER_FLAG` from ntwmi.h
-    static constexpr inline std::uint32_t trace_header_event_trace_flag = 0x40; // shifted `TRACE_HEADER_EVENT_TRACE` from ntwmi.h
-    static constexpr inline std::uint32_t trace_message_flag            = 0x10; // shifted `TRACE_MESSAGE` from ntwmi.h
+    static constexpr inline std::uint8_t trace_header_flag             = 0x80; // shifted `TRACE_HEADER_FLAG` from ntwmi.h
+    static constexpr inline std::uint8_t trace_header_event_trace_flag = 0x40; // shifted `TRACE_HEADER_EVENT_TRACE` from ntwmi.h
+    static constexpr inline std::uint8_t trace_message_flag            = 0x10; // shifted `TRACE_MESSAGE` from ntwmi.h
 
     bool is_trace_header() const;
     bool is_trace_header_event_trace() const;
@@ -91,9 +91,9 @@ struct generic_trace_marker_view : private extract_view_base
 
     static inline constexpr std::size_t static_size = 4;
 
-    static constexpr inline std::uint32_t trace_header_flag             = 0x80; // shifted `TRACE_HEADER_FLAG` from ntwmi.h
-    static constexpr inline std::uint32_t trace_header_event_trace_flag = 0x40; // shifted `TRACE_HEADER_EVENT_TRACE` from ntwmi.h
-    static constexpr inline std::uint32_t trace_message_flag            = 0x10; // shifted `TRACE_MESSAGE` from ntwmi.h
+    static constexpr inline std::uint8_t trace_header_flag             = 0x80; // shifted `TRACE_HEADER_FLAG` from ntwmi.h
+    static constexpr inline std::uint8_t trace_header_event_trace_flag = 0x40; // shifted `TRACE_HEADER_EVENT_TRACE` from ntwmi.h
+    static constexpr inline std::uint8_t trace_message_flag            = 0x10; // shifted `TRACE_MESSAGE` from ntwmi.h
 
     inline bool is_trace_header() const { return (header_flags() & trace_header_flag) != 0; }
     inline bool is_trace_header_event_trace() const { return (header_flags() & trace_header_event_trace_flag) != 0; }
