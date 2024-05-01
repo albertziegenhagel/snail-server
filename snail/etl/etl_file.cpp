@@ -9,6 +9,7 @@
 #include <iostream>
 #include <queue>
 #include <stdexcept>
+#include <utility>
 
 #include <snail/common/cast.hpp>
 
@@ -103,6 +104,13 @@ buffer_info read_buffer(std::ifstream&                          file_stream,
             "Invalid ETL file: insufficient size for buffer. Expected {} but read only {}.",
             header.wnode().saved_offset(),
             read_bytes));
+    }
+
+    if((header.buffer_flag() & std::to_underlying(parser::etw_buffer_flag::compressed)) != 0)
+    {
+        throw std::runtime_error(std::format(
+            "Unsupported ETL file: Buffer {} is marked as compressed, but compressed buffers are not yet supported.",
+            header.wnode().sequence_number()));
     }
 
     const auto payload_size   = header.wnode().saved_offset() - parser::wmi_buffer_header_view::static_size;
