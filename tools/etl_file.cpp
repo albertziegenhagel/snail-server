@@ -1062,7 +1062,15 @@ int main(int argc, char* argv[])
     }
 
     std::cout << "\n";
-    file.process(observer);
+    try
+    {
+        file.process(observer);
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << std::format("Failed to process ETL file: {}\n", e.what());
+        return EXIT_FAILURE;
+    }
 
     std::cout << "\n";
     std::cout << "Number of samples:\n";
