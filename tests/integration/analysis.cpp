@@ -96,6 +96,7 @@ TEST(DiagsessionDataProvider, ProcessInner)
     EXPECT_EQ(sample_source.name, "Timer");
     EXPECT_EQ(sample_source.number_of_samples, 292);
     EXPECT_EQ(sample_source.average_sampling_rate, 195.95397980519758);
+    EXPECT_TRUE(sample_source.has_stacks);
 
     const auto sampling_processes = to_vector(data_provider.sampling_processes());
     ASSERT_EQ(sampling_processes.size(), 1);
@@ -467,18 +468,22 @@ TEST(EtlDataProvider, ProcessOrdered)
     EXPECT_EQ(sample_source_0.name, "Timer");
     EXPECT_EQ(sample_source_0.number_of_samples, 28439);
     EXPECT_EQ(sample_source_0.average_sampling_rate, 5025.1791709883873);
+    EXPECT_TRUE(sample_source_0.has_stacks);
     const auto& sample_source_1 = data_provider.sample_sources()[1];
     EXPECT_EQ(sample_source_1.name, "BranchMispredictions");
     EXPECT_EQ(sample_source_1.number_of_samples, 393);
     EXPECT_EQ(sample_source_1.average_sampling_rate, 72.165883253669918);
+    EXPECT_FALSE(sample_source_1.has_stacks);
     const auto& sample_source_2 = data_provider.sample_sources()[2];
     EXPECT_EQ(sample_source_2.name, "LLCReference");
     EXPECT_EQ(sample_source_2.number_of_samples, 9616);
     EXPECT_EQ(sample_source_2.average_sampling_rate, 1699.7192776447603);
+    EXPECT_FALSE(sample_source_2.has_stacks);
     const auto& sample_source_3 = data_provider.sample_sources()[3];
     EXPECT_EQ(sample_source_3.name, "LLCMisses");
     EXPECT_EQ(sample_source_3.number_of_samples, 3472);
     EXPECT_EQ(sample_source_3.average_sampling_rate, 619.66920729851813);
+    EXPECT_FALSE(sample_source_3.has_stacks);
 
     const auto sampling_processes = to_vector(data_provider.sampling_processes());
     EXPECT_EQ(sampling_processes.size(), 25);
@@ -584,6 +589,7 @@ TEST(PerfDataDataProvider, ProcessInner)
     EXPECT_EQ(sample_source.name, "cycles:u");
     EXPECT_EQ(sample_source.number_of_samples, 1524);
     EXPECT_EQ(sample_source.average_sampling_rate, 3933.9346780988258);
+    EXPECT_TRUE(sample_source.has_stacks);
 
     const auto sampling_processes = to_vector(data_provider.sampling_processes());
     ASSERT_EQ(sampling_processes.size(), 1);
@@ -830,18 +836,22 @@ TEST(PerfDataDataProvider, ProcessOrdered)
     EXPECT_EQ(sample_source_0.name, "cache-references:u");
     EXPECT_EQ(sample_source_0.number_of_samples, 18603);
     EXPECT_EQ(sample_source_0.average_sampling_rate, 4812.9501500945526);
+    EXPECT_TRUE(sample_source_0.has_stacks);
     const auto& sample_source_1 = data_provider.sample_sources()[1];
     EXPECT_EQ(sample_source_1.name, "cache-misses:u");
     EXPECT_EQ(sample_source_1.number_of_samples, 18128);
     EXPECT_EQ(sample_source_1.average_sampling_rate, 4690.0279109439043);
+    EXPECT_TRUE(sample_source_1.has_stacks);
     const auto& sample_source_2 = data_provider.sample_sources()[2];
     EXPECT_EQ(sample_source_2.name, "cycles:u");
     EXPECT_EQ(sample_source_2.number_of_samples, 18716);
     EXPECT_EQ(sample_source_2.average_sampling_rate, 4842.2677087908423);
+    EXPECT_TRUE(sample_source_2.has_stacks);
     const auto& sample_source_3 = data_provider.sample_sources()[3];
     EXPECT_EQ(sample_source_3.name, "branch-misses:u");
     EXPECT_EQ(sample_source_3.number_of_samples, 9692);
     EXPECT_EQ(sample_source_3.average_sampling_rate, 2569.6341831976838);
+    EXPECT_TRUE(sample_source_3.has_stacks);
 
     const auto sampling_processes = to_vector(data_provider.sampling_processes());
     ASSERT_EQ(sampling_processes.size(), 1);

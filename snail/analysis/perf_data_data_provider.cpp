@@ -236,6 +236,7 @@ void perf_data_data_provider::process(const std::filesystem::path& file_path)
             .name                  = std::move(sample_source_names.at(internal_id)),
             .number_of_samples     = 0,
             .average_sampling_rate = 0.0,
+            .has_stacks            = process_context_->sample_source_has_stacks(internal_id),
         });
 
         sample_source_times.push_back(time_range{

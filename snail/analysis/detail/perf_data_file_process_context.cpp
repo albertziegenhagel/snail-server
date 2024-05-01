@@ -276,6 +276,8 @@ void perf_data_file_process_context::handle_event(const perf_data::parser::sampl
         .timestamp           = *event.time,
         .instruction_pointer = event.ip,
         .stack_index         = event.ips ? std::make_optional(stacks.insert(*event.ips)) : std::nullopt});
+
+    if(event.ips) sources_with_stacks_.insert(source_id);
 }
 
 const std::unordered_map<perf_data_file_process_context::process_key, perf_data_file_process_context::sampled_process_info>& perf_data_file_process_context::sampled_processes() const
@@ -286,6 +288,11 @@ const std::unordered_map<perf_data_file_process_context::process_key, perf_data_
 const std::unordered_map<perf_data_file_process_context::sample_source_id_t, std::vector<std::optional<std::uint64_t>>>& perf_data_file_process_context::event_ids_per_sample_source() const
 {
     return event_ids_per_sample_source_;
+}
+
+bool perf_data_file_process_context::sample_source_has_stacks(sample_source_id_t source_id) const
+{
+    return sources_with_stacks_.contains(source_id);
 }
 
 std::span<const perf_data_file_process_context::sample_info> perf_data_file_process_context::thread_samples(os_tid_t thread_id, timestamp_t start_time, std::optional<timestamp_t> end_time, sample_source_id_t source_id) const

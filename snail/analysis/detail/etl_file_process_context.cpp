@@ -521,7 +521,7 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data&   
     // We expect the samples to arrive before their stacks.
     assert(sample_timestamp <= header.timestamp);
 
-    const auto attach_stack_to_samples = [this, &file_header, &header, &event, sample_timestamp](std::vector<sample_info>& samples)
+    const auto attach_stack_to_samples = [this, &file_header, &header, &event, sample_timestamp](std::vector<sample_info>& samples) -> bool
     {
         // Try to find the sample for this stack by walking the last samples
         // backwards. We expect that we there shouldn't be to many events
@@ -547,15 +547,17 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data&   
             sample_stack_index     = stacks.insert(event.stack());
             sample_stack_timestamp = header.timestamp;
 
-            break;
+            return true;
         }
+        return false;
     };
 
     // First try to attach to a matching regular sample
     auto regular_samples_iter = samples_per_thread_id_.find(thread_id);
     if(regular_samples_iter != samples_per_thread_id_.end())
     {
-        attach_stack_to_samples(regular_samples_iter->second);
+        const auto success = attach_stack_to_samples(regular_samples_iter->second);
+        if(success) sources_with_stacks_.insert(default_timer_pmc_source);
     }
 
     // Then, additionally try to attach to all matching PMC samples
@@ -564,7 +566,8 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data&   
 
     for(auto& [pmc_source, thread_samples] : pmc_samples_iter->second)
     {
-        attach_stack_to_samples(thread_samples);
+        const auto success = attach_stack_to_samples(thread_samples);
+        if(success) sources_with_stacks_.insert(pmc_source);
     }
 }
 
@@ -582,6 +585,11 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
 const std::unordered_map<etl_file_process_context::sample_source_id_t, std::u16string>& etl_file_process_context::sample_source_names() const
 {
     return sample_source_names_;
+}
+
+bool etl_file_process_context::sample_source_has_stacks(sample_source_id_t pmc_source) const
+{
+    return sources_with_stacks_.contains(pmc_source);
 }
 
 std::span<const etl_file_process_context::sample_info> etl_file_process_context::thread_samples(os_tid_t                   thread_id,

@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <optional>
 #include <set>
+#include <unordered_set>
 
 #include <snail/perf_data/build_id.hpp>
 #include <snail/perf_data/dispatching_event_observer.hpp>
@@ -105,6 +106,8 @@ public:
 
     const std::unordered_map<sample_source_id_t, std::vector<std::optional<std::uint64_t>>>& event_ids_per_sample_source() const;
 
+    bool sample_source_has_stacks(sample_source_id_t source_id) const;
+
     const process_history& get_processes() const;
 
     const thread_history& get_threads() const;
@@ -153,6 +156,8 @@ private:
     std::unordered_map<std::uintptr_t, sample_source_id_t> unique_sample_sources_;
 
     std::unordered_map<sample_source_id_t, std::unordered_map<os_tid_t, samples_storage>> samples_per_source_and_thread_id_;
+
+    std::unordered_set<sample_source_id_t> sources_with_stacks_;
 
     std::unordered_map<std::optional<std::uint64_t>, sample_source_id_t>              event_id_to_source_id_;
     std::unordered_map<sample_source_id_t, std::vector<std::optional<std::uint64_t>>> event_ids_per_sample_source_;

@@ -7,6 +7,7 @@
 #include <span>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include <snail/etl/dispatching_event_observer.hpp>
@@ -131,6 +132,8 @@ public:
 
     const std::unordered_map<sample_source_id_t, std::u16string>& sample_source_names() const;
 
+    bool sample_source_has_stacks(sample_source_id_t pmc_source) const;
+
     std::span<const sample_info> thread_samples(os_tid_t                   thread_id,
                                                 timestamp_t                start_time,
                                                 std::optional<timestamp_t> end_time,
@@ -200,6 +203,7 @@ private:
     std::unordered_map<os_tid_t, std::vector<pmc_sample_storage>> pmc_samples_per_thread_id_;
 
     std::unordered_map<sample_source_id_t, std::u16string> sample_source_names_;
+    std::unordered_set<sample_source_id_t>                 sources_with_stacks_;
 
     std::unordered_map<unique_process_id, std::set<unique_thread_id>> threads_per_process_;
 

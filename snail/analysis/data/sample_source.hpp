@@ -14,6 +14,8 @@ struct sample_source_info
 
     std::size_t number_of_samples;
     double      average_sampling_rate; // in samples per second
+
+    bool has_stacks;
 };
 
 } // namespace snail::analysis
