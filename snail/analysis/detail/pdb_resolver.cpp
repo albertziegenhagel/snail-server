@@ -94,7 +94,12 @@ check_pdb_result check_pdb(const std::filesystem::path&           pdb_path,
     if(!buffer) return check_pdb_result::invalid_pdb;
 
     auto stream = std::make_unique<llvm::MemoryBufferByteStream>(std::move(buffer.get()),
-                                                                 llvm::support::little);
+#    if LLVM_VERSION_MAJOR >= 18
+                                                                 llvm::endianness::little
+#    else
+                                                                 llvm::support::little
+#    endif
+    );
 
     llvm::BumpPtrAllocator              allocator;
     std::unique_ptr<llvm::pdb::PDBFile> file;

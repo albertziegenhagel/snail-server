@@ -16,7 +16,7 @@ target_link_libraries(common
   PRIVATE
     compile_options
 
-    utf8cpp
+    utf8cpp::utf8cpp
 )
 
 target_include_directories(common PUBLIC ${CMAKE_SOURCE_DIR})
