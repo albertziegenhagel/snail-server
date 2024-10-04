@@ -79,7 +79,10 @@ jobs:
           key: ${{ runner.os }}-lfs-${{ hashFiles('.lfs-assets-id') }}-v1
 
       - name: Git LFS Pull
-        run: git lfs pull
+        shell: pwsh
+        run: |
+          $env:GIT_TRACE=1
+          git lfs pull
 
       - uses: lukka/get-cmake@latest
         with:
