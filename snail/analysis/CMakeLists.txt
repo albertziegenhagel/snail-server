@@ -31,7 +31,7 @@ target_link_libraries(analysis
     
     libzippp::libzippp
 
-    utf8cpp
+    utf8cpp::utf8cpp
 
     CURL::libcurl
   PUBLIC

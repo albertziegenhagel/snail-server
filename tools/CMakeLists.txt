@@ -1,7 +1,7 @@
 
 
 add_executable(snail_tool_etl etl_file.cpp)
-target_link_libraries(snail_tool_etl PRIVATE compile_options etl utf8cpp)
+target_link_libraries(snail_tool_etl PRIVATE compile_options etl utf8cpp::utf8cpp)
 set_target_properties(snail_tool_etl PROPERTIES OUTPUT_NAME "snail-tool-etl")
 
 add_executable(snail_tool_perf_data perf_data_file.cpp)
