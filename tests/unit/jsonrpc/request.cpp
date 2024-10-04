@@ -49,6 +49,9 @@ SNAIL_JSONRPC_REQUEST_2(test_4,
                         my_int_test_enum, int_enum,
                         my_str_test_enum, str_enum)
 
+SNAIL_JSONRPC_REQUEST_1(test_5,
+                        std::optional<int>, opt_num)
+
 TEST(JsonRpc, UnpackRequest)
 {
     {
@@ -106,7 +109,7 @@ TEST(JsonRpc, UnpackRequest)
 
     {
         const nlohmann::json data = {
-            {"str", false},
+            {"str", false}, // invalid value type
             {"num", 123  }
         };
 
@@ -142,11 +145,40 @@ TEST(JsonRpc, UnpackRequest)
     {
         const nlohmann::json data = {
             {"int_enum", 5  },
-            {"str_enum", "c"}
+            {"str_enum", "c"}  // invalid enum value
         };
 
         EXPECT_THROW(
             snail::jsonrpc::detail::unpack_request<test_4_request>(data),
             snail::jsonrpc::invalid_parameters_error);
+    }
+
+    {
+        const nlohmann::json data = {
+            {"opt_num", 15},
+        };
+
+        const auto request = snail::jsonrpc::detail::unpack_request<test_5_request>(data);
+
+        ASSERT_NE(request.opt_num(), std::nullopt);
+        EXPECT_EQ(*request.opt_num(), 15);
+    }
+
+    {
+        const nlohmann::json data = {
+            {"opt_num", nullptr},
+        };
+
+        const auto request = snail::jsonrpc::detail::unpack_request<test_5_request>(data);
+
+        EXPECT_EQ(request.opt_num(), std::nullopt);
+    }
+
+    {
+        const nlohmann::json data = {};
+
+        const auto request = snail::jsonrpc::detail::unpack_request<test_5_request>(data);
+
+        EXPECT_EQ(request.opt_num(), std::nullopt);
     }
 }

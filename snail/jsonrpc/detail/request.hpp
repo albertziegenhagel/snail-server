@@ -73,11 +73,10 @@ RequestType unpack_request(const nlohmann::json& raw_data)
         [&raw_data, &result]<std::size_t I, typename T>(size_c<I>, const request_parameter<T>& parameter)
         {
             auto iter = raw_data.find(parameter.name);
-            if(iter == raw_data.end()) throw invalid_parameters_error(std::format("Missing parameter: {}", parameter.name).c_str());
 
             if constexpr(is_instantiation<T, std::optional>{})
             {
-                if(iter->is_null())
+                if(iter == raw_data.end() || iter->is_null())
                 {
                     std::get<I>(result.data_) = std::nullopt;
                 }
@@ -94,42 +93,47 @@ RequestType unpack_request(const nlohmann::json& raw_data)
                     }
                 }
             }
-            else if constexpr(std::is_enum_v<T>)
+            else
             {
-                enum_value_type_t<T> value;
-                try
+                if(iter == raw_data.end()) throw invalid_parameters_error(std::format("Missing parameter: {}", parameter.name).c_str());
+
+                if constexpr(std::is_enum_v<T>)
                 {
-                    iter->get_to(value);
-                }
-                catch(const nlohmann::json::type_error& e)
-                {
-                    throw invalid_parameters_error(std::format("Invalid parameter type: {}", e.what()).c_str());
-                }
-                if constexpr(std::is_integral_v<enum_value_type_t<T>>)
-                {
-                    std::get<I>(result.data_) = static_cast<T>(value);
+                    enum_value_type_t<T> value;
+                    try
+                    {
+                        iter->get_to(value);
+                    }
+                    catch(const nlohmann::json::type_error& e)
+                    {
+                        throw invalid_parameters_error(std::format("Invalid parameter type: {}", e.what()).c_str());
+                    }
+                    if constexpr(std::is_integral_v<enum_value_type_t<T>>)
+                    {
+                        std::get<I>(result.data_) = static_cast<T>(value);
+                    }
+                    else
+                    {
+                        try
+                        {
+                            std::get<I>(result.data_) = snail::jsonrpc::detail::enum_from_value<T>(value);
+                        }
+                        catch(const std::runtime_error& e)
+                        {
+                            throw invalid_parameters_error(std::format("Invalid parameter value: {}", e.what()).c_str());
+                        }
+                    }
                 }
                 else
                 {
                     try
                     {
-                        std::get<I>(result.data_) = snail::jsonrpc::detail::enum_from_value<T>(value);
+                        iter->get_to(std::get<I>(result.data_));
                     }
-                    catch(const std::runtime_error& e)
+                    catch(const nlohmann::json::type_error& e)
                     {
-                        throw invalid_parameters_error(std::format("Invalid parameter value: {}", e.what()).c_str());
+                        throw invalid_parameters_error(std::format("Invalid parameter type: {}", e.what()).c_str());
                     }
-                }
-            }
-            else
-            {
-                try
-                {
-                    iter->get_to(std::get<I>(result.data_));
-                }
-                catch(const nlohmann::json::type_error& e)
-                {
-                    throw invalid_parameters_error(std::format("Invalid parameter type: {}", e.what()).c_str());
                 }
             }
         },
