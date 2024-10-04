@@ -547,7 +547,6 @@ describe("InnerDiagsession", function () {
 
         const response = await fixture.connection.sendRequest(snail.expandCallTreeNodeRequestType, {
             documentId: documentId!,
-            hotSourceId: sourceId!,
             processKey: process!.key,
             nodeId: current!.id
         });

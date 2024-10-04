@@ -72,8 +72,8 @@ auto append_call_tree_node_children(const analysis::stacks_analysis&            
                                     const analysis::call_tree_node&                                            current_node,
                                     const std::unordered_map<analysis::sample_source_info::id_t, std::size_t>& total_hits,
                                     nlohmann::json&                                                            children,
-                                    bool                                                                       expand_hot_path,
-                                    std::optional<analysis::sample_source_info::id_t>                          hot_source_id)
+                                    bool                                                                       expand_hot_path = false,
+                                    std::optional<analysis::sample_source_info::id_t>                          hot_source_id   = std::nullopt)
 {
     children = nlohmann::json::array();
 
@@ -626,7 +626,7 @@ void snail::server::register_all(snail::jsonrpc::server& server, snail::server::
             const auto& current_node = stacks_analysis.get_call_tree_node(request.node_id());
 
             nlohmann::json children;
-            append_call_tree_node_children(stacks_analysis, current_node, total_hits, children, false, request.hot_source_id());
+            append_call_tree_node_children(stacks_analysis, current_node, total_hits, children);
 
             return {
                 {"children", std::move(children)}
