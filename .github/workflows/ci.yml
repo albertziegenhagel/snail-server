@@ -42,7 +42,7 @@ jobs:
 
     env:
       VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
-      VCPKG_GIT_COMMIT_ID: "8eb57355a4ffb410a2e94c07b4dca2dffbee8e50"
+      VCPKG_GIT_COMMIT_ID: "c82f74667287d3dc386bce81e44964370c91a289"
 
     steps:
       - name: Install gcc-13
@@ -96,7 +96,7 @@ jobs:
         run: |
           cd "C:\"
           if(Test-Path C:\vcpkg) { rm -r -Force "C:\vcpkg" }
-          git clone --depth 1 --branch "2023.10.19" https://github.com/microsoft/vcpkg.git
+          git clone --depth 1 --branch "2024.09.30" https://github.com/microsoft/vcpkg.git
 
       - name: Restore vcpkg-tool (windows)
         if: runner.os == 'Windows'
