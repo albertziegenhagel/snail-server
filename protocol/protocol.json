@@ -963,14 +963,6 @@
                         "kind": "base",
                         "name": "uinteger"
                     }
-                },
-                {
-                    "name": "hotSourceId",
-                    "type": {
-                        "kind": "base",
-                        "name": "uinteger"
-                    },
-                    "optional": true
                 }
             ],
             "extends": [

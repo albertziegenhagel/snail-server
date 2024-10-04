@@ -414,7 +414,6 @@ struct expand_call_tree_node_request
 
     static constexpr auto parameters = std::tuple(
         snail::jsonrpc::detail::request_parameter<std::size_t>{"nodeId"},
-        snail::jsonrpc::detail::request_parameter<std::optional<std::size_t>>{"hotSourceId"},
         snail::jsonrpc::detail::request_parameter<std::uint64_t>{"processKey"},
         snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"});
 
@@ -423,20 +422,15 @@ struct expand_call_tree_node_request
         return std::get<0>(data_);
     }
 
-    const std::optional<std::size_t>& hot_source_id() const
-    {
-        return std::get<1>(data_);
-    }
-
     const std::uint64_t& process_key() const
     {
-        return std::get<2>(data_);
+        return std::get<1>(data_);
     }
     // The id of the document to perform the operation on.
     // This should be an id that resulted from a call to `readDocument`.
     const std::size_t& document_id() const
     {
-        return std::get<3>(data_);
+        return std::get<2>(data_);
     }
 
     template<typename RequestType>
@@ -446,7 +440,6 @@ struct expand_call_tree_node_request
 private:
     std::tuple<
         std::size_t,
-        std::optional<std::size_t>,
         std::uint64_t,
         std::size_t>
         data_;
