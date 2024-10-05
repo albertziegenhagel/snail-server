@@ -5,6 +5,8 @@
 
 #include <type_traits>
 
+#include <snail/common/bit_flags.hpp>
+
 #include <snail/etl/parser/extract.hpp>
 
 namespace snail::etl::parser {
@@ -22,17 +24,19 @@ enum class etw_buffer_state : std::uint32_t
 };
 
 // See ETW_BUFFER_FLAG_* from ntwmi.h
-enum class etw_buffer_flag : std::uint16_t
+enum class etw_buffer_flag
 {
-    normal           = 0,
-    flush_marker     = 1,
-    events_lost      = 2,
-    buffer_lost      = 4,
-    rtbackup_corrupt = 8,
-    rtbackup         = 16,
-    proc_index       = 32,
-    compressed       = 64
+    // normal           = 0, // 0x0000
+    flush_marker     = 0, // 0x0001
+    events_lost      = 1, // 0x0002
+    buffer_lost      = 2, // 0x0004
+    rtbackup_corrupt = 3, // 0x0008
+    rtbackup         = 4, // 0x0010
+    proc_index       = 5, // 0x0020
+    compressed       = 6  // 0x0040
 };
+
+using etw_buffer_flags = snail::common::bit_flags<etw_buffer_flag, 16>;
 
 // See ETW_BUFFER_TYPE_* from ntwmi.h
 enum class etw_buffer_type : std::uint16_t
@@ -74,7 +78,7 @@ struct wnode_header_view : private extract_view_base
     inline auto sequence_number() const { return extract<std::int64_t>(24); }
     inline auto clock() const { return extract<std::uint64_t>(32); }
     inline auto client_context() const { return etw_buffer_context_view(buffer().subspan(40)); }
-    inline auto state() const { return extract<etw_buffer_state>(40 + etw_buffer_context_view::static_size); }
+    inline auto state() const { return extract<std::uint32_t>(40 + etw_buffer_context_view::static_size); }
 
     static inline constexpr std::size_t static_size = 44 + etw_buffer_context_view::static_size;
 };
@@ -88,7 +92,7 @@ struct wmi_buffer_header_view : private extract_view_base
 
     inline auto wnode() const { return wnode_header_view(buffer()); }
     inline auto offset() const { return extract<std::uint32_t>(0 + wnode_header_view::static_size); }
-    inline auto buffer_flag() const { return extract<std::underlying_type_t<etw_buffer_flag>>(4 + wnode_header_view::static_size); }
+    inline auto buffer_flag() const { return etw_buffer_flags(extract<std::uint16_t>(4 + wnode_header_view::static_size)); }
     inline auto buffer_type() const { return extract<etw_buffer_type>(6 + wnode_header_view::static_size); }
     inline auto start_time() const { return extract<std::uint64_t>(8 + wnode_header_view::static_size); }
     inline auto start_perf_clock() const { return extract<std::uint64_t>(16 + wnode_header_view::static_size); }

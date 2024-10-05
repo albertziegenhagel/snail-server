@@ -46,9 +46,10 @@ TEST(EtlParser, WmiBufferHeader)
     EXPECT_EQ(buffer_header.wnode().clock(), 0);
     EXPECT_EQ(buffer_header.wnode().client_context().processor_index(), 0);
     EXPECT_EQ(buffer_header.wnode().client_context().logger_id(), 0);
-    EXPECT_EQ(buffer_header.wnode().state(), etl::parser::etw_buffer_state::free_);
+    EXPECT_EQ(buffer_header.wnode().state(), 0);
     EXPECT_EQ(buffer_header.offset(), 440);
-    EXPECT_EQ(buffer_header.buffer_flag(), 1);
+    EXPECT_EQ(buffer_header.buffer_flag().count(), 1);
+    EXPECT_TRUE(buffer_header.buffer_flag().test(etl::parser::etw_buffer_flag::flush_marker));
     EXPECT_EQ(buffer_header.buffer_type(), etl::parser::etw_buffer_type::header);
     EXPECT_EQ(buffer_header.start_time(), 0);
     EXPECT_EQ(buffer_header.start_perf_clock(), 0);
@@ -233,7 +234,9 @@ TEST(EtlParser, Kernel_EventTraceV2HeaderEventView)
     EXPECT_EQ(event.end_time(), 133171255616974395ULL);
     EXPECT_EQ(event.timer_resolution(), 156250);
     EXPECT_EQ(event.max_file_size(), 0);
-    EXPECT_EQ(event.log_file_mode(), 65537);
+    EXPECT_EQ(event.log_file_mode().count(), 2);
+    EXPECT_TRUE(event.log_file_mode().test(etl::parser::log_file_mode::file_mode_sequential));
+    EXPECT_TRUE(event.log_file_mode().test(etl::parser::log_file_mode::relog_mode));
     EXPECT_EQ(event.buffers_written(), 490);
     EXPECT_EQ(event.start_buffers(), 1);
     EXPECT_EQ(event.pointer_size(), 8);
