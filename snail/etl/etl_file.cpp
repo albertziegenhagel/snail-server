@@ -12,6 +12,7 @@
 #include <utility>
 
 #include <snail/common/cast.hpp>
+#include <snail/common/ms_xca_decompression.hpp>
 
 #include <snail/etl/parser/buffer.hpp>
 #include <snail/etl/parser/records/kernel/header.hpp>
@@ -28,10 +29,6 @@ using namespace snail::etl;
 
 namespace {
 
-// All known trace headers use 16bit integers for their buffer sizes,
-// hence this size should always be enough.
-inline constexpr std::size_t max_buffer_size = 0xFFFF + 1;
-
 struct buffer_info
 {
     std::span<const std::byte> header_buffer;
@@ -41,7 +38,7 @@ struct buffer_info
 
 struct processor_data
 {
-    std::array<std::byte, max_buffer_size> current_buffer_data;
+    std::vector<std::byte> current_buffer_data;
 
     buffer_info current_buffer_info;
 
@@ -66,55 +63,94 @@ struct next_event_priority_info
     }
 };
 
-buffer_info read_buffer(std::ifstream&                          file_stream,
-                        std::streampos                          buffer_start_pos,
-                        std::array<std::byte, max_buffer_size>& buffer_data,
-                        const etl_file::header_data&            file_header_,
-                        event_observer&                         callbacks)
+buffer_info read_buffer(std::ifstream&               file_stream,
+                        std::streampos               buffer_start_pos,
+                        std::vector<std::byte>&      buffer_data,
+                        std::vector<std::byte>&      compressed_temp_data,
+                        const etl_file::header_data& file_header_,
+                        event_observer&              callbacks)
 {
     file_stream.seekg(buffer_start_pos);
-    file_stream.read(reinterpret_cast<char*>(buffer_data.data()), common::narrow_cast<std::streamsize>(buffer_data.size()));
+    file_stream.read(reinterpret_cast<char*>(buffer_data.data()), parser::wmi_buffer_header_view::static_size);
 
-    const auto read_bytes = file_stream.tellg() - buffer_start_pos;
-    if(read_bytes < static_cast<std::streamoff>(parser::wmi_buffer_header_view::static_size))
+    const auto read_header_bytes = file_stream.tellg() - buffer_start_pos;
+    if(read_header_bytes < static_cast<std::streamoff>(parser::wmi_buffer_header_view::static_size))
     {
         throw std::runtime_error(std::format(
             "Invalid ETL file: insufficient size for buffer header. Expected {} but read only {}.",
             parser::wmi_buffer_header_view::static_size,
-            read_bytes));
+            read_header_bytes));
     }
-    const auto total_buffer = std::span(buffer_data);
-
-    const auto header_buffer = total_buffer.subspan(0, parser::wmi_buffer_header_view::static_size);
+    const auto header_buffer = std::span(buffer_data).subspan(0, parser::wmi_buffer_header_view::static_size);
 
     const auto header = parser::wmi_buffer_header_view(header_buffer);
 
     callbacks.handle_buffer(file_header_, header);
 
-    if(header.wnode().buffer_size() > total_buffer.size())
+    if(header.wnode().saved_offset() > buffer_data.size())
     {
         throw std::runtime_error(std::format(
-            "Unsupported ETL file: buffer size ({}) exceeds maximum buffer size ({})",
-            header.wnode().buffer_size(),
-            total_buffer.size()));
-    }
-    if(read_bytes < header.wnode().saved_offset())
-    {
-        throw std::runtime_error(std::format(
-            "Invalid ETL file: insufficient size for buffer. Expected {} but read only {}.",
+            "Invalid ETL file: buffer offset ({}) exceeds maximum buffer size ({}).",
             header.wnode().saved_offset(),
-            read_bytes));
+            buffer_data.size()));
+    }
+    const auto payload_size = header.wnode().saved_offset() - parser::wmi_buffer_header_view::static_size;
+
+    assert(header.wnode().buffer_size() >= parser::wmi_buffer_header_view::static_size); // has already been checked when initially reading the buffer headers
+    const auto remaining_buffer_size = header.wnode().buffer_size() - parser::wmi_buffer_header_view::static_size;
+
+    // NOTE: not sure where we need to additionally test for
+    //         file_header_.log_file_mode.test(parser::log_file_mode::compressed_mode) &&
+    //         !file_header_.log_file_mode.test(parser::log_file_mode::file_mode_circular)
+    const auto is_compressed = header.buffer_flag().test(parser::etw_buffer_flag::compressed);
+
+    if(!is_compressed)
+    {
+        if(header.wnode().saved_offset() > header.wnode().buffer_size())
+        {
+            throw std::runtime_error(std::format(
+                "Invalid ETL file: buffer offset ({}) exceeds buffer size ({}).",
+                header.wnode().saved_offset(),
+                header.wnode().buffer_size()));
+        }
+
+        // Read the remaining data right into the final buffer.
+        file_stream.read(reinterpret_cast<char*>(buffer_data.data() + parser::wmi_buffer_header_view::static_size), remaining_buffer_size);
+    }
+    else
+    {
+        // Read the remaining (compressed) data into a temporary buffer.
+        compressed_temp_data.resize(remaining_buffer_size);
+
+        file_stream.read(reinterpret_cast<char*>(compressed_temp_data.data()), remaining_buffer_size);
     }
 
-    if((header.buffer_flag() & std::to_underlying(parser::etw_buffer_flag::compressed)) != 0)
+    const auto read_remaining_bytes = file_stream.tellg() - buffer_start_pos - parser::wmi_buffer_header_view::static_size;
+
+    if(read_remaining_bytes < remaining_buffer_size)
     {
         throw std::runtime_error(std::format(
-            "Unsupported ETL file: Buffer {} is marked as compressed, but compressed buffers are not yet supported.",
-            header.wnode().sequence_number()));
+            "Invalid ETL file: insufficient size for buffer payload. Expected {} but read only {}.",
+            remaining_buffer_size,
+            read_remaining_bytes));
     }
 
-    const auto payload_size   = header.wnode().saved_offset() - parser::wmi_buffer_header_view::static_size;
-    const auto payload_buffer = total_buffer.subspan(parser::wmi_buffer_header_view::static_size, payload_size);
+    const auto payload_buffer = std::span(buffer_data).subspan(parser::wmi_buffer_header_view::static_size, payload_size);
+
+    if(is_compressed)
+    {
+        const auto decompressed_size = common::ms_xca_decompress(std::span(compressed_temp_data).subspan(0, remaining_buffer_size),
+                                                                 payload_buffer,
+                                                                 file_header_.compression_format);
+
+        if(decompressed_size != payload_size)
+        {
+            throw std::runtime_error(std::format(
+                "Invalid ETL file: uncompressed size does not patch payload size. Expected {} but got {}.",
+                payload_size,
+                decompressed_size));
+        }
+    }
 
     return buffer_info{header_buffer, payload_buffer, 0};
 }
@@ -162,7 +198,6 @@ std::size_t process_type_1_trace(std::span<const std::byte>   payload_buffer,
 
     assert(trace_header.packet().size() >= TraceHeaderViewType::static_size);
     const auto user_data_size = trace_header.packet().size() - TraceHeaderViewType::static_size;
-    assert(user_data_size <= max_buffer_size);
 
     const auto user_data_buffer = payload_buffer.subspan(TraceHeaderViewType::static_size, user_data_size);
 
@@ -183,7 +218,6 @@ std::size_t process_perfinfo_trace(std::span<const std::byte>   payload_buffer,
     assert(trace_header.packet().size() >= header_size);
 
     const auto user_data_size = trace_header.packet().size() - header_size;
-    assert(user_data_size <= max_buffer_size);
 
     const auto user_data_buffer = payload_buffer.subspan(header_size, user_data_size);
 
@@ -204,7 +238,6 @@ std::size_t process_type_2_trace(std::span<const std::byte>   payload_buffer,
 
     assert(trace_header.size() >= TraceHeaderViewType::static_size);
     const auto user_data_size = trace_header.size() - TraceHeaderViewType::static_size;
-    assert(user_data_size <= max_buffer_size);
 
     const auto user_data_buffer = payload_buffer.subspan(TraceHeaderViewType::static_size, user_data_size);
 
@@ -227,7 +260,6 @@ std::size_t process_event_header_trace(std::span<const std::byte>   payload_buff
 
     assert(trace_header.size() >= parser::event_header_trace_header_view::static_size);
     const auto user_data_size = trace_header.size() - parser::event_header_trace_header_view::static_size;
-    assert(user_data_size <= max_buffer_size);
 
     const auto user_data_buffer = payload_buffer.subspan(parser::event_header_trace_header_view::static_size, user_data_size);
 
@@ -301,31 +333,54 @@ void etl_file::open(const std::filesystem::path& file_path)
     {
         throw std::runtime_error(std::format("Could not open file {}", file_path.string()));
     }
-    std::array<std::byte, max_buffer_size> file_buffer_data;
+    std::array<std::byte, parser::wmi_buffer_header_view::static_size> file_buffer_header_data;
 
-    file_stream_.read(reinterpret_cast<char*>(file_buffer_data.data()), file_buffer_data.size());
+    file_stream_.read(reinterpret_cast<char*>(file_buffer_header_data.data()), file_buffer_header_data.size());
 
-    const auto read_bytes = file_stream_.tellg() - std::streampos(0);
-    if(read_bytes < static_cast<std::streamoff>(parser::wmi_buffer_header_view::static_size))
+    const auto read_header_bytes = file_stream_.tellg() - std::streampos(0);
+    if(read_header_bytes < static_cast<std::streamoff>(parser::wmi_buffer_header_view::static_size))
     {
         throw std::runtime_error("Invalid ETL file: insufficient size for buffer header");
     }
 
-    const auto file_buffer = std::span(file_buffer_data);
-
-    const auto buffer_header = parser::wmi_buffer_header_view(file_buffer);
+    const auto buffer_header = parser::wmi_buffer_header_view(std::span(file_buffer_header_data));
 
     if(buffer_header.buffer_type() != parser::etw_buffer_type::header)
     {
         throw std::runtime_error("Invalid ETL file: invalid buffer header type");
     }
 
-    if(read_bytes < buffer_header.wnode().saved_offset())
+    if(buffer_header.buffer_flag().test(parser::etw_buffer_flag::compressed))
+    {
+        throw std::runtime_error("Invalid ETL file: header buffer should not be compressed");
+    }
+
+    const auto min_buffer_size = parser::wmi_buffer_header_view::static_size +
+                                 parser::system_trace_header_view::static_size;
+
+    const auto buffer_size = buffer_header.wnode().buffer_size();
+
+    if(buffer_header.wnode().buffer_size() < min_buffer_size)
+    {
+        throw std::runtime_error(std::format(
+            "Invalid ETL file: invalid header buffer size. Is {} but should be at least {}.",
+            buffer_size,
+            min_buffer_size));
+    }
+
+    std::vector<std::byte> file_buffer_data(buffer_size - parser::wmi_buffer_header_view::static_size);
+
+    file_stream_.read(reinterpret_cast<char*>(file_buffer_data.data()), file_buffer_data.size());
+
+    const auto read_buffer_bytes = file_stream_.tellg() - std::streampos(0);
+    if(read_buffer_bytes < static_cast<std::streamoff>(min_buffer_size))
     {
         throw std::runtime_error("Invalid ETL file: insufficient size for buffer");
     }
 
-    const auto marker = parser::generic_trace_marker_view(file_buffer.subspan(parser::wmi_buffer_header_view::static_size));
+    const auto buffer_data = std::span(file_buffer_data);
+
+    const auto marker = parser::generic_trace_marker_view(buffer_data);
     if(!marker.is_trace_header() || !marker.is_trace_header_event_trace() || marker.is_trace_message())
     {
         throw std::runtime_error("Invalid ETL file: invalid trace marker");
@@ -336,8 +391,7 @@ void etl_file::open(const std::filesystem::path& file_path)
         throw std::runtime_error("Invalid ETL file: invalid trace header type");
     }
 
-    const auto system_trace_header = parser::system_trace_header_view(file_buffer.subspan(
-        parser::wmi_buffer_header_view::static_size));
+    const auto system_trace_header = parser::system_trace_header_view(buffer_data);
 
     // the first record needs to be a event-trace-header
     if(system_trace_header.packet().group() != parser::event_trace_group::header ||
@@ -347,9 +401,13 @@ void etl_file::open(const std::filesystem::path& file_path)
         throw std::runtime_error("Invalid ETL file: invalid initial event trace header record.");
     }
 
-    const auto header_event = parser::event_trace_v2_header_event_view(file_buffer.subspan(
-        parser::wmi_buffer_header_view::static_size +
+    const auto header_event = parser::event_trace_v2_header_event_view(buffer_data.subspan(
         parser::system_trace_header_view::static_size));
+
+    // The compression format is hidden in the state of the first buffer
+    const auto compression_format = header_event.log_file_mode().test(parser::log_file_mode::compressed_mode) ?
+                                        static_cast<common::ms_xca_compression_format>(buffer_header.wnode().state() & 0xFFFF) :
+                                        common::ms_xca_compression_format::none;
 
     header_ = etl_file::header_data{
         .start_time           = common::from_nt_timestamp(common::nt_duration(header_event.start_time())),
@@ -358,7 +416,10 @@ void etl_file::open(const std::filesystem::path& file_path)
         .qpc_frequency        = header_event.perf_freq(),
         .pointer_size         = header_event.pointer_size(),
         .number_of_processors = header_event.number_of_processors(),
-        .number_of_buffers    = header_event.buffers_written()
+        .number_of_buffers    = header_event.buffers_written(),
+        .buffer_size          = header_event.buffer_size(),
+        .log_file_mode        = header_event.log_file_mode(),
+        .compression_format   = compression_format
         // TODO: extract more (all?) relevant data
     };
 
@@ -406,6 +467,17 @@ void etl_file::process(event_observer& callbacks)
                     sequence_number));
             }
 
+            const auto buffer_size = buffer_header.wnode().buffer_size();
+
+            if(buffer_size > header_.buffer_size)
+            {
+                throw std::runtime_error(std::format(
+                    "Unsupported ETL file: buffer size ({}) has buffer size {} but size according to header event is {}",
+                    buffer_index,
+                    buffer_size,
+                    header_.buffer_size));
+            }
+
             const auto processor_index = buffer_header.wnode().client_context().processor_index();
 
             if(processor_index > header_.number_of_processors)
@@ -431,6 +503,7 @@ void etl_file::process(event_observer& callbacks)
     // Then extract the time of the first event in each of the processor buffers and initialize
     // a priority queue with the first event times per processor.
     std::priority_queue<next_event_priority_info> event_queue;
+    std::vector<std::byte>                        compressed_temp_data;
     for(std::size_t processor_index = 0; processor_index < per_processor_data.size(); ++processor_index)
     {
         auto& processor_data    = per_processor_data[processor_index];
@@ -441,9 +514,12 @@ void etl_file::process(event_observer& callbacks)
         std::ranges::sort(remaining_buffers, [](const processor_data::file_buffer_info& lhs, const processor_data::file_buffer_info& rhs)
                           { return lhs.sequence_number > rhs.sequence_number; });
 
+        processor_data.current_buffer_data.resize(header_.buffer_size);
+
         processor_data.current_buffer_info = read_buffer(file_stream_,
                                                          remaining_buffers.back().start_pos,
                                                          processor_data.current_buffer_data,
+                                                         compressed_temp_data,
                                                          header_,
                                                          callbacks);
 
@@ -491,6 +567,7 @@ void etl_file::process(event_observer& callbacks)
                 buffer_info = read_buffer(file_stream_,
                                           remaining_buffers.back().start_pos,
                                           processor_data.current_buffer_data,
+                                          compressed_temp_data,
                                           header_,
                                           callbacks);
 

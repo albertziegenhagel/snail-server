@@ -450,6 +450,9 @@ int main(int argc, char* argv[])
     std::cout << std::format("  pointer_size:         {}\n", file.header().pointer_size);
     std::cout << std::format("  number_of_processors: {}\n", file.header().number_of_processors);
     std::cout << std::format("  number_of_buffers:    {}\n", file.header().number_of_buffers);
+    std::cout << std::format("  buffer_size:          {}\n", file.header().buffer_size);
+    std::cout << std::format("  log_file_mode:        {}\n", file.header().log_file_mode.data().to_string());
+    std::cout << std::format("  compression_format:   {}\n", (int)file.header().compression_format);
 
     counting_event_observer observer;
 

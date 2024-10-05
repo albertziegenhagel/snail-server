@@ -21,7 +21,10 @@ TEST(EtlDispatchEventObserver, Dispatch)
         .qpc_frequency        = {},
         .pointer_size         = 8,
         .number_of_processors = {},
-        .number_of_buffers    = {}};
+        .number_of_buffers    = {},
+        .buffer_size          = {},
+        .log_file_mode        = {},
+        .compression_format   = common::ms_xca_compression_format::none};
 
     const std::array<std::uint8_t, 32> perfinfo_buffer_data = {
         0x02, 0x00, 0x11, 0xc0, 0x20, 0x00, 0x2e, 0x0f, 0x6d, 0x11, 0x06, 0x42, 0xcb, 0x02, 0x00, 0x00,
