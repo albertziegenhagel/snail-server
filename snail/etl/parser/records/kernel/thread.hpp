@@ -134,4 +134,41 @@ private:
     mutable std::optional<std::size_t> thread_name_length;
 };
 
+// `CSwitch_V4:Thread_V4` from wmicore.mof in WDK 10.0.22621.0
+struct thread_v4_context_switch_event_view : private extract_view_dynamic_base
+{
+    static inline constexpr std::string_view event_name    = "Thread-ContextSwitch";
+    static inline constexpr std::uint16_t    event_version = 4;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_group{event_trace_group::thread, 36, "ContextSwitch"},
+    };
+
+    using extract_view_dynamic_base::buffer;
+    using extract_view_dynamic_base::extract_view_dynamic_base;
+
+    inline auto new_thread_id() const { return extract<std::uint32_t>(dynamic_offset(0, 0)); }
+    inline auto old_thread_id() const { return extract<std::uint32_t>(dynamic_offset(4, 0)); }
+
+    inline auto new_thread_priority() const { return extract<std::int8_t>(dynamic_offset(8, 0)); }
+    inline auto old_thread_priority() const { return extract<std::int8_t>(dynamic_offset(9, 0)); }
+
+    inline auto previous_c_state() const { return extract<std::uint8_t>(dynamic_offset(10, 0)); }
+
+    inline auto spare_byte() const { return extract<std::int8_t>(dynamic_offset(11, 0)); }
+
+    inline auto old_thread_wait_reason() const { return extract<std::int8_t>(dynamic_offset(12, 0)); }
+
+    inline auto thread_flags() const { return extract<std::int8_t>(dynamic_offset(13, 0)); }
+
+    inline auto old_thread_state() const { return extract<std::int8_t>(dynamic_offset(14, 0)); }
+
+    inline auto old_thread_wait_ideal_processor() const { return extract<std::int8_t>(dynamic_offset(15, 0)); }
+
+    inline auto new_thread_wait_time() const { return extract<std::uint32_t>(dynamic_offset(16, 0)); }
+
+    inline auto reserved() const { return extract<std::uint32_t>(dynamic_offset(20, 0)); }
+
+    inline std::size_t dynamic_size() const { return dynamic_offset(24, 0); }
+};
+
 } // namespace snail::etl::parser
