@@ -104,6 +104,7 @@ void print_usage(std::string_view application_path)
               << "  --stacks         Print stack events.\n"
               << "  --config-ex      Print XPerf extended config events.\n"
               << "  --vs-diag        Print events from the VS Diagnostics Hub.\n"
+              << "  --snail          Print events from the Snail profiling tool.\n"
               << "  --pid <pid>      Process ID of the process of interest. Pass 'any' to show\n"
               << "                   information for all processes.\n"
               << "  --only <event>   Print only events that match the given names.\n"
