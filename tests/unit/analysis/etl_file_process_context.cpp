@@ -576,7 +576,10 @@ static const etl::etl_file::header_data file_header = {
     .qpc_frequency        = 10,
     .pointer_size         = 8,
     .number_of_processors = 12,
-    .number_of_buffers    = 42};
+    .number_of_buffers    = 42,
+    .buffer_size          = 0xFFFF + 1,
+    .log_file_mode        = {},
+    .compression_format   = common::ms_xca_compression_format::none};
 
 } // namespace
 

@@ -450,6 +450,9 @@ int main(int argc, char* argv[])
     std::cout << std::format("  pointer_size:         {}\n", file.header().pointer_size);
     std::cout << std::format("  number_of_processors: {}\n", file.header().number_of_processors);
     std::cout << std::format("  number_of_buffers:    {}\n", file.header().number_of_buffers);
+    std::cout << std::format("  buffer_size:          {}\n", file.header().buffer_size);
+    std::cout << std::format("  log_file_mode:        {}\n", file.header().log_file_mode.data().to_string());
+    std::cout << std::format("  compression_format:   {}\n", (int)file.header().compression_format);
 
     counting_event_observer observer;
 
@@ -537,9 +540,9 @@ int main(int argc, char* argv[])
         std::cout << std::format("    clock:            {}\n", buffer_header.wnode().clock());
         std::cout << std::format("    processor_index:  {}\n", buffer_header.wnode().client_context().processor_index());
         std::cout << std::format("    logger_id:        {}\n", buffer_header.wnode().client_context().logger_id());
-        std::cout << std::format("    state:            {}\n", (int)buffer_header.wnode().state());
+        std::cout << std::format("    state:            {}\n", buffer_header.wnode().state());
         std::cout << std::format("    offset:           {}\n", buffer_header.offset());
-        std::cout << std::format("    buffer_flag:      {}\n", buffer_header.buffer_flag());
+        std::cout << std::format("    buffer_flag:      {}\n", buffer_header.buffer_flag().data().to_string());
         std::cout << std::format("    buffer_type:      {}\n", (int)buffer_header.buffer_type());
         std::cout << std::format("    start_time:       {}\n", buffer_header.start_time());
         std::cout << std::format("    start_perf_clock: {}\n", buffer_header.start_perf_clock());
@@ -569,7 +572,7 @@ int main(int argc, char* argv[])
                 std::cout << std::format("    end_time:              {}\n", event.end_time());
                 std::cout << std::format("    timer_resolution:      {}\n", event.timer_resolution());
                 std::cout << std::format("    max_file_size:         {}\n", event.max_file_size());
-                std::cout << std::format("    log_file_mode:         {}\n", event.log_file_mode());
+                std::cout << std::format("    log_file_mode:         {}\n", event.log_file_mode().data().to_string());
                 std::cout << std::format("    buffers_written:       {}\n", event.buffers_written());
                 std::cout << std::format("    start_buffers:         {}\n", event.start_buffers());
                 std::cout << std::format("    pointer_size:          {}\n", event.pointer_size());

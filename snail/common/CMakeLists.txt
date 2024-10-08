@@ -10,6 +10,7 @@ target_sources(common
     system.cpp
     trim.cpp
     wildcard.cpp
+    ms_xca_decompression.cpp
 )
 
 target_link_libraries(common 
