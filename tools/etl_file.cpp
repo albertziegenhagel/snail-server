@@ -914,8 +914,6 @@ int main(int argc, char* argv[])
             {
                 assert(event.dynamic_size() == event.buffer().size());
 
-                assert(event.dynamic_size() == event.buffer().size());
-
                 const auto process_id = event.process_id();
                 const auto parent_id  = event.parent_id();
                 if(!options.all_processes &&
@@ -925,6 +923,27 @@ int main(int argc, char* argv[])
                 if(should_ignore(options, observer.current_event_name)) return;
 
                 std::cout << std::format("@{} {:30}: pid {} ppid {} filename '{}' cmd '{}' unique {} flags {} ...\n", header.timestamp, observer.current_event_name, process_id, parent_id, event.image_filename(), utf8::utf16to8(event.command_line()), event.unique_process_key(), event.flags());
+
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
+            });
+        register_known_event_names<etl::parser::process_v2_type_group2_event_view>(observer.known_group_event_names);
+        observer.register_event<etl::parser::process_v2_type_group2_event_view>(
+            [&options, &observer]([[maybe_unused]] const etl::etl_file::header_data&    file_header,
+                                  const etl::common_trace_header&                       header,
+                                  const etl::parser::process_v2_type_group2_event_view& event)
+            {
+                assert(event.dynamic_size() == event.buffer().size());
+
+                const auto process_id = event.process_id();
+                if(!options.all_processes && process_id != options.process_of_interest) return;
+
+                if(should_ignore(options, observer.current_event_name)) return;
+
+                std::cout << std::format("@{} {:30}: pid {} page fault {} handle count {} peak virt {} peak work {} peak pagefile {} virt {} work {} pagefile {} priv page count {} ...\n", header.timestamp, observer.current_event_name, process_id,
+                                         event.page_fault_count(), event.handle_count(),
+                                         event.peak_virtual_size(), event.peak_working_set_size(), event.peak_pagefile_usage(),
+                                         event.virtual_size(), event.working_set_size(), event.pagefile_usage(), event.private_page_count());
 
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
