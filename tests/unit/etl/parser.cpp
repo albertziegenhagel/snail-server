@@ -433,6 +433,48 @@ TEST(EtlParser, Kernel_StackwalkV2StackEventView)
     EXPECT_EQ(*iter7, 18446735292148861325ULL);
 }
 
+TEST(EtlParser, Kernel_StackwalkV2KeyEventView)
+{
+    const std::array<std::uint8_t, 24> buffer = {
+        0x08, 0x78, 0x6c, 0xc9, 0x11, 0x00, 0x00, 0x00, 0x1c, 0x1e, 0x00, 0x00, 0x38, 0x17, 0x00, 0x00,
+        0xa0, 0xbd, 0x16, 0x65, 0x0f, 0xba, 0xff, 0xff};
+
+    const auto event = etl::parser::stackwalk_v2_key_event_view(std::as_bytes(std::span(buffer)), 8);
+
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
+
+    EXPECT_EQ(event.event_timestamp(), 76393773064);
+    EXPECT_EQ(event.process_id(), 7708);
+    EXPECT_EQ(event.thread_id(), 5944);
+    EXPECT_EQ(event.stack_key(), 0xffff'ba0f'6516'bda0ULL);
+}
+
+TEST(EtlParser, Kernel_StackwalkV2TypeGroup1EventView)
+{
+    const std::array<std::uint8_t, 80> buffer = {
+        0xe0, 0x9b, 0x11, 0x65, 0x0f, 0xba, 0xff, 0xff, 0x41, 0x6d, 0x90, 0x8a, 0xf6, 0x7f, 0x00, 0x00,
+        0xf3, 0x20, 0xd4, 0x87, 0xf6, 0x7f, 0x00, 0x00, 0x6f, 0x1d, 0xd4, 0x87, 0xf6, 0x7f, 0x00, 0x00,
+        0x17, 0x08, 0x3b, 0x8a, 0xf6, 0x7f, 0x00, 0x00, 0xe6, 0x96, 0x8e, 0x89, 0xf6, 0x7f, 0x00, 0x00,
+        0x97, 0x00, 0x19, 0x89, 0xf6, 0x7f, 0x00, 0x00, 0xba, 0x7e, 0x50, 0x8b, 0xf6, 0x7f, 0x00, 0x00,
+        0x7d, 0x25, 0x7a, 0xba, 0xfe, 0x7f, 0x00, 0x00, 0x28, 0xaf, 0x56, 0xbb, 0xfe, 0x7f, 0x00, 0x00};
+
+    const auto event = etl::parser::stackwalk_v2_type_group1_event_view(std::as_bytes(std::span(buffer)), 8);
+
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
+
+    EXPECT_EQ(event.stack_key(), 0xffff'ba0f'6511'9be0ULL);
+    EXPECT_EQ(event.stack_size(), 9);
+    EXPECT_EQ(event.stack_address(0), 0x0000'7ff6'8a90'6d41ULL);
+    EXPECT_EQ(event.stack_address(1), 0x0000'7ff6'87d4'20f3ULL);
+    EXPECT_EQ(event.stack_address(2), 0x0000'7ff6'87d4'1d6fULL);
+    EXPECT_EQ(event.stack_address(3), 0x0000'7ff6'8a3b'0817ULL);
+    EXPECT_EQ(event.stack_address(4), 0x0000'7ff6'898e'96e6ULL);
+    EXPECT_EQ(event.stack_address(5), 0x0000'7ff6'8919'0097ULL);
+    EXPECT_EQ(event.stack_address(6), 0x0000'7ff6'8b50'7ebaULL);
+    EXPECT_EQ(event.stack_address(7), 0x0000'7ffe'ba7a'257dULL);
+    EXPECT_EQ(event.stack_address(8), 0x0000'7ffe'bb56'af28ULL);
+}
+
 TEST(EtlParser, Kernel_ImageV2LoadEventView)
 {
     const std::array<std::uint8_t, 124> buffer = {

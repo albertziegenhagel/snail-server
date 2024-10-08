@@ -688,6 +688,47 @@ int main(int argc, char* argv[])
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
+        register_known_event_names<etl::parser::stackwalk_v2_key_event_view>(observer.known_group_event_names);
+        observer.register_event<etl::parser::stackwalk_v2_key_event_view>(
+            [&options, &observer, &stack_count]([[maybe_unused]] const etl::etl_file::header_data& file_header,
+                                                [[maybe_unused]] const etl::common_trace_header&   header,
+                                                const etl::parser::stackwalk_v2_key_event_view&    event)
+            {
+                assert(event.dynamic_size() == event.buffer().size());
+
+                const auto process_id = event.process_id();
+                if(!options.all_processes && process_id != options.process_of_interest) return;
+
+                ++stack_count;
+
+                if(!options.show_stacks) return;
+
+                if(should_ignore(options, observer.current_event_name)) return;
+
+                std::cout << std::format("@{} {:30}: event time {} pid {} tid {} key {:#018x}\n", header.timestamp, observer.current_event_name, event.event_timestamp(), event.process_id(), event.thread_id(), event.stack_key());
+
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
+            });
+        register_known_event_names<etl::parser::stackwalk_v2_type_group1_event_view>(observer.known_group_event_names);
+        observer.register_event<etl::parser::stackwalk_v2_type_group1_event_view>(
+            [&options, &observer, &stack_count]([[maybe_unused]] const etl::etl_file::header_data&      file_header,
+                                                [[maybe_unused]] const etl::common_trace_header&        header,
+                                                const etl::parser::stackwalk_v2_type_group1_event_view& event)
+            {
+                assert(event.dynamic_size() == event.buffer().size());
+
+                if(!options.all_processes) return;
+
+                if(!options.show_stacks) return;
+
+                if(should_ignore(options, observer.current_event_name)) return;
+
+                std::cout << std::format("@{} {:30}: key {:#018x} count {}\n", header.timestamp, observer.current_event_name, event.stack_key(), event.stack_size());
+
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
+            });
         register_known_event_names<etl::parser::perfinfo_v2_sampled_profile_event_view>(observer.known_group_event_names);
         observer.register_event<etl::parser::perfinfo_v2_sampled_profile_event_view>(
             [&options, &observer, &sample_count, &thread_to_process]([[maybe_unused]] const etl::etl_file::header_data&                          file_header,
