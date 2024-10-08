@@ -97,6 +97,45 @@ private:
     mutable std::vector<std::optional<std::size_t>> counter_name_lengths;
 };
 
+// or `CounterCorruptionStatus` from wmicore.mof in WDK 10.0.22621.0
+struct counter_corruption_status : private extract_view_base
+{
+    using extract_view_base::buffer;
+    using extract_view_base::extract_view_base;
+
+    inline auto profile_source() const { return extract<std::uint32_t>(0); }
+
+    inline auto last_known_good_timestamp() const { return extract<std::uint64_t>(4); }
+
+    static inline constexpr std::size_t static_size = 12;
+
+    inline std::size_t dynamic_size() const { return static_size; }
+};
+
+// or `PmcCounterCorruption_V2:PerfInfo_V2` from wmicore.mof in WDK 10.0.22621.0
+struct perfinfo_v2_pmc_counter_corruption_event_view : private extract_view_dynamic_base
+{
+    static inline constexpr std::string_view event_name    = "PerfInfo-PmcCounterCorruption";
+    static inline constexpr std::uint16_t    event_version = 2;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_group{event_trace_group::perfinfo, 49, "PmcCounterCorruption"}
+    };
+
+    using extract_view_dynamic_base::buffer;
+    using extract_view_dynamic_base::extract_view_dynamic_base;
+
+    inline auto processor_number() const { return extract<std::uint32_t>(dynamic_offset(0, 0)); }
+
+    inline auto counter_count() const { return extract<std::uint32_t>(dynamic_offset(4, 0)); }
+
+    inline auto counter_status(std::size_t i) const
+    {
+        return counter_corruption_status(buffer().subspan(dynamic_offset(8, 0) + i * counter_corruption_status::static_size, counter_corruption_status::static_size));
+    }
+
+    inline std::size_t dynamic_size() const { return dynamic_offset(8 + counter_count() * counter_corruption_status::static_size, 0); }
+};
+
 // `SampledProfileInterval_V3:PerfInfo` from wmicore.mof in WDK 10.0.22621.0
 struct perfinfo_v3_sampled_profile_interval_event_view : private extract_view_dynamic_base
 {
