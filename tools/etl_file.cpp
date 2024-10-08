@@ -820,7 +820,7 @@ int main(int argc, char* argv[])
 
                 if(should_ignore(options, observer.current_event_name)) return;
 
-                std::cout << std::format("@{} {:30}: pid {} tid {} ...\n", header.timestamp, observer.current_event_name, process_id, event.thread_id());
+                std::cout << std::format("@{} {:30}: pid {} tid {} name '{}'...\n", header.timestamp, observer.current_event_name, process_id, event.thread_id(), event.thread_name() ? utf8::utf16to8(*event.thread_name()) : "<none>");
 
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
