@@ -54,6 +54,8 @@ etl_file_process_context::etl_file_process_context()
     register_event<etl::parser::perfinfo_v2_pmc_counter_profile_event_view>();
     register_event<etl::parser::perfinfo_v3_sampled_profile_interval_event_view>();
     register_event<etl::parser::stackwalk_v2_stack_event_view>();
+    register_event<etl::parser::stackwalk_v2_key_event_view>();
+    register_event<etl::parser::stackwalk_v2_type_group1_event_view>();
     register_event<etl::parser::image_id_v2_dbg_id_pdb_info_event_view>();
     register_event<etl::parser::vs_diagnostics_hub_target_profiling_started_event_view>();
     register_event<etl::parser::snail_profiler_profile_target_event_view>();
@@ -169,7 +171,8 @@ void etl_file_process_context::finish()
     {
         for(const auto& [tid, samples] : samples_per_thread_id_)
         {
-            if(samples.empty()) continue;
+            assert(samples != nullptr);
+            if(samples->empty()) continue;
             sample_source_names_[default_timer_pmc_source] = utf8::utf8to16(std::format("Unknown ({})", default_timer_pmc_source));
             break;
         }
@@ -179,12 +182,15 @@ void etl_file_process_context::finish()
         for(const auto& storage : sample_storages)
         {
             if(sample_source_names_.contains(storage.source)) continue;
-            if(storage.samples.empty()) continue;
+            assert(storage.samples != nullptr);
+            if(storage.samples->empty()) continue;
             sample_source_names_[storage.source] = utf8::utf8to16(std::format("Unknown ({})", storage.source));
             break;
         }
     }
 
+    // In case we did not have any events that explicitly specify processes that were the profiling
+    // targets, just take all processes that have samples.
     if(profiler_processes_.empty())
     {
         for(auto& [id, entries] : processes.all_entries())
@@ -200,7 +206,7 @@ void etl_file_process_context::finish()
 
                     {
                         auto iter = samples_per_thread_id_.find(thread->id);
-                        if(iter != samples_per_thread_id_.end() && !iter->second.empty())
+                        if(iter != samples_per_thread_id_.end() && !iter->second->empty())
                         {
                             has_samples = true;
                             break;
@@ -456,8 +462,9 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
 {
     const auto thread_id      = event.thread_id();
     auto&      thread_samples = samples_per_thread_id_[thread_id];
+    if(thread_samples == nullptr) thread_samples = std::make_unique<std::vector<sample_info>>();
 
-    thread_samples.push_back(sample_info{
+    thread_samples->push_back(sample_info{
         .thread_id           = thread_id,
         .timestamp           = header.timestamp,
         .instruction_pointer = event.instruction_pointer(),
@@ -484,10 +491,12 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
         if(iter == thread_sample_storages.end())
         {
             thread_sample_storages.emplace_back();
-            thread_sample_storages.back().source = profile_source;
-            return thread_sample_storages.back().samples;
+            thread_sample_storages.back().source  = profile_source;
+            thread_sample_storages.back().samples = std::make_unique<std::vector<sample_info>>();
+            return *thread_sample_storages.back().samples;
         }
-        return iter->samples;
+        assert(iter->samples != nullptr);
+        return *iter->samples;
     }();
 
     samples.push_back(sample_info{
@@ -526,7 +535,7 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data&   
     const auto attach_stack_to_samples = [this, &file_header, &header, &event, sample_timestamp](std::vector<sample_info>& samples) -> bool
     {
         // Try to find the sample for this stack by walking the last samples
-        // backwards. We expect that we there shouldn't be to many events
+        // backwards. We expect that there shouldn't be to many events
         // between the sample and its corresponding stacks.
         for(auto& sample : std::views::reverse(samples))
         {
@@ -558,7 +567,8 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data&   
     auto regular_samples_iter = samples_per_thread_id_.find(thread_id);
     if(regular_samples_iter != samples_per_thread_id_.end())
     {
-        const auto success = attach_stack_to_samples(regular_samples_iter->second);
+        assert(regular_samples_iter->second != nullptr);
+        const auto success = attach_stack_to_samples(*regular_samples_iter->second);
         if(success) sources_with_stacks_.insert(default_timer_pmc_source);
     }
 
@@ -568,9 +578,109 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data&   
 
     for(auto& [pmc_source, thread_samples] : pmc_samples_iter->second)
     {
-        const auto success = attach_stack_to_samples(thread_samples);
+        assert(thread_samples != nullptr);
+        const auto success = attach_stack_to_samples(*thread_samples);
         if(success) sources_with_stacks_.insert(pmc_source);
     }
+}
+
+void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
+                                            [[maybe_unused]] const etl::common_trace_header& header,
+                                            const etl::parser::stackwalk_v2_key_event_view&  event)
+{
+    const auto thread_id = event.thread_id();
+
+    const auto sample_timestamp = event.event_timestamp();
+
+    // We expect the samples to arrive before their stacks.
+    assert(sample_timestamp <= header.timestamp);
+
+    const auto is_kernel_stack = header.type == 37;
+
+    const auto remember_samples_for_stack = [this, &header, &event, sample_timestamp, is_kernel_stack](std::vector<sample_info>& samples) -> bool
+    {
+        // Try to find the sample for this stack reference by walking the last samples
+        // backwards. We expect that there shouldn't be to many events
+        // between the sample and its corresponding stacks.
+        for(auto sample_iter = samples.rbegin(); sample_iter != samples.rend(); ++sample_iter)
+        {
+            auto& sample = *sample_iter;
+            if(sample.timestamp < sample_timestamp) break;
+            if(sample.timestamp > sample_timestamp) continue;
+
+            assert(sample.timestamp == sample_timestamp);
+
+            auto& cached_samples = cached_samples_per_stack_key_[event.stack_key()];
+
+            // remember the sample, so that we can fill in the stack later
+            cached_samples.push_back(sample_stack_ref{
+                .samples               = &samples,
+                .sample_index          = samples.size() - (sample_iter - samples.rbegin()) - 1,
+                .is_kernel_stack       = is_kernel_stack,
+                .stack_event_timestamp = header.timestamp});
+
+            return true;
+        }
+        return false;
+    };
+
+    // First try to remember matching regular samples
+    auto regular_samples_iter = samples_per_thread_id_.find(thread_id);
+    if(regular_samples_iter != samples_per_thread_id_.end())
+    {
+        assert(regular_samples_iter->second != nullptr);
+        const auto success = remember_samples_for_stack(*regular_samples_iter->second);
+        if(success) sources_with_stacks_.insert(default_timer_pmc_source);
+    }
+
+    // Then, additionally try to remember to all matching PMC samples
+    auto pmc_samples_iter = pmc_samples_per_thread_id_.find(thread_id);
+    if(pmc_samples_iter == pmc_samples_per_thread_id_.end()) return;
+
+    for(auto& [pmc_source, thread_samples] : pmc_samples_iter->second)
+    {
+        assert(thread_samples != nullptr);
+        const auto success = remember_samples_for_stack(*thread_samples);
+        if(success) sources_with_stacks_.insert(pmc_source);
+    }
+}
+
+void etl_file_process_context::handle_event(const etl::etl_file::header_data&                       file_header,
+                                            [[maybe_unused]] const etl::common_trace_header&        header,
+                                            const etl::parser::stackwalk_v2_type_group1_event_view& event)
+{
+    if(header.type == 34) return; // Not sure what to do with a 'create' event. Are they ever emitted?
+
+    // check whether we remembered any samples that require this stack
+    auto iter = cached_samples_per_stack_key_.find(event.stack_key());
+    if(iter == cached_samples_per_stack_key_.end()) return;
+
+    // insert the new stack into our own cache
+    const auto new_stack_index = stacks.insert(event.stack());
+
+    [[maybe_unused]] const auto starts_in_kernel = is_kernel_address(event.stack().back(), file_header.pointer_size);
+
+    // and apply it to all the samples that have been remembered for it
+    for(const auto& sample_ref : iter->second)
+    {
+        auto& sample = (*sample_ref.samples)[sample_ref.sample_index];
+        if(sample_ref.is_kernel_stack)
+        {
+            assert(starts_in_kernel);
+            sample.kernel_mode_stack = new_stack_index;
+            sample.kernel_timestamp  = sample_ref.stack_event_timestamp;
+        }
+        else
+        {
+            assert(!starts_in_kernel);
+            assert(sample.user_mode_stack == std::nullopt);
+            sample.user_mode_stack = new_stack_index;
+            sample.user_timestamp  = sample_ref.stack_event_timestamp;
+        }
+    }
+
+    // now, delete the remembered samples for this stack key (since the key could be reused for a new stack).
+    cached_samples_per_stack_key_.erase(iter);
 }
 
 void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
@@ -622,7 +732,8 @@ std::span<const etl_file_process_context::sample_info> etl_file_process_context:
             {
                 auto iter2 = samples_per_thread_id_.find(thread_id);
                 if(iter2 == samples_per_thread_id_.end()) return {};
-                return std::span(iter2->second);
+                assert(iter2->second != nullptr);
+                return std::span(*iter2->second);
             }
             return {};
         }
@@ -637,11 +748,13 @@ std::span<const etl_file_process_context::sample_info> etl_file_process_context:
             {
                 auto iter3 = samples_per_thread_id_.find(thread_id);
                 if(iter3 == samples_per_thread_id_.end()) return {};
-                return std::span(iter3->second);
+                assert(iter3->second != nullptr);
+                return std::span(*iter3->second);
             }
             return {};
         }
-        return std::span(iter2->samples);
+        assert(iter2->samples != nullptr);
+        return std::span(*iter2->samples);
     }();
 
     if(samples.empty()) return {};

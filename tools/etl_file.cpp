@@ -712,9 +712,9 @@ int main(int argc, char* argv[])
             });
         register_known_event_names<etl::parser::stackwalk_v2_type_group1_event_view>(observer.known_group_event_names);
         observer.register_event<etl::parser::stackwalk_v2_type_group1_event_view>(
-            [&options, &observer, &stack_count]([[maybe_unused]] const etl::etl_file::header_data&      file_header,
-                                                [[maybe_unused]] const etl::common_trace_header&        header,
-                                                const etl::parser::stackwalk_v2_type_group1_event_view& event)
+            [&options, &observer]([[maybe_unused]] const etl::etl_file::header_data&      file_header,
+                                  [[maybe_unused]] const etl::common_trace_header&        header,
+                                  const etl::parser::stackwalk_v2_type_group1_event_view& event)
             {
                 assert(event.dynamic_size() == event.buffer().size());
 

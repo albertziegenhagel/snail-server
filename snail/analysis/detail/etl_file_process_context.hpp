@@ -36,6 +36,8 @@ struct perfinfo_v2_sampled_profile_event_view;
 struct perfinfo_v2_pmc_counter_profile_event_view;
 struct perfinfo_v3_sampled_profile_interval_event_view;
 struct stackwalk_v2_stack_event_view;
+struct stackwalk_v2_key_event_view;
+struct stackwalk_v2_type_group1_event_view;
 struct image_id_v2_dbg_id_pdb_info_event_view;
 struct vs_diagnostics_hub_target_profiling_started_event_view;
 struct snail_profiler_profile_target_event_view;
@@ -164,6 +166,8 @@ private:
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::perfinfo_v2_pmc_counter_profile_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::perfinfo_v3_sampled_profile_interval_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::stackwalk_v2_stack_event_view& event);
+    void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::stackwalk_v2_key_event_view& event);
+    void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::stackwalk_v2_type_group1_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::image_id_v2_dbg_id_pdb_info_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::vs_diagnostics_hub_target_profiling_started_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::snail_profiler_profile_target_event_view& event);
@@ -193,15 +197,25 @@ private:
     std::unordered_map<os_pid_t, std::vector<pdb_info_storage>>        modules_pdb_info_per_process_id_;
     std::unordered_map<os_pid_t, module_map<module_data, timestamp_t>> modules_per_process_id_;
 
-    std::unordered_map<os_tid_t, std::vector<sample_info>> samples_per_thread_id_;
+    std::unordered_map<os_tid_t, std::unique_ptr<std::vector<sample_info>>> samples_per_thread_id_; // store as unique_ptr to allow stable references
 
     struct pmc_sample_storage
     {
-        sample_source_id_t       source;
-        std::vector<sample_info> samples;
+        sample_source_id_t                        source;
+        std::unique_ptr<std::vector<sample_info>> samples; // store as unique_ptr to allow stable references
     };
 
     std::unordered_map<os_tid_t, std::vector<pmc_sample_storage>> pmc_samples_per_thread_id_;
+
+    struct sample_stack_ref
+    {
+        std::vector<sample_info>* samples;
+        std::size_t               sample_index;
+        bool                      is_kernel_stack;
+        timestamp_t               stack_event_timestamp;
+    };
+
+    std::unordered_map<std::uint64_t, std::vector<sample_stack_ref>> cached_samples_per_stack_key_;
 
     std::unordered_map<sample_source_id_t, std::u16string> sample_source_names_;
     std::unordered_set<sample_source_id_t>                 sources_with_stacks_;
