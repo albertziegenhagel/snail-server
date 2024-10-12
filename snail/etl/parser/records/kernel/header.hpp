@@ -7,6 +7,8 @@
 #include <optional>
 #include <string>
 
+#include <snail/etl/parser/log_file_mode.hpp>
+
 #include <snail/etl/parser/extract.hpp>
 #include <snail/etl/parser/records/identifier.hpp>
 #include <snail/etl/parser/utility.hpp>
@@ -45,7 +47,7 @@ struct event_trace_v2_header_event_view : private extract_view_dynamic_base
     inline auto end_time() const { return extract<std::uint64_t>(dynamic_offset(16, 0)); }
     inline auto timer_resolution() const { return extract<std::uint32_t>(dynamic_offset(24, 0)); }
     inline auto max_file_size() const { return extract<std::uint32_t>(dynamic_offset(28, 0)); }
-    inline auto log_file_mode() const { return extract<std::uint32_t>(dynamic_offset(32, 0)); }
+    inline auto log_file_mode() const { return log_file_mode_flags(extract<std::uint32_t>(dynamic_offset(32, 0))); }
     inline auto buffers_written() const { return extract<std::uint32_t>(dynamic_offset(36, 0)); }
     inline auto start_buffers() const { return extract<std::uint32_t>(dynamic_offset(40, 0)); }
     inline auto pointer_size() const { return extract<std::uint32_t>(dynamic_offset(44, 0)); }

@@ -7,7 +7,9 @@
 #include <span>
 
 #include <snail/common/date_time.hpp>
+#include <snail/common/ms_xca_compression_format.hpp>
 
+#include <snail/etl/parser/log_file_mode.hpp>
 #include <snail/etl/parser/trace_headers/fwd.hpp>
 
 namespace snail::etl {
@@ -36,6 +38,12 @@ public:
         std::uint32_t number_of_processors;
 
         std::uint32_t number_of_buffers;
+
+        std::uint32_t buffer_size;
+
+        parser::log_file_mode_flags log_file_mode;
+
+        common::ms_xca_compression_format compression_format;
     };
 
     etl_file() = default;

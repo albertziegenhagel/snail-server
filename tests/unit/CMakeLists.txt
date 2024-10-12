@@ -5,6 +5,7 @@ add_test_executable(common
     common/chunked_reader.cpp
     common/parser.cpp
     common/utility.cpp
+    common/compression.cpp
   DEPENDENCIES
     common
 )
