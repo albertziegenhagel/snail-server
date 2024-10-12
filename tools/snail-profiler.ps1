@@ -8,7 +8,10 @@ function Start-Profiling {
         [string]$OutputName = 'profile',
 
         [Parameter()]
-        [string[]]$Pmc = @(),
+        [string[]]$PmcProfile = @(),
+
+        [Parameter()]
+        [string[]]$PmcCount = @(),
 
         [Parameter(Position = 0, ValueFromRemainingArguments)]
         [string[]]$Command,
@@ -44,24 +47,27 @@ function Start-Profiling {
     $kernelEvents = @(
         'PROC_THREAD',
         'LOADER',
-        'PROFILE'
+        'PROFILE',
+        'PERF_COUNTER'
     )
 
     $pmcArgs = @()
-    if ($Pmc.Count -gt 0) {
+    if ($PmcProfile.Count -gt 0) {
         $kernelEvents += 'PMC_PROFILE'
         $pmcArgs += '-PmcProfile'
-        $pmcArgs += $Pmc -join ','
-        foreach ($counterName in $Pmc) {
+        $pmcArgs += $PmcProfile -join ','
+        foreach ($counterName in $PmcProfile) {
             $pmcArgs += '-SetProfInt'
             $pmcArgs += $counterName
             $pmcArgs += $counterInterval
         }
-        # $kernelEvents += 'CSWITCH'
-        # $pmcArgs += '-Pmc'
-        # $pmcArgs += $Pmc -join ','
-        # $pmcArgs += 'CSWITCH'
-        # $pmcArgs += 'strict'
+    }
+    if ($PmcCount.Count -gt 0) {
+        $kernelEvents += 'CSWITCH'
+        $pmcArgs += '-Pmc'
+        $pmcArgs += $PmcCount -join ','
+        $pmcArgs += 'CSWITCH'
+        $pmcArgs += 'strict'
     }
 
     $kernelEventsArg = $kernelEvents -join '+'
