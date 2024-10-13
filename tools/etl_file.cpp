@@ -104,6 +104,7 @@ void print_usage(std::string_view application_path)
               << "  --stacks         Print stack events.\n"
               << "  --config-ex      Print XPerf extended config events.\n"
               << "  --vs-diag        Print events from the VS Diagnostics Hub.\n"
+              << "  --snail          Print events from the Snail profiling tool.\n"
               << "  --pid <pid>      Process ID of the process of interest. Pass 'any' to show\n"
               << "                   information for all processes.\n"
               << "  --only <event>   Print only events that match the given names.\n"
@@ -512,6 +513,7 @@ int main(int argc, char* argv[])
                        [[maybe_unused]] const etl::any_guid_trace_header& header,
                        const std::span<const std::byte>&                  event_data)
             {
+                if(!options.only.empty()) return;
                 if(options.dump_events) common::detail::dump_buffer(event_data, 0, event_data.size(), "event");
             });
         observer.register_unknown_event(
@@ -519,6 +521,7 @@ int main(int argc, char* argv[])
                        [[maybe_unused]] const etl::any_group_trace_header& header,
                        const std::span<const std::byte>&                   event_data)
             {
+                if(!options.only.empty()) return;
                 if(options.dump_events) common::detail::dump_buffer(event_data, 0, event_data.size(), "event");
             });
     }
@@ -817,7 +820,7 @@ int main(int argc, char* argv[])
 
                 if(should_ignore(options, observer.current_event_name)) return;
 
-                std::cout << std::format("@{} {:30}: pid {} tid {} ...\n", header.timestamp, observer.current_event_name, process_id, event.thread_id());
+                std::cout << std::format("@{} {:30}: pid {} tid {} name '{}'...\n", header.timestamp, observer.current_event_name, process_id, event.thread_id(), event.thread_name() ? utf8::utf16to8(*event.thread_name()) : "<none>");
 
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
