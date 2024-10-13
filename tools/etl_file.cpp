@@ -904,6 +904,50 @@ int main(int argc, char* argv[])
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
+
+        register_known_event_names<etl::parser::thread_v4_context_switch_event_view>(observer.known_group_event_names);
+        observer.register_event<etl::parser::thread_v4_context_switch_event_view>(
+            [&options, &observer, &thread_to_process]([[maybe_unused]] const etl::etl_file::header_data&      file_header,
+                                                      const etl::any_group_trace_header&                      header_variant,
+                                                      const etl::parser::thread_v4_context_switch_event_view& event)
+            {
+                assert(event.dynamic_size() == event.buffer().size());
+
+                const auto old_thread_id  = event.old_thread_id();
+                auto       old_process_id = thread_to_process.find(old_thread_id);
+                const auto new_thread_id  = event.new_thread_id();
+                auto       new_process_id = thread_to_process.find(new_thread_id);
+
+                const auto found_old_process = old_process_id != thread_to_process.end();
+                const auto found_new_process = new_process_id != thread_to_process.end();
+
+                const auto old_process_of_interest = options.process_of_interest && found_old_process && old_process_id->second == *options.process_of_interest;
+                const auto new_process_of_interest = options.process_of_interest && found_new_process && new_process_id->second == *options.process_of_interest;
+
+                if(!options.all_processes && !old_process_of_interest && !new_process_of_interest) return;
+
+                if(should_ignore(options, observer.current_event_name)) return;
+
+                const auto header = etl::make_common_trace_header(header_variant);
+
+                std::cout << std::format("@{} {:30}: old tid {} new tid {}", header.timestamp, observer.current_event_name, old_thread_id, new_thread_id);
+                const auto* perfinfo_header = std::get_if<etl::parser::perfinfo_trace_header_view>(&header_variant);
+                if(perfinfo_header)
+                {
+                    if(perfinfo_header->has_ext_pebs())
+                    {
+                        std::cout << std::format(" ext pebs {:#018x}", perfinfo_header->ext_pebs());
+                    }
+                    for(std::size_t counter_index = 0; counter_index < perfinfo_header->ext_pmc_count(); ++counter_index)
+                    {
+                        std::cout << std::format(" ext pmc {} {}", counter_index, perfinfo_header->ext_pmc(counter_index));
+                    }
+                }
+                std::cout << "\n";
+
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
+            });
     }
 
     // Kernel: image

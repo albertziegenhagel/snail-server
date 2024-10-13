@@ -606,6 +606,30 @@ TEST(EtlParser, Kernel_ThreadV4TypeGroup1EventView)
     EXPECT_EQ(event.thread_name(), std::u16string(u"Idle Thread"));
 }
 
+TEST(EtlParser, Kernel_ThreadV4ContextSwitchEventView)
+{
+    const std::array<std::uint8_t, 24> buffer = {
+        0xc0, 0x3b, 0x00, 0x00, 0x48, 0x55, 0x00, 0x00, 0x09, 0x08, 0x00, 0x00, 0x1f, 0x00, 0x01, 0x02,
+        0x1f, 0x00, 0x00, 0x00, 0x85, 0x53, 0x00, 0x00};
+
+    const auto event = etl::parser::thread_v4_context_switch_event_view(std::as_bytes(std::span(buffer)), 8);
+
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
+
+    EXPECT_EQ(event.new_thread_id(), 15296);
+    EXPECT_EQ(event.old_thread_id(), 21832);
+    EXPECT_EQ(event.new_thread_priority(), 9);
+    EXPECT_EQ(event.old_thread_priority(), 8);
+    EXPECT_EQ(event.previous_c_state(), 0);
+    EXPECT_EQ(event.spare_byte(), 0);
+    EXPECT_EQ(event.old_thread_wait_reason(), 31);
+    EXPECT_EQ(event.thread_flags(), 0);
+    EXPECT_EQ(event.old_thread_state(), 1);
+    EXPECT_EQ(event.old_thread_wait_ideal_processor(), 2);
+    EXPECT_EQ(event.new_thread_wait_time(), 31);
+    EXPECT_EQ(event.reserved(), 21381);
+}
+
 TEST(EtlParser, Kernel_ThreadV2SetNameEventView)
 {
     const std::array<std::uint8_t, 70> buffer = {

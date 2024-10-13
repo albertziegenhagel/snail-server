@@ -398,13 +398,15 @@ common::generator<analysis::thread_info> perf_data_data_provider::threads_info(u
         if(thread == nullptr) continue;
 
         co_yield analysis::thread_info{
-            .unique_id  = thread_id,
-            .os_id      = thread->id,
-            .name       = thread->payload.name,
-            .start_time = from_relative_timestamps<std::chrono::nanoseconds>(thread->timestamp, session_start_time_),
-            .end_time   = thread->payload.end_time ?
-                              from_relative_timestamps<std::chrono::nanoseconds>(*thread->payload.end_time, session_start_time_) :
-                              process.end_time};
+            .unique_id        = thread_id,
+            .os_id            = thread->id,
+            .name             = thread->payload.name,
+            .start_time       = from_relative_timestamps<std::chrono::nanoseconds>(thread->timestamp, session_start_time_),
+            .end_time         = thread->payload.end_time ?
+                                    from_relative_timestamps<std::chrono::nanoseconds>(*thread->payload.end_time, session_start_time_) :
+                                    process.end_time,
+            .context_switches = {}, // TODO: get correct values
+            .counters         = {}};
     }
 }
 

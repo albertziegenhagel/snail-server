@@ -36,6 +36,11 @@ inline void set_at(std::span<std::byte> buffer, std::size_t bytes_offset, std::u
     destination[value.size()] = '\0';
 }
 
+inline void set_at(std::span<std::byte> buffer, std::size_t bytes_offset, const std::u16string& value)
+{
+    set_at(buffer, bytes_offset, std::u16string_view(value));
+}
+
 inline void set_at(std::span<std::byte> buffer, std::size_t bytes_offset, const common::guid& value)
 {
     set_at(buffer, bytes_offset, value.data_1);

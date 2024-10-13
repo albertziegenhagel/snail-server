@@ -31,10 +31,12 @@ struct system_config_ex_v0_system_paths_event_view;
 struct system_config_ex_v0_volume_mapping_event_view;
 struct process_v4_type_group1_event_view;
 struct thread_v3_type_group1_event_view;
+struct thread_v4_context_switch_event_view;
 struct image_v3_load_event_view;
 struct perfinfo_v2_sampled_profile_event_view;
 struct perfinfo_v2_pmc_counter_profile_event_view;
 struct perfinfo_v3_sampled_profile_interval_event_view;
+struct perfinfo_v2_pmc_counter_config_event_view;
 struct stackwalk_v2_stack_event_view;
 struct stackwalk_v2_key_event_view;
 struct stackwalk_v2_type_group1_event_view;
@@ -84,6 +86,12 @@ public:
         std::optional<timestamp_t> end_time;
 
         std::optional<unique_thread_id> unique_id;
+
+        std::optional<std::u16string> name;
+
+        std::size_t context_switches = 0;
+
+        std::vector<std::size_t> pmc_counts;
 
         [[nodiscard]] friend bool operator==(const thread_data& lhs, const thread_data& rhs)
         {
@@ -148,6 +156,8 @@ public:
     std::optional<std::u16string_view> processor_name() const;
     std::optional<std::u16string_view> os_name() const;
 
+    std::optional<std::u16string_view> pmc_name(std::size_t counter_index) const;
+
 private:
     template<typename T>
     void register_event();
@@ -161,10 +171,12 @@ private:
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::system_config_ex_v0_volume_mapping_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::process_v4_type_group1_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::thread_v3_type_group1_event_view& event);
+    void handle_event(const etl::etl_file::header_data& file_header, const etl::any_group_trace_header& header_variant, const etl::parser::thread_v4_context_switch_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::image_v3_load_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::perfinfo_v2_sampled_profile_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::perfinfo_v2_pmc_counter_profile_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::perfinfo_v3_sampled_profile_interval_event_view& event);
+    void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::perfinfo_v2_pmc_counter_config_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::stackwalk_v2_stack_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::stackwalk_v2_key_event_view& event);
     void handle_event(const etl::etl_file::header_data& file_header, const etl::common_trace_header& header, const etl::parser::stackwalk_v2_type_group1_event_view& event);
@@ -220,10 +232,31 @@ private:
     std::unordered_map<sample_source_id_t, std::u16string> sample_source_names_;
     std::unordered_set<sample_source_id_t>                 sources_with_stacks_;
 
+    struct context_switch_data
+    {
+        std::uint64_t exit_count  = 0;
+        std::uint64_t enter_count = 0;
+
+        timestamp_t first_time;
+        timestamp_t last_time;
+
+        struct pmc_counter_info
+        {
+            std::uint64_t                total_count      = 0;
+            std::optional<std::uint64_t> prev_enter_count = std::nullopt;
+        };
+
+        std::vector<pmc_counter_info> pmc_counters_info;
+    };
+
+    std::unordered_map<os_tid_t, context_switch_data> last_context_switch_data_per_thread_id_;
+
     std::unordered_map<unique_process_id, std::set<unique_thread_id>> threads_per_process_;
 
     std::unordered_map<unique_process_id, process_key> unique_process_id_to_key_;
     std::unordered_map<unique_thread_id, thread_key>   unique_thread_id_to_key_;
+
+    std::vector<std::u16string> pmc_names_;
 
     stack_cache stacks;
 
