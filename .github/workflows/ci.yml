@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        run-on: [ubuntu-latest, windows-latest]
+        run-on: [ubuntu-22.04, windows-latest]
         compiler: [any]
         include:
           - run-on: windows-latest
@@ -27,12 +27,12 @@ jobs:
             arch: x86_64
             platform: windows
             compiler: msvc
-          - run-on: ubuntu-latest
+          - run-on: ubuntu-22.04
             triplet: x64-linux-release
             arch: x86_64
             platform: linux
             compiler: gcc
-          - run-on: ubuntu-latest
+          - run-on: ubuntu-22.04
             triplet: x64-linux-release
             arch: x86_64
             platform: linux

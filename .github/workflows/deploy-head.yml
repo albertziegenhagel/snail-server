@@ -17,7 +17,7 @@ jobs:
   check:
     name: "Check skip"
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     outputs:
       is_newer: ${{ steps.step1.outputs.result }}
 
@@ -43,7 +43,7 @@ jobs:
   tag:
     name: "Update tag"
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: check
     if: needs.check.outputs.is_newer == 1
 
@@ -59,7 +59,7 @@ jobs:
   assets:
     name: "Upload assets"
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: check
     if: needs.check.outputs.is_newer == 1
 
@@ -130,7 +130,7 @@ jobs:
   publish:
     name: "Puplish"
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs:
       - tag
       - assets
