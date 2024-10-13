@@ -522,6 +522,66 @@ void push_stack_event(const etl::etl_file::header_data& file_header,
     observer.handle(file_header, event_header, event_data.subspan(0, event_data_size));
 }
 
+void push_stack_key_event(const etl::etl_file::header_data& file_header,
+                          etl::event_observer&              observer,
+                          std::span<std::byte>              buffer,
+                          std::uint64_t                     timestamp,
+                          std::uint32_t                     thread_id,
+                          std::uint64_t                     event_timestamp,
+                          std::uint64_t                     stack_key,
+                          bool                              is_kernel_stack)
+{
+    std::ranges::fill(buffer, std::byte{});
+
+    const auto event_data = buffer.subspan(etl::parser::perfinfo_trace_header_view::static_size);
+
+    set_at(event_data, 0, event_timestamp);
+    set_at(event_data, 12, thread_id);
+    set_at(event_data, 16, stack_key);
+
+    const auto event_data_size = 16 + file_header.pointer_size;
+
+    assert(etl::parser::stackwalk_v2_key_event_view(event_data, file_header.pointer_size).event_timestamp() == event_timestamp);
+    assert(etl::parser::stackwalk_v2_key_event_view(event_data, file_header.pointer_size).thread_id() == thread_id);
+    assert(etl::parser::stackwalk_v2_key_event_view(event_data, file_header.pointer_size).stack_key() == stack_key);
+
+    const auto event_header = make_perfinfo_trace_header(file_header, buffer, timestamp, event_data_size,
+                                                         etl::parser::stackwalk_v2_key_event_view::event_version,
+                                                         etl::parser::event_trace_group::stackwalk,
+                                                         is_kernel_stack ? 37 : 38);
+
+    observer.handle(file_header, event_header, event_data.subspan(0, event_data_size));
+}
+
+void push_cached_stack_event(const etl::etl_file::header_data& file_header,
+                             etl::event_observer&              observer,
+                             std::span<std::byte>              buffer,
+                             std::uint64_t                     timestamp,
+                             std::uint64_t                     stack_key,
+                             std::vector<std::uint64_t>        stack,
+                             bool                              is_rundown)
+{
+    std::ranges::fill(buffer, std::byte{});
+
+    const auto event_data = buffer.subspan(etl::parser::perfinfo_trace_header_view::static_size);
+
+    set_at(event_data, 0, stack_key);
+    for(std::size_t i = 0; i < stack.size(); ++i)
+    {
+        set_at(event_data, file_header.pointer_size + i * file_header.pointer_size, stack[i]);
+    }
+    const auto event_data_size = file_header.pointer_size + stack.size() * file_header.pointer_size;
+
+    assert(etl::parser::stackwalk_v2_type_group1_event_view(event_data, file_header.pointer_size).stack_key() == stack_key);
+
+    const auto event_header = make_perfinfo_trace_header(file_header, buffer, timestamp, event_data_size,
+                                                         etl::parser::stackwalk_v2_type_group1_event_view::event_version,
+                                                         etl::parser::event_trace_group::stackwalk,
+                                                         is_rundown ? 36 : 35);
+
+    observer.handle(file_header, event_header, event_data.subspan(0, event_data_size));
+}
+
 void push_prof_started_event(const etl::etl_file::header_data& file_header,
                              etl::event_observer&              observer,
                              std::span<std::byte>              buffer,
@@ -1236,7 +1296,7 @@ TEST(EtlFileProcessContext, MixedSamplesStacks)
     const auto sample_source_name_2 = sample_sources.at(11);
     EXPECT_EQ(sample_source_name_2, std::u16string(u"BranchMispredictions"));
 
-    // Check samples for the "Timer" samples.
+    // Check samples for the "Timer" source.
     // We expect to get the PMC samples when both are present.
     const auto samples_1 = context.thread_samples(111, 10, std::nullopt, 0);
     EXPECT_EQ(samples_1.size(), 2);
@@ -1255,7 +1315,7 @@ TEST(EtlFileProcessContext, MixedSamplesStacks)
     EXPECT_EQ(context.stack(*samples_1[1].user_mode_stack), (std::vector<std::uint64_t>{0x9'101B, 0x9'101C, 0x9'101D}));
     EXPECT_EQ(samples_1[1].kernel_mode_stack, std::nullopt);
 
-    // Check samples for the "BranchMispredictions" samples.
+    // Check samples for the "BranchMispredictions" source.
     const auto samples_2 = context.thread_samples(111, 10, std::nullopt, 11);
     EXPECT_EQ(samples_2.size(), 1);
 
@@ -1265,6 +1325,137 @@ TEST(EtlFileProcessContext, MixedSamplesStacks)
     EXPECT_NE(samples_2[0].user_mode_stack, std::nullopt);
     EXPECT_EQ(context.stack(*samples_2[0].user_mode_stack), (std::vector<std::uint64_t>{0x5'678B, 0x5'678C, 0x5'678D}));
     EXPECT_EQ(samples_2[0].kernel_mode_stack, std::nullopt);
+}
+
+TEST(EtlFileProcessContext, MixedSamplesCachedStacks)
+{
+    etl_file_process_context context;
+
+    std::array<std::uint8_t, 1024> buffer;
+    const auto                     writable_bytes_buffer = std::as_writable_bytes(std::span(buffer));
+
+    // This tests is basically the same as the "MixedSamplesStacks" test. We do got rid
+    // of the duplicated Timer event source and use cached stack events.
+    // Some additional events have been introduced to better test the cached stack events.
+
+    push_sample_interval_event(file_header, context.observer(), writable_bytes_buffer,
+                               5, 0, u"Timer", true);
+    push_sample_interval_event(file_header, context.observer(), writable_bytes_buffer,
+                               5, 11, u"BranchMispredictions", true);
+
+    push_thread_event(file_header, context.observer(), writable_bytes_buffer,
+                      10, 123, 111, true);
+
+    // First "Timer" sample is present two times.
+    push_sample_event(file_header, context.observer(), writable_bytes_buffer,
+                      10, 111, 0x1'234A);
+    push_stack_key_event(file_header, context.observer(), writable_bytes_buffer,
+                         11, 111, 10, 1, false);
+    push_stack_key_event(file_header, context.observer(), writable_bytes_buffer,
+                         11, 111, 10, 2, true);
+
+    // Now an unrelated "BranchMispredictions" sample.
+    push_pmc_sample_event(file_header, context.observer(), writable_bytes_buffer,
+                          15, 111, 11, 0x5'678A);
+    push_stack_event(file_header, context.observer(), writable_bytes_buffer,
+                     15, 111, 15, {0x5'678B, 0x5'678C, 0x5'678D});
+
+    // Now, pretend the first and third stack get the deleted from the stack cache
+    push_cached_stack_event(file_header, context.observer(), writable_bytes_buffer,
+                            12, 1, {0x1'234B, 0x1'234C, 0x1'234D}, false);
+    push_cached_stack_event(file_header, context.observer(), writable_bytes_buffer,
+                            12, 3, {0x5'678B, 0x5'678C, 0x5'678D}, false);
+
+    // Another "Timer" event, using a new stack.
+    push_sample_event(file_header, context.observer(), writable_bytes_buffer,
+                      20, 111, 0x9'101A);
+    push_stack_key_event(file_header, context.observer(), writable_bytes_buffer,
+                         20, 111, 20, 4, false);
+
+    // An one more "Timer" event, that has the same stack as the previous one (but different instruction pointer)
+    push_sample_event(file_header, context.observer(), writable_bytes_buffer,
+                      21, 111, 0x9'101E);
+    push_stack_key_event(file_header, context.observer(), writable_bytes_buffer,
+                         21, 111, 21, 4, false);
+
+    // Then, delete another cached stack and push an event
+    // that re-uses an already deleted stack key for a new stack
+    push_cached_stack_event(file_header, context.observer(), writable_bytes_buffer,
+                            22, 2, {0x1234'B000'0000'0000, 0x1234'C000'0000'0000, 0x1234'D000'0000'0000}, false);
+    push_pmc_sample_event(file_header, context.observer(), writable_bytes_buffer,
+                          23, 111, 11, 0x9'101E);
+    push_stack_key_event(file_header, context.observer(), writable_bytes_buffer,
+                         24, 111, 23, 2, false);
+
+    push_sample_interval_event(file_header, context.observer(), writable_bytes_buffer,
+                               25, 0, u"Timer", false);
+    push_sample_interval_event(file_header, context.observer(), writable_bytes_buffer,
+                               25, 0, u"Timer", false);
+    push_sample_interval_event(file_header, context.observer(), writable_bytes_buffer,
+                               25, 11, u"BranchMispredictions", false);
+
+    // finally, run down all remaining cache entries
+    push_cached_stack_event(file_header, context.observer(), writable_bytes_buffer,
+                            26, 4, {0x9'101B, 0x9'101C, 0x9'101D}, false);
+    push_cached_stack_event(file_header, context.observer(), writable_bytes_buffer,
+                            26, 2, {0x7'101B, 0x9'101C}, false);
+    // including one stack, that was not actually every used...
+    push_cached_stack_event(file_header, context.observer(), writable_bytes_buffer,
+                            26, 10, {0x10'000B, 0x10'000C}, false);
+
+    context.finish();
+
+    const auto& sample_sources = context.sample_source_names();
+    ASSERT_EQ(sample_sources.size(), 2);
+    ASSERT_TRUE(sample_sources.contains(0));
+    const auto sample_source_name_1 = sample_sources.at(0);
+    EXPECT_EQ(sample_source_name_1, std::u16string(u"Timer"));
+    ASSERT_TRUE(sample_sources.contains(11));
+    const auto sample_source_name_2 = sample_sources.at(11);
+    EXPECT_EQ(sample_source_name_2, std::u16string(u"BranchMispredictions"));
+
+    // Check samples for the "Timer" source.
+    const auto samples_1 = context.thread_samples(111, 10, std::nullopt, 0);
+    EXPECT_EQ(samples_1.size(), 3);
+    EXPECT_EQ(samples_1[0].timestamp, 10);
+    EXPECT_EQ(samples_1[0].thread_id, 111);
+    EXPECT_EQ(samples_1[0].instruction_pointer, 0x1'234A);
+    EXPECT_NE(samples_1[0].user_mode_stack, std::nullopt);
+    EXPECT_EQ(context.stack(*samples_1[0].user_mode_stack), (std::vector<std::uint64_t>{0x1'234B, 0x1'234C, 0x1'234D}));
+    EXPECT_NE(samples_1[0].kernel_mode_stack, std::nullopt);
+    EXPECT_EQ(context.stack(*samples_1[0].kernel_mode_stack), (std::vector<std::uint64_t>{0x1234'B000'0000'0000, 0x1234'C000'0000'0000, 0x1234'D000'0000'0000}));
+
+    EXPECT_EQ(samples_1[1].timestamp, 20);
+    EXPECT_EQ(samples_1[1].thread_id, 111);
+    EXPECT_EQ(samples_1[1].instruction_pointer, 0x9'101A);
+    EXPECT_NE(samples_1[1].user_mode_stack, std::nullopt);
+    EXPECT_EQ(context.stack(*samples_1[1].user_mode_stack), (std::vector<std::uint64_t>{0x9'101B, 0x9'101C, 0x9'101D}));
+    EXPECT_EQ(samples_1[1].kernel_mode_stack, std::nullopt);
+
+    EXPECT_EQ(samples_1[2].timestamp, 21);
+    EXPECT_EQ(samples_1[2].thread_id, 111);
+    EXPECT_EQ(samples_1[2].instruction_pointer, 0x9'101E);
+    EXPECT_NE(samples_1[2].user_mode_stack, std::nullopt);
+    EXPECT_EQ(context.stack(*samples_1[2].user_mode_stack), (std::vector<std::uint64_t>{0x9'101B, 0x9'101C, 0x9'101D}));
+    EXPECT_EQ(samples_1[2].kernel_mode_stack, std::nullopt);
+
+    // Check samples for the "BranchMispredictions" source.
+    const auto samples_2 = context.thread_samples(111, 10, std::nullopt, 11);
+    EXPECT_EQ(samples_2.size(), 2);
+
+    EXPECT_EQ(samples_2[0].timestamp, 15);
+    EXPECT_EQ(samples_2[0].thread_id, 111);
+    EXPECT_EQ(samples_2[0].instruction_pointer, 0x5'678A);
+    EXPECT_NE(samples_2[0].user_mode_stack, std::nullopt);
+    EXPECT_EQ(context.stack(*samples_2[0].user_mode_stack), (std::vector<std::uint64_t>{0x5'678B, 0x5'678C, 0x5'678D}));
+    EXPECT_EQ(samples_2[0].kernel_mode_stack, std::nullopt);
+
+    EXPECT_EQ(samples_2[1].timestamp, 23);
+    EXPECT_EQ(samples_2[1].thread_id, 111);
+    EXPECT_EQ(samples_2[1].instruction_pointer, 0x9'101E);
+    EXPECT_NE(samples_2[1].user_mode_stack, std::nullopt);
+    EXPECT_EQ(context.stack(*samples_2[1].user_mode_stack), (std::vector<std::uint64_t>{0x7'101B, 0x9'101C}));
+    EXPECT_EQ(samples_2[1].kernel_mode_stack, std::nullopt);
 }
 
 TEST(EtlFileProcessContext, SystemInfo)

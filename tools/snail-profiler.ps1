@@ -11,9 +11,12 @@ function Start-Profiling {
         [string[]]$Pmc = @(),
 
         [Parameter(Position = 0, ValueFromRemainingArguments)]
-        [string[]]$Command
+        [string[]]$Command,
+
+        [parameter()]
+        [switch]$Compress
     )
-    
+
     Set-Variable secondTo100Nanoseconds -Option Constant -Value 10000000
     Set-Variable refTimerSamplesPerSecond -Option Constant -Value 1000
     Set-Variable refCounterInterval -Option Constant -Value 65536
@@ -73,11 +76,12 @@ function Start-Profiling {
         '-on', $kernelEventsArg,
         '-SetProfInt', 'Timer', $timerInterval,
         '-stackwalk', 'Profile',
+        '-stackcaching', 1024, 4,
         '-f', "`"${OutputName}_kernel.etl`""
     )
     $xperfStartArgs += $pmcArgs
 
-    Write-Host $xperfStartArgs
+    # Write-Host $xperfStartArgs
 
     $commandExecutable = $Command[0]
     $commandArguments = $Command | Select-Object -Skip 1
@@ -95,7 +99,9 @@ function Start-Profiling {
         if ($xperfProcess.ExitCode -ne 0) { return; }
         
         try {
-            $process = Start-Process -FilePath $commandExecutable -ArgumentList $commandArguments -PassThru -NoNewWindow
+            $additionalArgs = @{}
+            if ($commandArguments.Length -gt 0) { $additionalArgs["ArgumentList"] = $commandArguments }
+            $process = Start-Process -FilePath $commandExecutable @additionalArgs -PassThru -NoNewWindow
             $eventProvider.WriteEvent([ref] $eventDescriptor, $process.Id) | Out-Null
             $process.WaitForExit()
             $process.Dispose()
@@ -111,7 +117,10 @@ function Start-Profiling {
             }
         }
 
-        xperf -merge "${OutputName}_user.etl" "${OutputName}_kernel.etl" "${OutputName}.etl" #-suppresspii
+        $additionalArgs = @()
+        if ($Compress) { $additionalArgs += '-compress' }
+
+        xperf -merge "${OutputName}_user.etl" "${OutputName}_kernel.etl" "${OutputName}.etl" @additionalArgs #-suppresspii
         if ($LASTEXITCODE -eq 0) {
             Remove-Item "${OutputName}_user.etl", "${OutputName}_kernel.etl"
         }
