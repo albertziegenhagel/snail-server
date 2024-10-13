@@ -594,6 +594,52 @@ int main(int argc, char* argv[])
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
+        register_known_event_names<etl::parser::event_trace_v2_header_extension_type_group_event_view>(observer.known_group_event_names);
+        observer.register_event<etl::parser::event_trace_v2_header_extension_type_group_event_view>(
+            [&options, &observer]([[maybe_unused]] const etl::etl_file::header_data&                        file_header,
+                                  [[maybe_unused]] const etl::common_trace_header&                          header,
+                                  const etl::parser::event_trace_v2_header_extension_type_group_event_view& event)
+            {
+                assert(event.dynamic_size() == event.buffer().size());
+
+                if(!options.show_header) return;
+                if(should_ignore(options, observer.current_event_name)) return;
+
+                std::cout << std::format("@{} {:30}: kernel event version {} mask 1 {:#010x} mask 2 {:#010x} mask 3 {:#010x} mask 4 {:#010x} mask 5 {:#010x} mask 6 {:#010x} mask 7 {:#010x} mask 8 {:#010x}\n", header.timestamp, observer.current_event_name, event.kernel_event_version(), event.group_mask_1(), event.group_mask_2(), event.group_mask_3(), event.group_mask_4(), event.group_mask_5(), event.group_mask_6(), event.group_mask_7(), event.group_mask_8());
+
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
+            });
+        register_known_event_names<etl::parser::event_trace_v2_header_partition_info_extension_type_group_event_view>(observer.known_group_event_names);
+        observer.register_event<etl::parser::event_trace_v2_header_partition_info_extension_type_group_event_view>(
+            [&options, &observer]([[maybe_unused]] const etl::etl_file::header_data&                                       file_header,
+                                  [[maybe_unused]] const etl::common_trace_header&                                         header,
+                                  const etl::parser::event_trace_v2_header_partition_info_extension_type_group_event_view& event)
+            {
+                assert(event.dynamic_size() == event.buffer().size());
+
+                if(!options.show_header) return;
+                if(should_ignore(options, observer.current_event_name)) return;
+
+                std::cout << std::format("@{} {:30} event version {}:\n", header.timestamp, observer.current_event_name, event.event_version_());
+                std::cout << std::format("    reserved:             {}\n", event.reserved());
+                std::cout << std::format("    os_version_major:     {}\n", event.partition_type());
+                std::cout << std::format("    qpc_offset_from_root: {}\n", event.qpc_offset_from_root());
+                std::cout << std::format("    partition_type:       {}\n", event.partition_type());
+                if(event.event_version_() == 2)
+                {
+                    std::cout << std::format("    partition_id:         {}\n", utf8::utf16to8(event.partition_id_str()));
+                    std::cout << std::format("    parent_id:            {}\n", utf8::utf16to8(event.parent_id_str()));
+                }
+                else
+                {
+                    std::cout << std::format("    partition_id:         {}\n", event.partition_id_guid().instantiate().to_string(true));
+                    std::cout << std::format("    parent_id:            {}\n", event.parent_id_guid().instantiate().to_string(true));
+                }
+
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
+            });
     }
 
     // Kernel: config
