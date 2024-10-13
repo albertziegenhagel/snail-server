@@ -74,4 +74,80 @@ private:
     mutable std::optional<std::size_t> log_file_name_string_length;
 };
 
+// `Header_Extension_TypeGroup:EventTraceEvent` from wmicore.mof in WDK 10.0.22621.0
+struct event_trace_v2_header_extension_type_group_event_view : private extract_view_dynamic_base
+{
+    static inline constexpr std::string_view event_name    = "EventTrace-HeaderExtension";
+    static inline constexpr std::uint16_t    event_version = 2;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_group{event_trace_group::header, 5,  "Extension"   },
+        event_identifier_group{event_trace_group::header, 32, "EndExtension"}
+    };
+
+    using extract_view_dynamic_base::buffer;
+    using extract_view_dynamic_base::extract_view_dynamic_base;
+
+    inline auto group_mask_1() const { return extract<std::uint32_t>(dynamic_offset(0, 0)); }
+    inline auto group_mask_2() const { return extract<std::uint32_t>(dynamic_offset(4, 0)); }
+    inline auto group_mask_3() const { return extract<std::uint32_t>(dynamic_offset(8, 0)); }
+    inline auto group_mask_4() const { return extract<std::uint32_t>(dynamic_offset(12, 0)); }
+    inline auto group_mask_5() const { return extract<std::uint32_t>(dynamic_offset(16, 0)); }
+    inline auto group_mask_6() const { return extract<std::uint32_t>(dynamic_offset(20, 0)); }
+    inline auto group_mask_7() const { return extract<std::uint32_t>(dynamic_offset(24, 0)); }
+    inline auto group_mask_8() const { return extract<std::uint32_t>(dynamic_offset(28, 0)); }
+
+    inline auto kernel_event_version() const { return extract<std::uint32_t>(dynamic_offset(32, 0)); }
+
+    inline std::size_t dynamic_size() const { return dynamic_offset(36, 0); }
+};
+
+// `Header_PartitionInfoExtensionV2_TypeGroup:EventTraceEvent` from wmicore.mof in WDK 10.0.22621.0
+struct event_trace_v2_header_partition_info_extension_type_group_event_view : private extract_view_dynamic_base
+{
+    static inline constexpr std::string_view event_name    = "EventTrace-HeaderPartitionInfoExtension";
+    static inline constexpr std::uint16_t    event_version = 2;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_group{event_trace_group::header, 80, "PartitionInfoExtension"}
+    };
+
+    using extract_view_dynamic_base::buffer;
+    using extract_view_dynamic_base::extract_view_dynamic_base;
+
+    // For some reason, this has an event version build into the event data itself...
+    inline auto event_version_() const { return extract<std::uint16_t>(dynamic_offset(0, 0)); }
+
+    inline auto reserved() const { return extract<std::uint16_t>(dynamic_offset(2, 0)); }
+    inline auto partition_type() const { return extract<std::uint32_t>(dynamic_offset(4, 0)); }
+    inline auto qpc_offset_from_root() const { return extract<std::int64_t>(dynamic_offset(8, 0)); }
+
+    inline auto partition_id_str() const
+    {
+        assert(event_version_() == 2);
+        return extract_u16string(dynamic_offset(16, 0), partition_id_string_length);
+    }
+    inline auto parent_id_str() const
+    {
+        assert(event_version_() == 2);
+        return extract_u16string(dynamic_offset(16, 0) + partition_id_str().size() * 2 + 2, parent_id_string_length);
+    }
+
+    inline auto partition_id_guid() const
+    {
+        assert(event_version_() == 0);
+        return guid_view(buffer().subspan(16));
+    }
+    inline auto parent_id_guid() const
+    {
+        assert(event_version_() == 0);
+        return guid_view(buffer().subspan(32));
+    }
+
+    inline std::size_t dynamic_size() const { return event_version_() == 0 ? dynamic_offset(48, 0) :
+                                                                             dynamic_offset(16, 0) + partition_id_str().size() * 2 + 2 + parent_id_str().size() * 2 + 2; }
+
+private:
+    mutable std::optional<std::size_t> partition_id_string_length;
+    mutable std::optional<std::size_t> parent_id_string_length;
+};
+
 } // namespace snail::etl::parser

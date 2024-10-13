@@ -274,6 +274,53 @@ TEST(EtlParser, Kernel_EventTraceV2HeaderEventView)
     EXPECT_EQ(event.file_name(), std::u16string(u"[multiple files]"));
 }
 
+TEST(EtlParser, Kernel_EventTraceV2HeaderPartitionInfoExtensionTypeGroup)
+{
+    // Seems that this event is always only written with all zeros?
+    const std::array<std::uint8_t, 48> buffer = {
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+    const auto event = etl::parser::event_trace_v2_header_partition_info_extension_type_group_event_view(std::as_bytes(std::span(buffer)), 8);
+
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
+
+    EXPECT_EQ(event.event_version_(), 0);
+    EXPECT_EQ(event.reserved(), 0);
+    EXPECT_EQ(event.partition_type(), 0);
+    EXPECT_EQ(event.qpc_offset_from_root(), 0);
+    EXPECT_EQ(event.partition_id_guid().instantiate(), (common::guid{
+                                                           0x0000'0000, 0x0000, 0x0000, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+    }));
+    EXPECT_EQ(event.parent_id_guid().instantiate(), (common::guid{
+                                                        0x0000'0000, 0x0000, 0x0000, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+    }));
+}
+
+TEST(EtlParser, Kernel_EventTraceV2HeaderExtensionTypeGroup)
+{
+    const std::array<std::uint8_t, 36> buffer = {
+        0x0f, 0x00, 0x00, 0x00, 0x06, 0x04, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x55, 0x00, 0x00, 0x00};
+
+    const auto event = etl::parser::event_trace_v2_header_extension_type_group_event_view(std::as_bytes(std::span(buffer)), 8);
+
+    EXPECT_EQ(event.dynamic_size(), event.buffer().size());
+
+    EXPECT_EQ(event.group_mask_1(), 0x0000'000f);
+    EXPECT_EQ(event.group_mask_2(), 0x0000'0406);
+    EXPECT_EQ(event.group_mask_3(), 0x0001'0000);
+    EXPECT_EQ(event.group_mask_4(), 0x0000'0000);
+    EXPECT_EQ(event.group_mask_5(), 0x0000'0000);
+    EXPECT_EQ(event.group_mask_6(), 0x0000'0000);
+    EXPECT_EQ(event.group_mask_7(), 0x0000'0000);
+    EXPECT_EQ(event.group_mask_8(), 0x0000'0000);
+
+    EXPECT_EQ(event.kernel_event_version(), 85);
+}
+
 TEST(EtlParser, Kernel_PerfinfoV2SampledProfileEventView)
 {
     const std::array<std::uint8_t, 16> buffer = {
