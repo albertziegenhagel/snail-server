@@ -1,12 +1,14 @@
 #include <snail/common/thread_pool.hpp>
 
+#include <format>
+
 #include <snail/common/thread.hpp>
 
 using namespace snail::common;
 
 thread_pool::thread_pool(std::size_t max_size) :
-    stopped_(false),
-    max_size_(max_size)
+    max_size_(max_size),
+    stopped_(false)
 {}
 
 thread_pool::~thread_pool()

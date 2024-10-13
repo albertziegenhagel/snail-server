@@ -29,8 +29,9 @@
 #include <snail/jsonrpc/transport/stream_message_reader.hpp>
 #include <snail/jsonrpc/transport/stream_message_writer.hpp>
 
-#include <snail/server/requests/requests.hpp>
-#include <snail/server/storage/storage.hpp>
+#include <snail/common/thread_pool.hpp>
+
+#include <snail/server/snail_server.hpp>
 
 using namespace snail;
 
@@ -62,7 +63,10 @@ void print_usage(std::string_view application_path)
               << "                   Uses unix domain sockets on Unix like systems and named pipes\n"
               << "                   on Windows. Cannot be used together with --stdio.\n"
               << "  --pipe   <path>  Alias for --socket.\n"
-              << "  --stdio          Connect on stdio. Cannot be used together with --socket (or --pipe).\n";
+              << "  --stdio          Connect on stdio. Cannot be used together with --socket (or --pipe).\n"
+              << "  --max-worker-threads <num>\n"
+              << "                   Maximum number of worker threads to use when handling requests.\n"
+              << "                   default: 4\n";
 
 #if !defined(NDEBUG) && defined(_MSC_VER)
     std::cout << "  --debug          Wait for debugger to attach right after start.\n";
@@ -85,8 +89,11 @@ void print_usage(std::string_view application_path)
 struct options
 {
     std::optional<std::filesystem::path> socket_name;
-    bool                                 stdio = false;
-    bool                                 debug = false;
+
+    bool stdio = false;
+    bool debug = false;
+
+    std::size_t max_worker_threads = 4;
 };
 
 options parse_command_line(int argc, char* argv[]) // NOLINT(modernize-avoid-c-arrays,cppcoreguidelines-avoid-c-arrays)
@@ -111,6 +118,13 @@ options parse_command_line(int argc, char* argv[]) // NOLINT(modernize-avoid-c-a
         else if(current_arg == "--debug")
         {
             result.debug = true;
+        }
+        else if(current_arg == "--max-worker-threads")
+        {
+            if(argc <= arg_i + 1) print_error_and_exit(application_path, "Missing max number or worker threads.");
+            const auto next_arg     = std::string_view(argv[++arg_i]);
+            auto       chars_result = std::from_chars(next_arg.data(), next_arg.data() + next_arg.size(), result.max_worker_threads);
+            if(chars_result.ec != std::errc{}) print_error_and_exit(application_path, "Invalid argument for --max-worker-threads.");
         }
         else if(current_arg == "--help" || current_arg == "-h")
         {
@@ -195,15 +209,12 @@ int main(int argc, char* argv[])
 
     if(options.debug) wait_for_debugger();
 
-    jsonrpc::server server(
+    server::snail_server server(
         make_connection(options),
-        std::make_unique<jsonrpc::v2_protocol>());
+        std::make_unique<jsonrpc::v2_protocol>(),
+        std::make_unique<common::thread_pool>(options.max_worker_threads));
 
-    server::storage storage;
+    const auto success = server.serve();
 
-    server::register_all(server, storage);
-
-    server.serve_forever();
-
-    return EXIT_SUCCESS;
+    return success ? EXIT_SUCCESS : EXIT_FAILURE;
 }

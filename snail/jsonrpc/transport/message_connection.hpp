@@ -17,8 +17,6 @@ public:
 
     ~message_connection();
 
-    [[noreturn]] void serve_forever(message_handler& handler);
-
     void serve_next(message_handler& handler);
 
 private:

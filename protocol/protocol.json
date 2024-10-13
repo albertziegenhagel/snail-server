@@ -179,6 +179,14 @@
     ],
     "notifications": [
         {
+            "method": "$/cancelRequest",
+            "messageDirection": "clientToServer",
+            "params": {
+                "kind": "reference",
+                "name": "CancelRequestParams"
+            }
+        },
+        {
             "method": "closeDocument",
             "messageDirection": "clientToServer",
             "params": {
@@ -685,6 +693,18 @@
                 {
                     "kind": "reference",
                     "name": "_ProcessParams"
+                }
+            ]
+        },
+        {
+            "name": "CancelRequestParams",
+            "properties": [
+                {
+                    "name": "id",
+                    "type": {
+                        "kind": "base",
+                        "name": "string"
+                    }
                 }
             ]
         },

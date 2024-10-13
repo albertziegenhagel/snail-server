@@ -37,19 +37,25 @@ TEST(JsonRpcServer, ServeSome)
     std::string test_1_str;
     int         test_1_num;
     server.register_request<my_test_1_request>(
-        [&](const my_test_1_request& request) -> nlohmann::json
+        [&](const my_test_1_request&  request,
+            request_response_callback respond,
+            error_callback /*report_error*/)
         {
             test_1_str = request.str();
             test_1_num = request.num();
-            return nlohmann::json("response string");
+            respond(nlohmann::json("response string"));
         });
 
     std::string test_2_str;
     server.register_notification<my_test_2_request>(
-        [&](const my_test_2_request& request)
+        [&](const my_test_2_request& request,
+            error_callback /*report_error*/)
         {
             test_2_str = request.str();
         });
+
+    // Test a request and a notification , where the notification arrives
+    // in the stream before the server handled the request.
 
     in_stream << "Content-Length:83\r\n"
               << "\r\n"
@@ -59,6 +65,7 @@ TEST(JsonRpcServer, ServeSome)
               << "\r\n"
               << R"({"jsonrpc":"2.0","method":"my_test_2","params":{"str":"something else"}})";
 
+    // handle the request
     server.serve_next();
 
     EXPECT_EQ(test_1_str, "something");
@@ -68,6 +75,7 @@ TEST(JsonRpcServer, ServeSome)
               "\r\n"
               R"({"jsonrpc":"2.0","result":"response string","id":1})");
 
+    // and handle the notification (which does not result in any response)
     server.serve_next();
 
     EXPECT_EQ(test_2_str, "something else");
@@ -76,9 +84,10 @@ TEST(JsonRpcServer, ServeSome)
               "\r\n"
               R"({"jsonrpc":"2.0","result":"response string","id":1})");
 
-    in_stream << "Content-Length:64\r\n"
+    // Test unknown notification
+    in_stream << "Content-Length:75\r\n"
               << "\r\n"
-              << R"({"jsonrpc":"2.0","method":"does-not-exist","params":{"num":123}})";
+              << R"({"jsonrpc":"2.0","method":"non-existing-notification","params":{"num":123}})";
 
     server.serve_next();
 
@@ -86,14 +95,36 @@ TEST(JsonRpcServer, ServeSome)
               "Content-Length: 51\r\n"
               "\r\n"
               R"({"jsonrpc":"2.0","result":"response string","id":1})"
-              "Content-Length: 86\r\n"
+              "Content-Length: 110\r\n"
               "\r\n"
-              R"({"jsonrpc":"2.0","error":{"code":-32601,"message":"Unknown method: 'does-not-exist'"}})");
+              R"({"jsonrpc":"2.0","error":{"code":-32601,"message":"Unknown notification method: 'non-existing-notification'"}})");
 
+    // Test unknown request
+    in_stream << "Content-Length:77\r\n"
+              << "\r\n"
+              << R"({"jsonrpc":"2.0","method":"non-existing-request","id":2,"params":{"num":123}})";
+
+    server.serve_next();
+
+    EXPECT_EQ(out_stream.str(),
+              "Content-Length: 51\r\n"
+              "\r\n"
+              R"({"jsonrpc":"2.0","result":"response string","id":1})"
+              "Content-Length: 110\r\n"
+              "\r\n"
+              R"({"jsonrpc":"2.0","error":{"code":-32601,"message":"Unknown notification method: 'non-existing-notification'"}})"
+              "Content-Length: 107\r\n"
+              "\r\n"
+              R"({"jsonrpc":"2.0","error":{"code":-32601,"message":"Unknown request method: 'non-existing-request'"},"id":2})");
+
+    // Test request that was not registered beforehand and that
+    // reports an unexpected error.
     server.register_request<my_test_3_request>(
-        [&](const my_test_3_request&) -> nlohmann::json
+        [&](const my_test_3_request&,
+            request_response_callback /*respond*/,
+            error_callback report_error)
         {
-            throw std::runtime_error("unexpected");
+            report_error("unexpected");
         });
 
     in_stream << "Content-Length:45\r\n"
@@ -106,9 +137,12 @@ TEST(JsonRpcServer, ServeSome)
               "Content-Length: 51\r\n"
               "\r\n"
               R"({"jsonrpc":"2.0","result":"response string","id":1})"
-              "Content-Length: 86\r\n"
+              "Content-Length: 110\r\n"
               "\r\n"
-              R"({"jsonrpc":"2.0","error":{"code":-32601,"message":"Unknown method: 'does-not-exist'"}})"
+              R"({"jsonrpc":"2.0","error":{"code":-32601,"message":"Unknown notification method: 'non-existing-notification'"}})"
+              "Content-Length: 107\r\n"
+              "\r\n"
+              R"({"jsonrpc":"2.0","error":{"code":-32601,"message":"Unknown request method: 'non-existing-request'"},"id":2})"
               "Content-Length: 71\r\n"
               "\r\n"
               R"({"jsonrpc":"2.0","error":{"code":-32603,"message":"unexpected"},"id":3})");
