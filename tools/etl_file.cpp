@@ -822,6 +822,31 @@ int main(int argc, char* argv[])
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
             });
+        register_known_event_names<etl::parser::perfinfo_v2_pmc_counter_corruption_event_view>(observer.known_group_event_names);
+        observer.register_event<etl::parser::perfinfo_v2_pmc_counter_corruption_event_view>(
+            [&options, &observer]([[maybe_unused]] const etl::etl_file::header_data&                file_header,
+                                  [[maybe_unused]] const etl::common_trace_header&                  header,
+                                  const etl::parser::perfinfo_v2_pmc_counter_corruption_event_view& event)
+            {
+                assert(event.dynamic_size() == event.buffer().size());
+
+                if(!options.show_perfinfo) return;
+
+                if(should_ignore(options, observer.current_event_name)) return;
+
+                std::string statuses;
+                for(std::uint32_t i = 0; i < event.counter_count(); ++i)
+                {
+                    if(i > 0) statuses.push_back(',');
+                    const auto status = event.counter_status(i);
+                    statuses += std::format("{}@{}", status.profile_source(), status.last_known_good_timestamp());
+                }
+
+                std::cout << std::format("@{} {:30}: proc {} statuses: {}\n", header.timestamp, observer.current_event_name, event.processor_number(), statuses);
+
+                if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
+                if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");
+            });
     }
 
     // Kernel: process/thread
