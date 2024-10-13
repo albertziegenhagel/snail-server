@@ -378,14 +378,24 @@ common::generator<analysis::thread_info> etl_data_provider::threads_info(unique_
         const auto* const thread     = process_context_->get_threads().find_at(thread_key.id, thread_key.time);
         if(thread == nullptr) continue;
 
+        std::vector<analysis::thread_info::counter_info> counters;
+        for(std::size_t counter_index = 0; counter_index < thread->payload.pmc_counts.size(); ++counter_index)
+        {
+            counters.push_back(analysis::thread_info::counter_info{
+                .name  = process_context_->pmc_name(counter_index) ? std::make_optional(utf8::utf16to8(*process_context_->pmc_name(counter_index))) : std::nullopt,
+                .count = thread->payload.pmc_counts[counter_index]});
+        }
+
         co_yield analysis::thread_info{
-            .unique_id  = thread_id,
-            .os_id      = thread->id,
-            .name       = std::nullopt,
-            .start_time = from_relative_qpc_ticks<std::chrono::nanoseconds>(thread->timestamp, session_start_qpc_ticks_, qpc_frequency_),
-            .end_time   = thread->payload.end_time ?
-                              from_relative_qpc_ticks<std::chrono::nanoseconds>(*thread->payload.end_time, session_start_qpc_ticks_, qpc_frequency_) :
-                              process.end_time};
+            .unique_id        = thread_id,
+            .os_id            = thread->id,
+            .name             = std::nullopt,
+            .start_time       = from_relative_qpc_ticks<std::chrono::nanoseconds>(thread->timestamp, session_start_qpc_ticks_, qpc_frequency_),
+            .end_time         = thread->payload.end_time ?
+                                    from_relative_qpc_ticks<std::chrono::nanoseconds>(*thread->payload.end_time, session_start_qpc_ticks_, qpc_frequency_) :
+                                    process.end_time,
+            .context_switches = thread->payload.context_switches,
+            .counters         = std::move(counters)};
     }
 }
 

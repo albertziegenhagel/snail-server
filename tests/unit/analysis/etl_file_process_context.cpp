@@ -582,6 +582,79 @@ void push_cached_stack_event(const etl::etl_file::header_data& file_header,
     observer.handle(file_header, event_header, event_data.subspan(0, event_data_size));
 }
 
+void push_context_switch_event(const etl::etl_file::header_data& file_header,
+                               etl::event_observer&              observer,
+                               std::span<std::byte>              buffer,
+                               std::uint64_t                     timestamp,
+                               std::uint32_t                     old_thread_id,
+                               std::uint32_t                     new_thread_id,
+                               const std::vector<std::uint64_t>& pmc_counters)
+{
+    auto event_version = etl::parser::thread_v4_context_switch_event_view::event_version;
+
+    assert(pmc_counters.size() <= 7);
+    event_version |= (static_cast<std::uint16_t>(pmc_counters.size()) << 8);
+
+    const auto event_data_size = 24;
+
+    auto event_header = make_perfinfo_trace_header(file_header, buffer, timestamp, event_data_size,
+                                                   event_version,
+                                                   etl::parser::event_trace_group::thread,
+                                                   36);
+
+    assert(event_header.ext_pmc_count() == pmc_counters.size());
+
+    const auto header_ext_data = buffer.subspan(etl::parser::perfinfo_trace_header_view::static_size, event_header.ext_pmc_count() * 8);
+    for(std::size_t i = 0; i < pmc_counters.size(); ++i)
+    {
+        set_at(header_ext_data, 8 * i, pmc_counters[i]);
+        assert(event_header.ext_pmc(i) == pmc_counters[i]);
+    }
+
+    const auto event_data = buffer.subspan(etl::parser::perfinfo_trace_header_view::static_size +
+                                           event_header.ext_pmc_count() * 8);
+
+    set_at(event_data, 0, new_thread_id);
+    set_at(event_data, 4, old_thread_id);
+
+    assert(etl::parser::thread_v4_context_switch_event_view(event_data, file_header.pointer_size).old_thread_id() == old_thread_id);
+    assert(etl::parser::thread_v4_context_switch_event_view(event_data, file_header.pointer_size).new_thread_id() == new_thread_id);
+
+    observer.handle(file_header, event_header, event_data.subspan(0, event_data_size));
+}
+
+void push_pmc_counter_config_event(const etl::etl_file::header_data&  file_header,
+                                   etl::event_observer&               observer,
+                                   std::span<std::byte>               buffer,
+                                   std::uint64_t                      timestamp,
+                                   const std::vector<std::u16string>& counter_names)
+{
+    std::ranges::fill(buffer, std::byte{});
+
+    const auto event_data = buffer.subspan(etl::parser::perfinfo_trace_header_view::static_size);
+
+    set_at(event_data, 0, static_cast<std::uint32_t>(counter_names.size()));
+    std::size_t event_data_size = 4;
+    for(std::size_t i = 0; i < counter_names.size(); ++i)
+    {
+        set_at(event_data, event_data_size, counter_names[i]);
+        event_data_size += counter_names[i].size() * 2 + 2;
+    }
+
+    assert(etl::parser::perfinfo_v2_pmc_counter_config_event_view(event_data, file_header.pointer_size).counter_count() == counter_names.size());
+    for(std::size_t i = 0; i < counter_names.size(); ++i)
+    {
+        assert(etl::parser::perfinfo_v2_pmc_counter_config_event_view(event_data, file_header.pointer_size).counter_name(i) == counter_names[i]);
+    }
+
+    const auto event_header = make_perfinfo_trace_header(file_header, buffer, timestamp, event_data_size,
+                                                         etl::parser::perfinfo_v2_pmc_counter_config_event_view::event_version,
+                                                         etl::parser::event_trace_group::perfinfo,
+                                                         48);
+
+    observer.handle(file_header, event_header, event_data.subspan(0, event_data_size));
+}
+
 void push_prof_started_event(const etl::etl_file::header_data& file_header,
                              etl::event_observer&              observer,
                              std::span<std::byte>              buffer,
@@ -772,6 +845,8 @@ TEST(EtlFileProcessContext, Threads)
     EXPECT_EQ(thread_111.timestamp, 10);
     EXPECT_EQ(thread_111.payload.process_id, 123);
     EXPECT_EQ(thread_111.payload.end_time, std::nullopt);
+    EXPECT_EQ(thread_111.payload.context_switches, 0);
+    EXPECT_EQ(thread_111.payload.pmc_counts.size(), 0);
 
     ASSERT_TRUE(threads.contains(222));
     ASSERT_EQ(threads.at(222).size(), 2);
@@ -781,12 +856,16 @@ TEST(EtlFileProcessContext, Threads)
     EXPECT_EQ(thread_222_1.timestamp, 15);
     EXPECT_EQ(thread_222_1.payload.process_id, 456);
     EXPECT_EQ(thread_222_1.payload.end_time, 16);
+    EXPECT_EQ(thread_222_1.payload.context_switches, 0);
+    EXPECT_EQ(thread_222_1.payload.pmc_counts.size(), 0);
 
     const auto thread_222_2 = threads.at(222)[1];
     EXPECT_EQ(thread_222_2.id, 222);
     EXPECT_EQ(thread_222_2.timestamp, 45);
     EXPECT_EQ(thread_222_2.payload.process_id, 123);
     EXPECT_EQ(thread_222_2.payload.end_time, std::nullopt);
+    EXPECT_EQ(thread_222_2.payload.context_switches, 0);
+    EXPECT_EQ(thread_222_2.payload.pmc_counts.size(), 0);
 
     ASSERT_TRUE(threads.contains(333));
     ASSERT_EQ(threads.at(333).size(), 1);
@@ -796,6 +875,8 @@ TEST(EtlFileProcessContext, Threads)
     EXPECT_EQ(thread_333.timestamp, 40);
     EXPECT_EQ(thread_333.payload.process_id, 456);
     EXPECT_EQ(thread_333.payload.end_time, std::nullopt);
+    EXPECT_EQ(thread_333.payload.context_switches, 0);
+    EXPECT_EQ(thread_333.payload.pmc_counts.size(), 0);
 
     const auto& processes = context.get_processes().all_entries();
     const auto  process_a = processes.at(123)[0];
@@ -1296,7 +1377,7 @@ TEST(EtlFileProcessContext, MixedSamplesStacks)
     const auto sample_source_name_2 = sample_sources.at(11);
     EXPECT_EQ(sample_source_name_2, std::u16string(u"BranchMispredictions"));
 
-    // Check samples for the "Timer" source.
+    // Check samples for the "Timer" samples.
     // We expect to get the PMC samples when both are present.
     const auto samples_1 = context.thread_samples(111, 10, std::nullopt, 0);
     EXPECT_EQ(samples_1.size(), 2);
@@ -1315,7 +1396,7 @@ TEST(EtlFileProcessContext, MixedSamplesStacks)
     EXPECT_EQ(context.stack(*samples_1[1].user_mode_stack), (std::vector<std::uint64_t>{0x9'101B, 0x9'101C, 0x9'101D}));
     EXPECT_EQ(samples_1[1].kernel_mode_stack, std::nullopt);
 
-    // Check samples for the "BranchMispredictions" source.
+    // Check samples for the "BranchMispredictions" samples.
     const auto samples_2 = context.thread_samples(111, 10, std::nullopt, 11);
     EXPECT_EQ(samples_2.size(), 1);
 
@@ -1456,6 +1537,111 @@ TEST(EtlFileProcessContext, MixedSamplesCachedStacks)
     EXPECT_NE(samples_2[1].user_mode_stack, std::nullopt);
     EXPECT_EQ(context.stack(*samples_2[1].user_mode_stack), (std::vector<std::uint64_t>{0x7'101B, 0x9'101C}));
     EXPECT_EQ(samples_2[1].kernel_mode_stack, std::nullopt);
+}
+
+TEST(EtlFileProcessContext, ContextSwitchPmc)
+{
+    etl_file_process_context context;
+
+    std::array<std::uint8_t, 1024> buffer;
+    const auto                     writable_bytes_buffer = std::as_writable_bytes(std::span(buffer));
+
+    // Start a first process
+    push_process_event(file_header, context.observer(), writable_bytes_buffer,
+                       10, 123, "\\Device\\HarddiskVolume1\\my\\path\\to\\a.exe", u"a.exe arg1 arg2", true);
+
+    // Context switch before the actual threads exist (no PMC counters)
+    push_context_switch_event(file_header, context.observer(), writable_bytes_buffer,
+                              12, 0, 111, {});
+
+    // Start event for the first thread
+    push_thread_event(file_header, context.observer(), writable_bytes_buffer,
+                      14, 123, 111, true);
+
+    // Context switch with PMC events (second thread does still not exist)
+    push_context_switch_event(file_header, context.observer(), writable_bytes_buffer,
+                              15, 111, 222, {100, 200});
+
+    // Another context switch with PMC events (second thread does still not exist)
+    push_context_switch_event(file_header, context.observer(), writable_bytes_buffer,
+                              16, 222, 111, {110, 220});
+
+    // Start the second thread
+    push_thread_event(file_header, context.observer(), writable_bytes_buffer,
+                      20, 123, 222, true);
+
+    push_context_switch_event(file_header, context.observer(), writable_bytes_buffer,
+                              21, 111, 222, {120, 240});
+    push_context_switch_event(file_header, context.observer(), writable_bytes_buffer,
+                              22, 222, 111, {130, 260});
+    push_context_switch_event(file_header, context.observer(), writable_bytes_buffer,
+                              23, 111, 222, {140, 280});
+
+    // End the first thread
+    push_thread_event(file_header, context.observer(), writable_bytes_buffer,
+                      25, 123, 111, false);
+
+    push_context_switch_event(file_header, context.observer(), writable_bytes_buffer,
+                              30, 222, 0, {150, 300});
+
+    // Start second process and reuse first thread id
+    push_process_event(file_header, context.observer(), writable_bytes_buffer,
+                       35, 456, "\\Device\\HarddiskVolume1\\my\\path\\to\\b.exe", u"b.exe", true);
+    push_thread_event(file_header, context.observer(), writable_bytes_buffer,
+                      35, 456, 111, true);
+
+    push_context_switch_event(file_header, context.observer(), writable_bytes_buffer,
+                              37, 0, 111, {160, 310});
+    push_context_switch_event(file_header, context.observer(), writable_bytes_buffer,
+                              37, 111, 0, {200, 400});
+
+    push_pmc_counter_config_event(file_header, context.observer(), writable_bytes_buffer,
+                                  40, {u"Counter1", u"Counter2"});
+
+    context.finish();
+
+    const auto& threads = context.get_threads().all_entries();
+    EXPECT_EQ(threads.size(), 2);
+
+    ASSERT_TRUE(threads.contains(111));
+    ASSERT_EQ(threads.at(111).size(), 2);
+
+    const auto thread_111_1 = threads.at(111)[0];
+    EXPECT_EQ(thread_111_1.id, 111);
+    EXPECT_EQ(thread_111_1.timestamp, 14);
+    EXPECT_EQ(thread_111_1.payload.process_id, 123);
+    EXPECT_EQ(thread_111_1.payload.end_time, 25);
+    EXPECT_EQ(thread_111_1.payload.context_switches, 3);
+    EXPECT_EQ(thread_111_1.payload.pmc_counts.size(), 2);
+    EXPECT_EQ(thread_111_1.payload.pmc_counts[0], 20);
+    EXPECT_EQ(thread_111_1.payload.pmc_counts[1], 40);
+
+    const auto thread_111_2 = threads.at(111)[1];
+    EXPECT_EQ(thread_111_2.id, 111);
+    EXPECT_EQ(thread_111_2.timestamp, 35);
+    EXPECT_EQ(thread_111_2.payload.process_id, 456);
+    EXPECT_EQ(thread_111_2.payload.end_time, std::nullopt);
+    EXPECT_EQ(thread_111_2.payload.context_switches, 1);
+    EXPECT_EQ(thread_111_2.payload.pmc_counts.size(), 2);
+    EXPECT_EQ(thread_111_2.payload.pmc_counts[0], 40);
+    EXPECT_EQ(thread_111_2.payload.pmc_counts[1], 90);
+
+    ASSERT_TRUE(threads.contains(222));
+    ASSERT_EQ(threads.at(222).size(), 1);
+
+    const auto thread_222_1 = threads.at(222)[0];
+    EXPECT_EQ(thread_222_1.id, 222);
+    EXPECT_EQ(thread_222_1.timestamp, 20);
+    EXPECT_EQ(thread_222_1.payload.process_id, 123);
+    EXPECT_EQ(thread_222_1.payload.end_time, std::nullopt);
+    EXPECT_EQ(thread_222_1.payload.context_switches, 3);
+    EXPECT_EQ(thread_222_1.payload.pmc_counts.size(), 2);
+    EXPECT_EQ(thread_222_1.payload.pmc_counts[0], 30);
+    EXPECT_EQ(thread_222_1.payload.pmc_counts[1], 60);
+
+    EXPECT_EQ(context.pmc_name(0), std::u16string_view(u"Counter1"));
+    EXPECT_EQ(context.pmc_name(1), std::u16string_view(u"Counter2"));
+    EXPECT_EQ(context.pmc_name(3), std::nullopt);
 }
 
 TEST(EtlFileProcessContext, SystemInfo)

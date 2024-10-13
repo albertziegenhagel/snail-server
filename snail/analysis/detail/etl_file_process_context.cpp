@@ -49,10 +49,17 @@ etl_file_process_context::etl_file_process_context()
     register_event<etl::parser::system_config_ex_v0_volume_mapping_event_view>();
     register_event<etl::parser::process_v4_type_group1_event_view>();
     register_event<etl::parser::thread_v3_type_group1_event_view>();
+    // register_event<etl::parser::thread_v4_context_switch_event_view>();
+    observer_.register_event<etl::parser::thread_v4_context_switch_event_view>(
+        [this](const etl::etl_file::header_data& file_header, const etl::any_group_trace_header& header, const etl::parser::thread_v4_context_switch_event_view& event)
+        {
+            this->handle_event(file_header, header, event);
+        });
     register_event<etl::parser::image_v3_load_event_view>();
     register_event<etl::parser::perfinfo_v2_sampled_profile_event_view>();
     register_event<etl::parser::perfinfo_v2_pmc_counter_profile_event_view>();
     register_event<etl::parser::perfinfo_v3_sampled_profile_interval_event_view>();
+    register_event<etl::parser::perfinfo_v2_pmc_counter_config_event_view>();
     register_event<etl::parser::stackwalk_v2_stack_event_view>();
     register_event<etl::parser::stackwalk_v2_key_event_view>();
     register_event<etl::parser::stackwalk_v2_type_group1_event_view>();
@@ -186,6 +193,36 @@ void etl_file_process_context::finish()
             if(storage.samples->empty()) continue;
             sample_source_names_[storage.source] = utf8::utf8to16(std::format("Unknown ({})", storage.source));
             break;
+        }
+    }
+
+    // Accumulate all remaining context switch data to their threads
+    for(const auto& [thread_os_id, context_switch_data] : last_context_switch_data_per_thread_id_)
+    {
+        auto* const start_thread = threads.find_at(thread_os_id, context_switch_data.first_time);
+        auto* const end_thread   = threads.find_at(thread_os_id, context_switch_data.last_time);
+        if(start_thread == nullptr && end_thread == nullptr) continue; // we are still missing this thread? just ignore the data...
+
+        if(start_thread != end_thread)
+        {
+            // The collected information seems to span over multiple threads? Maybe we missed some
+            // start/end thread events in-between, but how could we have multiple threads in the
+            // thread history then? Not sure whether this can ever happen, so just ignore for now...
+        }
+        else
+        {
+            assert(start_thread != nullptr);
+
+            start_thread->payload.context_switches += context_switch_data.exit_count;
+
+            if(context_switch_data.pmc_counters_info.size() > start_thread->payload.pmc_counts.size())
+            {
+                start_thread->payload.pmc_counts.resize(context_switch_data.pmc_counters_info.size(), 0);
+            }
+            for(std::size_t counter_index = 0; counter_index < context_switch_data.pmc_counters_info.size(); ++counter_index)
+            {
+                start_thread->payload.pmc_counts[counter_index] += context_switch_data.pmc_counters_info[counter_index].total_count;
+            }
         }
     }
 
@@ -378,34 +415,169 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
                                             const etl::common_trace_header&                      header,
                                             const etl::parser::thread_v3_type_group1_event_view& event)
 {
+    thread_info* thread = nullptr;
     if(header.type == 1 || header.type == 3) // start || dc_start
     {
-        // const auto name = event.thread_name();
+        const auto name = event.thread_name();
 
         const auto is_new_thread = threads.insert(event.thread_id(), header.timestamp,
                                                   thread_data{
-                                                      .process_id = event.process_id(),
-                                                      .end_time   = {},
-                                                      .unique_id  = {},
-                                                  });
+                                                      .process_id       = event.process_id(),
+                                                      .end_time         = {},
+                                                      .unique_id        = {},
+                                                      .name             = name ? std::make_optional(std::u16string(*name)) : std::nullopt,
+                                                      .context_switches = 0,
+                                                      .pmc_counts       = {}});
         if(is_new_thread)
         {
             threads_per_process_id_[event.process_id()].emplace(event.thread_id(), header.timestamp);
         }
+
+        thread = &threads.all_entries().at(event.thread_id()).back();
     }
     else if(header.type == 2 || header.type == 4) // end || dc_end
     {
-        auto* const thread = threads.find_at(event.thread_id(), header.timestamp);
+        thread = threads.find_at(event.thread_id(), header.timestamp);
         if(thread != nullptr)
         {
             thread->payload.end_time = header.timestamp;
         }
     }
+
+    // If we collected context switch data for a thread with this ID already,
+    // we will attribute it to this thread.
+    // In case that this is a start thread-event, we assume that it was only for
+    // a few context switches that happened before the thread start event was emitted.
+    // If this is a thread end event, this should be the correct thing to do.
+    auto context_switch_iter = last_context_switch_data_per_thread_id_.find(event.thread_id());
+    if(context_switch_iter != last_context_switch_data_per_thread_id_.end())
+    {
+        const auto& context_switch_data = context_switch_iter->second;
+
+        if(thread != nullptr)
+        {
+            thread->payload.context_switches += context_switch_data.exit_count;
+
+            if(context_switch_data.pmc_counters_info.size() > thread->payload.pmc_counts.size())
+            {
+                thread->payload.pmc_counts.resize(context_switch_data.pmc_counters_info.size(), 0);
+            }
+            for(std::size_t counter_index = 0; counter_index < context_switch_data.pmc_counters_info.size(); ++counter_index)
+            {
+                thread->payload.pmc_counts[counter_index] += context_switch_data.pmc_counters_info[counter_index].total_count;
+            }
+        }
+
+        // Delete the old context switch data, so that we will start collecting data
+        // for the next thread with the same id. If this is a start event, we do not
+        // care that it's split and the remaining data should be caught at the next
+        // end thread event. Not deleting it in case of a start event, would make us
+        // accumulate the current count two times.
+        last_context_switch_data_per_thread_id_.erase(context_switch_iter);
+    }
 }
 
 void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
-                                            const etl::common_trace_header&              header,
-                                            const etl::parser::image_v3_load_event_view& event)
+                                            const etl::any_group_trace_header&                      header_variant,
+                                            const etl::parser::thread_v4_context_switch_event_view& event)
+{
+    // Context switch events can occur before the thread start events.
+    // Hence, we cannot rely on the thread being present in the `threads` history.
+    // Instead, we will accumulate context switch data in temporary storage and then
+    // assign it to the threads on the threads start/end events and flush any potentially
+    // remaining data in the end.
+
+    const auto header = etl::make_common_trace_header(header_variant);
+
+    const auto old_thread_id = event.old_thread_id();
+    const auto new_thread_id = event.new_thread_id();
+
+    auto& old_thread_data = [this, old_thread_id, &header]() -> auto&
+    {
+        auto iter = last_context_switch_data_per_thread_id_.find(old_thread_id);
+        if(iter == last_context_switch_data_per_thread_id_.end())
+        {
+            auto& data      = last_context_switch_data_per_thread_id_[old_thread_id];
+            data.first_time = header.timestamp;
+            return data;
+        }
+        return iter->second;
+    }();
+
+    auto& new_thread_data = [this, new_thread_id, &header]() -> auto&
+    {
+        auto iter = last_context_switch_data_per_thread_id_.find(new_thread_id);
+        if(iter == last_context_switch_data_per_thread_id_.end())
+        {
+            auto& data      = last_context_switch_data_per_thread_id_[new_thread_id];
+            data.first_time = header.timestamp;
+            return data;
+        }
+        return iter->second;
+    }();
+
+    // If we really receive events in the correct order, the `max` is not necessary here,
+    // but we still leave it in to be a little bit more defensive.
+    old_thread_data.last_time = std::max(old_thread_data.last_time, header.timestamp);
+    new_thread_data.last_time = std::max(new_thread_data.last_time, header.timestamp);
+
+    ++old_thread_data.exit_count;
+    ++new_thread_data.enter_count;
+
+    const auto* perfinfo_header = std::get_if<etl::parser::perfinfo_trace_header_view>(&header_variant);
+    if(perfinfo_header)
+    {
+        if(old_thread_data.pmc_counters_info.size() < perfinfo_header->ext_pmc_count())
+        {
+            old_thread_data.pmc_counters_info.resize(perfinfo_header->ext_pmc_count());
+        }
+        if(new_thread_data.pmc_counters_info.size() < perfinfo_header->ext_pmc_count())
+        {
+            new_thread_data.pmc_counters_info.resize(perfinfo_header->ext_pmc_count());
+        }
+
+        for(std::uint8_t counter_index = 0; counter_index < perfinfo_header->ext_pmc_count(); ++counter_index)
+        {
+            const auto pmc_counter_value = perfinfo_header->ext_pmc(counter_index);
+
+            auto& old_thread_counter_info = old_thread_data.pmc_counters_info[counter_index];
+
+            // accumulate counter difference to old thread but skip thread '0'.
+            // Thread '0' is not a real thread (but the scheduler?) and we are never
+            // interested in this one. Since it is a "thread" that appears to run on multiple
+            // cores at the same time, timer differences would be invalid anyways
+            // (or we would have to keep the track of the "enter" counter PER CORE,
+            // which should not be necessary for any other thread, since they always
+            // run on a single core between context switches)...
+            if(old_thread_id != 0)
+            {
+                if(old_thread_counter_info.prev_enter_count != std::nullopt)
+                {
+                    if(*old_thread_counter_info.prev_enter_count > pmc_counter_value)
+                    {
+                        // counter overflow while the thread was running?
+                        assert(false);
+                        // constexpr auto max_counter_value = std::numeric_limits<std::int32_t>::max(); // Is this even remotely correct????
+                        // old_thread_counter_info.total_count += (max_counter_value - *old_thread_counter_info.prev_enter_count);
+                        old_thread_counter_info.total_count += pmc_counter_value;
+                    }
+                    else
+                    {
+                        old_thread_counter_info.total_count += (pmc_counter_value - *old_thread_counter_info.prev_enter_count);
+                    }
+                    old_thread_counter_info.prev_enter_count = std::nullopt;
+                }
+            }
+
+            // and store counter offset to new thread
+            auto& new_thread_counter_info = new_thread_data.pmc_counters_info[counter_index];
+
+            new_thread_counter_info.prev_enter_count = pmc_counter_value;
+        }
+    }
+}
+
+void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/, const etl::common_trace_header& header, const etl::parser::image_v3_load_event_view& event)
 {
     if(header.type != 10 && header.type != 3) return; // We do only handle load events
 
@@ -517,8 +689,25 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
     if(header.type != 73) return; // only handle collection start events.
 
     // If we receive multiple start events for the same source, we simply overwrite the last stored names.
-    // This assumes that the names do not change per source ID.
+    // This assumes that the names do not change per source ID, which should hopefully be correct?
     sample_source_names_[common::narrow_cast<sample_source_id_t>(event.source())] = event.source_name();
+}
+
+void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*file_header*/,
+                                            const etl::common_trace_header& /*header*/,
+                                            const etl::parser::perfinfo_v2_pmc_counter_config_event_view& event)
+{
+    // FIXME: If we receive multiple counter config events, the last one will simply overwrite all previous ones.
+    //        Even though this is not correct, I think it is very unlikely (or even impossible?) that the
+    //        tracked PMC events change while a single trace is being collected.
+    //        How could we handle this correctly? Maybe we can assume that if a counter config event happens, we can apply
+    //        the names for all events that have been collected so far and then apply the names of the next
+    //        counter config event only to the collected data since the last counter config event?
+    pmc_names_.resize(event.counter_count());
+    for(std::uint32_t counter_index = 0; counter_index < event.counter_count(); ++counter_index)
+    {
+        pmc_names_[counter_index] = event.counter_name(counter_index);
+    }
 }
 
 void etl_file_process_context::handle_event(const etl::etl_file::header_data&                 file_header,
@@ -797,4 +986,10 @@ std::optional<std::u16string_view> etl_file_process_context::os_name() const
 {
     if(!os_name_) return std::nullopt;
     return *os_name_;
+}
+
+std::optional<std::u16string_view> etl_file_process_context::pmc_name(std::size_t counter_index) const
+{
+    if(counter_index >= pmc_names_.size()) return std::nullopt;
+    return pmc_names_[counter_index];
 }
