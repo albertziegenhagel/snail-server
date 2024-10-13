@@ -15,9 +15,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        run-on: [ubuntu-latest]
+        run-on: [ubuntu-22.04]
         include:
-          - run-on: ubuntu-latest
+          - run-on: ubuntu-22.04
             triplet: x64-linux-release
             platform: linux
 
