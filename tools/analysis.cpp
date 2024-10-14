@@ -8,12 +8,16 @@
 #include <snail/analysis/options.hpp>
 #include <snail/analysis/path_map.hpp>
 
+#include "common/progress_printer.hpp"
+
 struct command_line_args
 {
     std::filesystem::path file_path;
 
     snail::analysis::options  options;
     snail::analysis::path_map module_path_mapper;
+
+    bool no_progress = false;
 };
 
 std::string extract_application_name(std::string_view application_path)
@@ -31,7 +35,8 @@ void print_usage(std::string_view application_path)
               << "  file.\n"
               << "Options:\n"
               << "  --module-path-map <source> <target>\n"
-              << "                   Module file path map. Can be added multiple times.\n";
+              << "                   Module file path map. Can be added multiple times.\n"
+              << "  --no-progress    Do not print a progress bar.\n";
 }
 
 [[noreturn]] void print_usage_and_exit(std::string_view application_path, int exit_code)
@@ -65,6 +70,10 @@ command_line_args parse_command_line(int argc, char* argv[]) // NOLINT(modernize
             result.module_path_mapper.add_rule(std::make_unique<snail::analysis::simple_path_mapper>(
                 std::string(source_arg), std::string(target_arg)));
         }
+        else if(current_arg == "--no-progress")
+        {
+            result.no_progress = true;
+        }
         else
         {
             if(has_path) print_error_and_exit(application_path, "More than one path given.");
@@ -85,8 +94,10 @@ int main(int argc, char* argv[])
 {
     const auto args = parse_command_line(argc, argv);
 
+    progress_printer progress;
+
     auto provider = snail::analysis::make_data_provider(args.file_path.extension(), std::move(args.options), std::move(args.module_path_mapper));
-    provider->process(args.file_path);
+    provider->process(args.file_path, args.no_progress ? nullptr : &progress);
 
     const auto& session_info = provider->session_info();
     std::cout << "Session Info:\n";
@@ -135,7 +146,7 @@ int main(int argc, char* argv[])
                 std::cout << "      " << (info.name ? *info.name : "UNKNOWN") << ": " << info.count << "\n";
             }
         }
-        const auto stacks_analysis = snail::analysis::analyze_stacks(*provider, process_id, {});
+        const auto stacks_analysis = snail::analysis::analyze_stacks(*provider, process_id, {}, args.no_progress ? nullptr : &progress);
         std::cout << "  Modules:   " << stacks_analysis.all_modules().size() << "\n";
         std::cout << "  Functions: " << stacks_analysis.all_functions().size() << "\n";
         std::cout << "  Files:     " << stacks_analysis.all_files().size() << "\n";

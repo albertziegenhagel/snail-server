@@ -16,6 +16,8 @@
 #include <snail/perf_data/parser/records/kernel.hpp>
 #include <snail/perf_data/parser/records/perf.hpp>
 
+#include "common/progress_printer.hpp"
+
 using namespace snail;
 
 namespace {
@@ -33,7 +35,8 @@ void print_usage(std::string_view application_path)
               << "File:\n"
               << "  Path to the perf.data file to be read.\n"
               << "Options:\n"
-              << "  --help, -h       Show this help text.\n";
+              << "  --help, -h       Show this help text.\n"
+              << "  --no-progress    Do not print a progress bar.\n";
 }
 
 [[noreturn]] void print_usage_and_exit(std::string_view application_path, int exit_code)
@@ -52,6 +55,8 @@ void print_usage(std::string_view application_path)
 struct options
 {
     std::filesystem::path file_path;
+
+    bool no_progress = false;
 };
 
 options parse_command_line(int argc, char* argv[]) // NOLINT(modernize-avoid-c-arrays,cppcoreguidelines-avoid-c-arrays)
@@ -67,6 +72,10 @@ options parse_command_line(int argc, char* argv[]) // NOLINT(modernize-avoid-c-a
         if(current_arg == "--help" || current_arg == "-h")
         {
             help = true;
+        }
+        else if(current_arg == "--no-progress")
+        {
+            result.no_progress = true;
         }
         else if(current_arg.starts_with("-"))
         {
@@ -257,7 +266,8 @@ int main(int argc, char* argv[])
             info.last_time  = std::max(info.last_time, *event.time);
         });
 
-    file.process(observer);
+    progress_printer progress;
+    file.process(observer, options.no_progress ? nullptr : &progress);
 
     std::cout << "\n";
     std::cout << "Total samples:\n";
