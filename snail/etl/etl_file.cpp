@@ -431,15 +431,21 @@ void etl_file::close()
     file_stream_.close();
 }
 
-void etl_file::process(event_observer& callbacks)
+void etl_file::process(event_observer&                   callbacks,
+                       const common::progress_listener*  progress_listener,
+                       const common::cancellation_token* cancellation_token)
 {
     std::vector<processor_data> per_processor_data{header_.number_of_processors};
 
-    // build a list of file buffers per processor
+    common::progress_reporter progress(progress_listener,
+                                       header_.number_of_buffers * header_.buffer_size);
+
     {
         std::array<std::byte, parser::wmi_buffer_header_view::static_size> header_buffer_data;
         for(std::size_t buffer_index = 0; buffer_index < header_.number_of_buffers; ++buffer_index)
         {
+            if(cancellation_token && cancellation_token->is_canceled()) return;
+
             const auto init_position = file_stream_.tellg();
 
             file_stream_.read(reinterpret_cast<char*>(header_buffer_data.data()), header_buffer_data.size());
@@ -506,6 +512,8 @@ void etl_file::process(event_observer& callbacks)
     std::vector<std::byte>                        compressed_temp_data;
     for(std::size_t processor_index = 0; processor_index < per_processor_data.size(); ++processor_index)
     {
+        if(cancellation_token && cancellation_token->is_canceled()) return;
+
         auto& processor_data    = per_processor_data[processor_index];
         auto& remaining_buffers = processor_data.remaining_buffers;
 
@@ -538,6 +546,8 @@ void etl_file::process(event_observer& callbacks)
     //     the next buffer for that processor (if there are any buffers left).
     while(!event_queue.empty())
     {
+        if(cancellation_token && cancellation_token->is_canceled()) return;
+
         // Get the processor that has the earliest event to extract next.
         const auto [_, processor_index] = event_queue.top();
         event_queue.pop();
@@ -553,10 +563,14 @@ void etl_file::process(event_observer& callbacks)
             const auto trace_read_bytes = process_next_trace(buffer_info.payload_buffer.subspan(buffer_info.current_payload_offset), header_, callbacks);
             buffer_info.current_payload_offset += trace_read_bytes;
 
+            progress.progress(trace_read_bytes);
+
             // Check whether this was the last event in the current processors buffer
             const auto buffer_exhausted = buffer_info.current_payload_offset >= buffer_info.payload_buffer.size();
             if(buffer_exhausted)
             {
+                progress.progress(header_.buffer_size - buffer_info.current_payload_offset);
+
                 auto& remaining_buffers = processor_data.remaining_buffers;
 
                 // If there are no remaining buffers for this processor, stop extracting events for it.
@@ -589,6 +603,8 @@ void etl_file::process(event_observer& callbacks)
             }
         }
     }
+
+    progress.finish();
 }
 
 const etl_file::header_data& etl_file::header() const

@@ -8,6 +8,7 @@
 
 #include <snail/common/date_time.hpp>
 #include <snail/common/ms_xca_compression_format.hpp>
+#include <snail/common/progress.hpp>
 
 #include <snail/etl/parser/log_file_mode.hpp>
 #include <snail/etl/parser/trace_headers/fwd.hpp>
@@ -53,7 +54,9 @@ public:
 
     void close();
 
-    void process(event_observer& callbacks);
+    void process(event_observer&                   callbacks,
+                 const common::progress_listener*  progress_listener  = nullptr,
+                 const common::cancellation_token* cancellation_token = nullptr);
 
     const header_data& header() const;
 

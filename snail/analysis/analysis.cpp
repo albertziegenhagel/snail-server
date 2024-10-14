@@ -184,9 +184,11 @@ const call_tree_node& stacks_analysis::get_call_tree_node(call_tree_node::id_t i
     return id == call_tree_root.id ? call_tree_root : call_tree_nodes.at(id);
 }
 
-stacks_analysis snail::analysis::analyze_stacks(const samples_provider& provider,
-                                                unique_process_id       process_id,
-                                                const sample_filter&    filter)
+stacks_analysis snail::analysis::analyze_stacks(const samples_provider&           provider,
+                                                unique_process_id                 process_id,
+                                                const sample_filter&              filter,
+                                                const common::progress_listener*  progress_listener,
+                                                const common::cancellation_token* cancellation_token)
 {
     std::unordered_map<std::string, module_info::id_t>                               modules_by_name;
     std::unordered_map<std::pair<module_info::id_t, std::string>, module_info::id_t> functions_by_name;
@@ -217,10 +219,36 @@ stacks_analysis snail::analysis::analyze_stacks(const samples_provider& provider
         .children    = {},
     };
 
+    std::size_t total_work = 0;
+    if(progress_listener)
+    {
+        for(const auto& source_info : provider.sample_sources())
+        {
+            total_work += provider.count_samples(source_info.id, process_id, filter);
+        }
+    }
+    else
+    {
+        total_work = std::numeric_limits<std::size_t>::max();
+    }
+
+    common::progress_reporter progress(progress_listener, total_work);
+
+    bool cancel = false;
+
     for(const auto& source_info : provider.sample_sources())
     {
+        if(cancel) break;
+
         for(const auto& sample : provider.samples(source_info.id, process_id, filter))
         {
+            if(cancellation_token && cancellation_token->is_canceled())
+            {
+                cancel = true;
+                break;
+            }
+            progress.progress(1);
+
             if(sample.has_stack())
             {
                 ++result.call_tree_root.hits.get(source_info.id).total;
@@ -332,6 +360,8 @@ stacks_analysis snail::analysis::analyze_stacks(const samples_provider& provider
             }
         }
     }
+
+    if(!cancel) progress.finish();
 
     return result;
 }

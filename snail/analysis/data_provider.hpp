@@ -6,6 +6,7 @@
 #include <string>
 
 #include <snail/common/generator.hpp>
+#include <snail/common/progress.hpp>
 
 #include <snail/analysis/data/ids.hpp>
 #include <snail/analysis/data/process.hpp>
@@ -78,7 +79,9 @@ class file_processor
 public:
     virtual ~file_processor() = default;
 
-    virtual void process(const std::filesystem::path& file_path) = 0;
+    virtual void process(const std::filesystem::path&      file_path,
+                         const common::progress_listener*  progress_listener  = nullptr,
+                         const common::cancellation_token* cancellation_token = nullptr) = 0;
 };
 
 class data_provider :

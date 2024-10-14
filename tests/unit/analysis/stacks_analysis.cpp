@@ -1,11 +1,15 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
+
 #include <snail/analysis/analysis.hpp>
 #include <snail/analysis/data_provider.hpp>
 
 using namespace snail;
 using namespace snail::analysis;
+
+namespace {
 
 struct test_sample_data : public sample_data
 {
@@ -86,6 +90,39 @@ public:
 
 using line_hits_map = std::unordered_map<std::size_t, source_hit_counts>;
 using caller_map    = std::unordered_map<function_info::id_t, source_hit_counts>;
+
+struct test_progress_listener : public common::progress_listener
+{
+    using common::progress_listener::progress_listener;
+
+    virtual void start() const override
+    {
+        started = true;
+    }
+
+    virtual void report(double progress) const override
+    {
+        reported.push_back(std::round(progress * 1000.0) / 10.0); // percent rounded to one digit after the point
+        if(cancel_at && progress >= *cancel_at)
+        {
+            token.cancel();
+        }
+    }
+
+    virtual void finish() const override
+    {
+        finished = true;
+    }
+
+    mutable bool                       started  = false;
+    mutable bool                       finished = false;
+    mutable std::vector<double>        reported;
+    mutable common::cancellation_token token;
+
+    std::optional<double> cancel_at = std::nullopt;
+};
+
+} // namespace
 
 TEST(Analysis, SampleStacksFullInfo)
 {
@@ -798,4 +835,256 @@ TEST(Analysis, SampleNoStacks)
                                        {{}, {.total = 0, .self = 0}}
     }));
     EXPECT_EQ(call_tree_root.children.size(), 0);
+}
+
+TEST(Analysis, SampleNoStacksCancel)
+{
+    const auto process_id = unique_process_id{.key = 123};
+
+    const std::string function_a_name = "func_a";
+    const std::string function_b_name = "func_b";
+    const std::string function_c_name = "func_c";
+
+    const std::string module_a_name = "mod_a.so";
+    const std::string module_b_name = "mod_b.dll";
+
+    const std::string file_a_path = "/home/path/to/file/a.cpp";
+    const std::string file_b_path = "C:/path/to/file/b.h";
+
+    test_samples_provider samples_provider;
+    samples_provider.expected_process_id_ = process_id;
+
+    samples_provider.sources_ = {
+        {.id                    = 0,
+         .name                  = "source A",
+         .number_of_samples     = 0,
+         .average_sampling_rate = 1.0,
+         .has_stacks            = false},
+        {.id                    = 1,
+         .name                  = "source B",
+         .number_of_samples     = 0,
+         .average_sampling_rate = 1.0,
+         .has_stacks            = true }
+    };
+    const auto source_id      = samples_provider.sources_[1].id;
+    samples_provider.samples_ = {
+        {1,
+         {test_sample_data(
+              stack_frame{
+                  .symbol_name             = function_a_name,
+                  .module_name             = module_a_name,
+                  .file_path               = file_a_path,
+                  .function_line_number    = 10,
+                  .instruction_line_number = 15},
+              std::nullopt),
+          test_sample_data(
+              stack_frame{
+                  .symbol_name             = function_b_name,
+                  .module_name             = module_b_name,
+                  .file_path               = file_b_path,
+                  .function_line_number    = 100,
+                  .instruction_line_number = 100},
+              std::nullopt),
+          test_sample_data(
+              stack_frame{
+                  .symbol_name             = function_c_name,
+                  .module_name             = module_a_name,
+                  .file_path               = file_a_path,
+                  .function_line_number    = 50,
+                  .instruction_line_number = 60},
+              std::nullopt),
+          test_sample_data(
+              stack_frame{
+                  .symbol_name             = function_a_name,
+                  .module_name             = module_a_name,
+                  .file_path               = file_a_path,
+                  .function_line_number    = 10,
+                  .instruction_line_number = 12},
+              std::nullopt),
+          test_sample_data(
+              std::nullopt,
+              std::nullopt)}}
+    };
+
+    {
+        // Do not cancel at all
+        const test_progress_listener progress_listener(0.1);
+
+        const auto analysis_result = analyze_stacks(samples_provider, process_id, {}, &progress_listener);
+
+        EXPECT_TRUE(progress_listener.started);
+        EXPECT_TRUE(progress_listener.finished);
+        EXPECT_EQ(progress_listener.reported,
+                  (std::vector<double>{0.0, 20.0, 40.0, 60.0, 80.0, 100.0}));
+
+        // Do need to test this. This is the same as the test above
+    }
+    {
+        // Cancel at 40%
+        test_progress_listener progress_listener(0.1);
+        progress_listener.cancel_at = 0.4;
+
+        const auto analysis_result = analyze_stacks(samples_provider, process_id, {}, &progress_listener, &progress_listener.token);
+
+        EXPECT_TRUE(progress_listener.started);
+        EXPECT_FALSE(progress_listener.finished);
+        EXPECT_EQ(progress_listener.reported,
+                  (std::vector<double>{0.0, 20.0, 40.0}));
+
+        EXPECT_EQ(analysis_result.process_id, process_id);
+
+        // Check that all functions are present
+        EXPECT_EQ(analysis_result.all_functions().size(), 2);
+        const auto func_a_iter = std::ranges::find_if(analysis_result.all_functions(), [&function_a_name](const function_info& func)
+                                                      { return func.name == function_a_name; });
+        EXPECT_NE(func_a_iter, analysis_result.all_functions().end());
+
+        const auto func_b_iter = std::ranges::find_if(analysis_result.all_functions(), [&function_b_name](const function_info& func)
+                                                      { return func.name == function_b_name; });
+        EXPECT_NE(func_b_iter, analysis_result.all_functions().end());
+
+        // Check that all modules are present
+        EXPECT_EQ(analysis_result.all_modules().size(), 2);
+        const auto mod_a_iter = std::ranges::find_if(analysis_result.all_modules(), [&module_a_name](const module_info& mod)
+                                                     { return mod.name == module_a_name; });
+        EXPECT_NE(mod_a_iter, analysis_result.all_modules().end());
+        const auto mod_b_iter = std::ranges::find_if(analysis_result.all_modules(), [&module_b_name](const module_info& mod)
+                                                     { return mod.name == module_b_name; });
+        EXPECT_NE(mod_b_iter, analysis_result.all_modules().end());
+
+        // Check that all files are present
+        EXPECT_EQ(analysis_result.all_files().size(), 2);
+        const auto file_a_iter = std::ranges::find_if(analysis_result.all_files(), [&file_a_path](const file_info& file)
+                                                      { return file.path == file_a_path; });
+        EXPECT_NE(file_a_iter, analysis_result.all_files().end());
+        const auto file_b_iter = std::ranges::find_if(analysis_result.all_files(), [&file_b_path](const file_info& file)
+                                                      { return file.path == file_b_path; });
+        EXPECT_NE(file_b_iter, analysis_result.all_files().end());
+
+        // Check function root
+        const auto& function_root = analysis_result.get_function_root();
+        EXPECT_EQ(function_root.name, "root");
+
+        // Check function ids
+        EXPECT_EQ(&analysis_result.get_function(function_root.id), &function_root);
+        EXPECT_EQ(&analysis_result.get_function(func_a_iter->id), &*func_a_iter);
+        EXPECT_EQ(&analysis_result.get_function(func_b_iter->id), &*func_b_iter);
+
+        // Check module ids
+        EXPECT_EQ(&analysis_result.get_module(mod_a_iter->id), &*mod_a_iter);
+        EXPECT_EQ(&analysis_result.get_module(mod_b_iter->id), &*mod_b_iter);
+
+        // Check file ids
+        EXPECT_EQ(&analysis_result.get_file(file_a_iter->id), &*file_a_iter);
+        EXPECT_EQ(&analysis_result.get_file(file_b_iter->id), &*file_b_iter);
+
+        // Check function hits
+        EXPECT_EQ(function_root.hits.get(source_id).total, 0);
+        EXPECT_EQ(function_root.hits.get(source_id).self, 0);
+        EXPECT_EQ(func_a_iter->hits.get(source_id).total, 1);
+        EXPECT_EQ(func_a_iter->hits.get(source_id).self, 1);
+        EXPECT_EQ(func_b_iter->hits.get(source_id).total, 1);
+        EXPECT_EQ(func_b_iter->hits.get(source_id).self, 1);
+
+        // Check module hits
+        EXPECT_EQ(mod_a_iter->hits.get(source_id).total, 1);
+        EXPECT_EQ(mod_a_iter->hits.get(source_id).self, 1);
+        EXPECT_EQ(mod_b_iter->hits.get(source_id).total, 1);
+        EXPECT_EQ(mod_b_iter->hits.get(source_id).self, 1);
+
+        // Check file hits
+        EXPECT_EQ(file_a_iter->hits.get(source_id).total, 1);
+        EXPECT_EQ(file_a_iter->hits.get(source_id).self, 1);
+        EXPECT_EQ(file_b_iter->hits.get(source_id).total, 1);
+        EXPECT_EQ(file_b_iter->hits.get(source_id).self, 1);
+
+        // Check function file associations
+        EXPECT_EQ(func_a_iter->file_id, file_a_iter->id);
+        EXPECT_EQ(func_b_iter->file_id, file_b_iter->id);
+
+        // Check function module associations
+        EXPECT_EQ(func_a_iter->module_id, mod_a_iter->id);
+        EXPECT_EQ(func_b_iter->module_id, mod_b_iter->id);
+
+        // Check function line numbers
+        EXPECT_EQ(func_a_iter->line_number, 10);
+        EXPECT_EQ(func_b_iter->line_number, 100);
+
+        // Check function line hits
+        EXPECT_EQ(func_a_iter->hits_by_line,
+                  (line_hits_map{
+                      {15, {{{}, {.total = 1, .self = 1}}}},
+        }));
+        EXPECT_EQ(func_b_iter->hits_by_line,
+                  (line_hits_map{
+                      {100, {{{}, {.total = 1, .self = 1}}}},
+        }));
+
+        // Check function callers
+        EXPECT_EQ(function_root.callers,
+                  (caller_map{}));
+        EXPECT_EQ(func_a_iter->callers,
+                  (caller_map{}));
+        EXPECT_EQ(func_b_iter->callers,
+                  (caller_map{}));
+
+        // Check function callees
+        EXPECT_EQ(function_root.callees,
+                  (caller_map{}));
+        EXPECT_EQ(func_a_iter->callees,
+                  (caller_map{}));
+        EXPECT_EQ(func_b_iter->callees,
+                  (caller_map{}));
+
+        // check call tree
+        const auto& call_tree_root = analysis_result.get_call_tree_root();
+        EXPECT_EQ(&analysis_result.get_call_tree_node(call_tree_root.id), &call_tree_root);
+        EXPECT_EQ(call_tree_root.function_id, function_root.id);
+        EXPECT_EQ(call_tree_root.hits, (source_hit_counts{
+                                           {{}, {.total = 0, .self = 0}}
+        }));
+        EXPECT_EQ(call_tree_root.children.size(), 0);
+    }
+
+    {
+        // Cancel right away
+        test_progress_listener progress_listener(0.1);
+        progress_listener.token.cancel();
+
+        const auto analysis_result = analyze_stacks(samples_provider, process_id, {}, &progress_listener, &progress_listener.token);
+
+        EXPECT_TRUE(progress_listener.started);
+        EXPECT_FALSE(progress_listener.finished);
+        EXPECT_EQ(progress_listener.reported,
+                  (std::vector<double>{0.0}));
+
+        EXPECT_EQ(analysis_result.process_id, process_id);
+
+        // Check that there are no function, modules and files yet.
+        EXPECT_EQ(analysis_result.all_functions().size(), 0);
+        EXPECT_EQ(analysis_result.all_modules().size(), 0);
+        EXPECT_EQ(analysis_result.all_files().size(), 0);
+
+        // Check for a valid function root
+        const auto& function_root = analysis_result.get_function_root();
+        EXPECT_EQ(function_root.name, "root");
+
+        EXPECT_EQ(&analysis_result.get_function(function_root.id), &function_root);
+
+        EXPECT_EQ(function_root.hits.get(source_id).total, 0);
+        EXPECT_EQ(function_root.hits.get(source_id).self, 0);
+
+        EXPECT_EQ(function_root.callers,
+                  (caller_map{}));
+        EXPECT_EQ(function_root.callees,
+                  (caller_map{}));
+
+        const auto& call_tree_root = analysis_result.get_call_tree_root();
+        EXPECT_EQ(&analysis_result.get_call_tree_node(call_tree_root.id), &call_tree_root);
+        EXPECT_EQ(call_tree_root.function_id, function_root.id);
+        EXPECT_EQ(call_tree_root.hits, (source_hit_counts{
+                                           {{}, {.total = 0, .self = 0}}
+        }));
+        EXPECT_EQ(call_tree_root.children.size(), 0);
+    }
 }

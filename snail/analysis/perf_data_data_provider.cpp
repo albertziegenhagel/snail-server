@@ -155,12 +155,16 @@ perf_data_data_provider::perf_data_data_provider(dwarf_symbol_find_options find_
 
 perf_data_data_provider::~perf_data_data_provider() = default;
 
-void perf_data_data_provider::process(const std::filesystem::path& file_path)
+void perf_data_data_provider::process(const std::filesystem::path&      file_path,
+                                      const common::progress_listener*  progress_listener,
+                                      const common::cancellation_token* cancellation_token)
 {
     process_context_ = std::make_unique<detail::perf_data_file_process_context>();
 
     perf_data::perf_data_file file(file_path);
-    file.process(process_context_->observer());
+    file.process(process_context_->observer(),
+                 progress_listener,
+                 cancellation_token);
 
     process_context_->finish();
 

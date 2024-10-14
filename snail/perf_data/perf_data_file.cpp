@@ -139,11 +139,17 @@ void read_events(std::ifstream&                            file_stream,
                  const detail::perf_data_file_header_data& header,
                  std::uint64_t                             offset,
                  std::uint64_t                             size,
-                 F&&                                       callback)
+                 F&&                                       callback,
+                 const common::progress_listener*          progress_listener,
+                 const common::cancellation_token*         cancellation_token)
 {
+    common::progress_reporter progress(progress_listener, size);
+
     auto reader = common::chunked_reader<max_chunk_size>(file_stream, offset, size);
     while(reader.keep_going())
     {
+        if(cancellation_token && cancellation_token->is_canceled()) return;
+
         const auto event_header_buffer = reader.retrieve_data(parser::event_header_view::static_size, true);
         if(event_header_buffer.size() != parser::event_header_view::static_size) continue;
 
@@ -163,7 +169,11 @@ void read_events(std::ifstream&                            file_stream,
         if(event_buffer.size() != event_header.size()) continue;
 
         callback(event_header, event_buffer);
+
+        progress.progress(event_buffer.size());
     }
+
+    progress.finish();
 }
 
 void read_metadata(std::ifstream&                            file_stream,
@@ -211,7 +221,9 @@ void read_metadata(std::ifstream&                            file_stream,
                         const auto event_build_id = event.build_id();
                         build_id_entry.size_      = event_build_id.size();
                         std::ranges::copy(event_build_id, build_id_entry.buffer_.begin());
-                    });
+                    },
+                    nullptr,
+                    nullptr);
                 break;
             case parser::header_feature::hostname:
                 metadata.hostname = common::parser::read_string(file_stream, header.byte_order);
@@ -309,7 +321,9 @@ void read_metadata(std::ifstream&                            file_stream,
 void read_data_section(std::ifstream&                            file_stream,
                        const detail::perf_data_file_header_data& header,
                        const detail::event_attributes_database&  attributes_database,
-                       event_observer&                           callbacks)
+                       event_observer&                           callbacks,
+                       const common::progress_listener*          progress_listener,
+                       const common::cancellation_token*         cancellation_token)
 {
     read_events(
         file_stream,
@@ -327,7 +341,9 @@ void read_data_section(std::ifstream&                            file_stream,
             {
                 callbacks.handle(event_header, event_buffer, header.byte_order);
             }
-        });
+        },
+        progress_listener,
+        cancellation_token);
 }
 
 } // namespace
@@ -429,7 +445,9 @@ void perf_data_file::close()
     header_ = nullptr;
 }
 
-void perf_data_file::process(event_observer& callbacks)
+void perf_data_file::process(event_observer&                   callbacks,
+                             const common::progress_listener*  progress_listener,
+                             const common::cancellation_token* cancellation_token)
 {
     if(!file_stream_.is_open())
     {
@@ -456,7 +474,7 @@ void perf_data_file::process(event_observer& callbacks)
         metadata_->extract_event_attributes_database(attributes_database);
     }
 
-    read_data_section(file_stream_, *header_, attributes_database, callbacks);
+    read_data_section(file_stream_, *header_, attributes_database, callbacks, progress_listener, cancellation_token);
 
     read_event_types_section(file_stream_, *header_);
 }

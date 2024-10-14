@@ -96,7 +96,9 @@ diagsession_data_provider::~diagsession_data_provider()
     try_cleanup();
 }
 
-void diagsession_data_provider::process(const std::filesystem::path& file_path)
+void diagsession_data_provider::process(const std::filesystem::path&      file_path,
+                                        const common::progress_listener*  progress_listener,
+                                        const common::cancellation_token* cancellation_token)
 {
     static constexpr std::array<std::uint8_t, 4> zip_magic           = {0x50, 0x4b, 0x03, 0x04};
     static constexpr std::array<std::uint8_t, 8> compound_file_magic = {0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1};
@@ -180,10 +182,37 @@ void diagsession_data_provider::process(const std::filesystem::path& file_path)
         }
 
         std::ofstream etl_file_stream(*temp_etl_file_path_, std::ios::binary);
-        etl_file_entry.readContent(etl_file_stream);
+
+        common::progress_reporter progress(progress_listener,
+                                           etl_file_entry.getSize());
+
+        const auto result = archive.readEntry(
+            etl_file_entry,
+            [&etl_file_stream, &progress, cancellation_token](const void* data, libzippp_uint64 size) -> bool
+            {
+                // threat cancellation as failure to write
+                if(cancellation_token && cancellation_token->is_canceled()) return false;
+
+                etl_file_stream.write((char*)data, size);
+                progress.progress(size);
+                return bool(etl_file_stream);
+            });
+
+        // If this was canceled, there is no need to check the error code.
+        if(cancellation_token && cancellation_token->is_canceled()) return;
+
+        if(result != LIBZIPPP_OK)
+        {
+            // TODO: get more meaningful error message
+            throw std::runtime_error(std::format("Failed to extract ETL file from '{}' to '{}'", *archive_etl_file_path, temp_etl_file_path_->string()));
+        }
+
+        progress.finish();
     }
 
-    etl_data_provider::process(*temp_etl_file_path_);
+    etl_data_provider::process(*temp_etl_file_path_,
+                               progress_listener,
+                               cancellation_token);
 }
 
 void diagsession_data_provider::try_cleanup() noexcept
