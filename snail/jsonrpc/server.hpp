@@ -3,6 +3,7 @@
 #include <concepts>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <unordered_map>
 
@@ -19,6 +20,9 @@ class protocol;
 struct request;
 struct response;
 
+using request_response_callback = std::function<void(nlohmann::json)>;
+using error_callback            = std::function<void(std::string)>;
+
 class server : private message_handler
 {
 public:
@@ -27,62 +31,58 @@ public:
 
     ~server();
 
-    [[noreturn]] void serve_forever();
-
     void serve_next();
 
     template<typename RequestType, typename HandlerType>
         requires detail::is_request_v<RequestType> &&
-                 std::invocable<HandlerType, const RequestType&> &&
-                 std::convertible_to<std::invoke_result_t<HandlerType, const RequestType&>, nlohmann::json>
+                 std::invocable<HandlerType, RequestType, request_response_callback, error_callback>
     void register_request(HandlerType&& handler);
 
     template<typename RequestType, typename HandlerType>
         requires detail::is_request_v<RequestType> &&
-                 std::invocable<HandlerType, const RequestType&> &&
-                 std::is_same_v<std::invoke_result_t<HandlerType, const RequestType&>, void>
+                 std::invocable<HandlerType, RequestType, error_callback>
     void register_notification(HandlerType&& handler);
 
 private:
-    virtual std::optional<std::string> handle(std::string_view data) override;
+    virtual void handle(std::string data, respond_callback respond) override;
 
-    std::optional<response> handle_request(const request& request);
+    void respond();
 
     std::unique_ptr<message_connection> connection_;
     std::unique_ptr<protocol>           protocol_;
 
-    void register_method(std::string name, std::function<std::optional<nlohmann::json>(const nlohmann::json&)> handler);
+    using request_callback      = std::function<void(const nlohmann::json&, request_response_callback, error_callback)>;
+    using notification_callback = std::function<void(const nlohmann::json&, error_callback)>;
 
-    std::unordered_map<std::string, std::function<std::optional<nlohmann::json>(const nlohmann::json&)>> methods_;
+    std::unordered_map<std::string, request_callback>      request_handlers_;
+    std::unordered_map<std::string, notification_callback> notification_handlers_;
+
+    std::mutex response_mutex_;
 };
 
 template<typename RequestType, typename HandlerType>
     requires detail::is_request_v<RequestType> &&
-             std::invocable<HandlerType, const RequestType&> &&
-             std::convertible_to<std::invoke_result_t<HandlerType, const RequestType&>, nlohmann::json>
+             std::invocable<HandlerType, RequestType, request_response_callback, error_callback>
 void server::register_request(HandlerType&& handler)
 {
-    register_method(
+    request_handlers_.emplace(
         std::string(RequestType::name),
-        [handler = std::forward<HandlerType>(handler)](const nlohmann::json& data) -> std::optional<nlohmann::json>
+        [handler = std::forward<HandlerType>(handler)](const nlohmann::json& data, request_response_callback respond, error_callback report_error)
         {
-            nlohmann::json response = std::invoke(handler, detail::unpack_request<RequestType>(data));
-            return response;
+            std::invoke(handler, detail::unpack_request<RequestType>(data), std::move(respond), std::move(report_error));
         });
 }
 
 template<typename RequestType, typename HandlerType>
     requires detail::is_request_v<RequestType> &&
-             std::invocable<HandlerType, const RequestType&> &&
-             std::is_same_v<std::invoke_result_t<HandlerType, const RequestType&>, void>
+             std::invocable<HandlerType, RequestType, error_callback>
 void server::register_notification(HandlerType&& handler)
 {
-    register_method(
+    notification_handlers_.emplace(
         std::string(RequestType::name),
-        [handler = std::forward<HandlerType>(handler)](const nlohmann::json& data) -> std::optional<nlohmann::json>
+        [handler = std::forward<HandlerType>(handler)](const nlohmann::json& data, error_callback report_error)
         {
-            std::invoke(handler, detail::unpack_request<RequestType>(data));
-            return {};
+            std::invoke(handler, detail::unpack_request<RequestType>(data), std::move(report_error));
         });
 }
 

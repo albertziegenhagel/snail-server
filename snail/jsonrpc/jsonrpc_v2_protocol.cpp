@@ -7,7 +7,7 @@
 
 using namespace snail::jsonrpc;
 
-request v2_protocol::load_request(std::string_view content)
+request v2_protocol::load_request(std::string_view content) const
 {
     nlohmann::json data;
     try
@@ -60,7 +60,7 @@ request v2_protocol::load_request(std::string_view content)
         .id     = std::move(id_data)};
 }
 
-std::string v2_protocol::dump_response(const jsonrpc::response& response)
+std::string v2_protocol::dump_response(const jsonrpc::response& response) const
 {
     if(response.id)
     {
@@ -70,7 +70,7 @@ std::string v2_protocol::dump_response(const jsonrpc::response& response)
     return std::format(R"({{"jsonrpc":"2.0","result":{}}})", response.result.dump());
 }
 
-std::string v2_protocol::dump_error(const rpc_error& error, const nlohmann::json* id)
+std::string v2_protocol::dump_error(const rpc_error& error, const nlohmann::json* id) const
 {
     const auto json_error = nlohmann::json{
         {"code",    error.code()},

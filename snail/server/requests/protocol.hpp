@@ -1,6 +1,6 @@
 // ****** THIS IS A GENERATED FILE, DO NOT EDIT. ******
 
-#include <snail/server/requests/requests.hpp>
+#include <snail/jsonrpc/detail/request.hpp>
 
 #include <format>
 #include <optional>
@@ -602,6 +602,33 @@ private:
 namespace snail::jsonrpc::detail {
 template<>
 struct is_request<set_sample_filters_request> : std::true_type
+{};
+} // namespace snail::jsonrpc::detail
+
+struct impl_cancel_request_request
+{
+    static constexpr std::string_view name = "$/cancelRequest";
+
+    static constexpr auto parameters = std::tuple(
+        snail::jsonrpc::detail::request_parameter<std::string>{"id"});
+
+    const std::string& id() const
+    {
+        return std::get<0>(data_);
+    }
+
+    template<typename RequestType>
+        requires snail::jsonrpc::detail::is_request_v<RequestType>
+    friend RequestType snail::jsonrpc::detail::unpack_request(const nlohmann::json& raw_data);
+
+private:
+    std::tuple<
+        std::string>
+        data_;
+};
+namespace snail::jsonrpc::detail {
+template<>
+struct is_request<impl_cancel_request_request> : std::true_type
 {};
 } // namespace snail::jsonrpc::detail
 

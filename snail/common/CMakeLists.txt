@@ -8,6 +8,8 @@ target_sources(common
     path.cpp
     string_compare.cpp
     system.cpp
+    thread.cpp
+    thread_pool.cpp
     trim.cpp
     wildcard.cpp
     ms_xca_decompression.cpp

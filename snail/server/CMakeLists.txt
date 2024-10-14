@@ -5,9 +5,10 @@ target_sources(snailserver
   PRIVATE
     main.cpp
 
-    storage/storage.cpp
+    snail_server.cpp
 
-    requests/requests.cpp
+    detail/document_task_scheduler.cpp
+    detail/storage.cpp
 )
 
 target_link_libraries(snailserver
