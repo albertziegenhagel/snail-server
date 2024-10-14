@@ -11,6 +11,7 @@ target_sources(common
     trim.cpp
     wildcard.cpp
     ms_xca_decompression.cpp
+    progress.cpp
 )
 
 target_link_libraries(common 

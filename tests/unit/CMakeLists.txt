@@ -6,6 +6,7 @@ add_test_executable(common
     common/parser.cpp
     common/utility.cpp
     common/compression.cpp
+    common/progress.cpp
   DEPENDENCIES
     common
 )
