@@ -2,6 +2,8 @@
 
 #include <limits>
 
+#include <snail/common/progress.hpp>
+
 #include <snail/analysis/data/call_tree.hpp>
 #include <snail/analysis/data/file.hpp>
 #include <snail/analysis/data/functions.hpp>
@@ -18,9 +20,11 @@ class samples_provider;
 
 struct stacks_analysis;
 
-stacks_analysis analyze_stacks(const samples_provider& provider,
-                               unique_process_id       process_id,
-                               const sample_filter&    filter = {});
+stacks_analysis analyze_stacks(const samples_provider&           provider,
+                               unique_process_id                 process_id,
+                               const sample_filter&              filter             = {},
+                               const common::progress_listener*  progress_listener  = nullptr,
+                               const common::cancellation_token* cancellation_token = nullptr);
 
 struct stacks_analysis
 {
@@ -41,9 +45,11 @@ struct stacks_analysis
     const std::vector<file_info>&     all_files() const;
 
 private:
-    friend stacks_analysis analyze_stacks(const samples_provider& provider,
-                                          unique_process_id       process_id,
-                                          const sample_filter&    filter);
+    friend stacks_analysis analyze_stacks(const samples_provider&           provider,
+                                          unique_process_id                 process_id,
+                                          const sample_filter&              filter,
+                                          const common::progress_listener*  progress_listener,
+                                          const common::cancellation_token* cancellation_token);
 
     // FIXME: This is a workaround: we would like to use the max of std::size_t, but since we will
     //        serialize those values to JSON and eventually handle them in JavaScript which cannot

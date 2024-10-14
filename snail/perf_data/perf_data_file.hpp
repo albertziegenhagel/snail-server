@@ -6,6 +6,8 @@
 #include <fstream>
 #include <span>
 
+#include <snail/common/progress.hpp>
+
 namespace snail::perf_data {
 
 namespace parser {
@@ -37,7 +39,9 @@ public:
 
     void close();
 
-    void process(event_observer& callbacks);
+    void process(event_observer&                   callbacks,
+                 const common::progress_listener*  progress_listener  = nullptr,
+                 const common::cancellation_token* cancellation_token = nullptr);
 
     const perf_data_metadata& metadata() const;
 

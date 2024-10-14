@@ -35,6 +35,8 @@
 
 #include <snail/common/detail/dump.hpp>
 
+#include "common/progress_printer.hpp"
+
 using namespace snail;
 
 namespace {
@@ -108,7 +110,8 @@ void print_usage(std::string_view application_path)
               << "  --pid <pid>      Process ID of the process of interest. Pass 'any' to show\n"
               << "                   information for all processes.\n"
               << "  --only <event>   Print only events that match the given names.\n"
-              << "  --except <event> Do not print events that match the given names.\n";
+              << "  --except <event> Do not print events that match the given names.\n"
+              << "  --no-progress    Do not print a progress bar.\n";
 }
 
 [[noreturn]] void print_usage_and_exit(std::string_view application_path, int exit_code)
@@ -142,6 +145,8 @@ struct options
     bool show_config_ex = false;
     bool show_vs_diag   = false;
     bool show_snail     = false;
+
+    bool no_progress = false;
 
     std::optional<std::uint32_t> process_of_interest;
     bool                         all_processes = false;
@@ -243,6 +248,10 @@ options parse_command_line(int argc, char* argv[]) // NOLINT(modernize-avoid-c-a
             if(argc <= arg_i + 1) print_error_and_exit(application_path, "Missing argument for --only.");
             const auto next_arg = std::string_view(argv[++arg_i]);
             result.except.emplace_back(next_arg);
+        }
+        else if(current_arg == "--no-progress")
+        {
+            result.no_progress = true;
         }
         else if(current_arg.starts_with("-"))
         {
@@ -1226,7 +1235,8 @@ int main(int argc, char* argv[])
     std::cout << "\n";
     try
     {
-        file.process(observer);
+        progress_printer progress;
+        file.process(observer, options.no_progress ? nullptr : &progress);
     }
     catch(const std::exception& e)
     {

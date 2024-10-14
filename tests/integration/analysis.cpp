@@ -1,6 +1,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <ranges>
 
 #include <folders.hpp>
@@ -31,6 +32,43 @@ std::string replace_all(std::string_view str, char search, char replace)
     std::ranges::replace(result, search, replace);
     return result;
 }
+
+struct test_progress_listener : public common::progress_listener
+{
+    using common::progress_listener::progress_listener;
+
+    struct cancel_info
+    {
+        unsigned int run;
+        double       progress;
+    };
+
+    virtual void start() const override
+    {
+        ++started;
+    }
+
+    virtual void report(double progress) const override
+    {
+        reported.push_back(std::round(progress * 1000.0) / 10.0); // percent rounded to one digit after the point
+        if(cancel_at && started == cancel_at->run && progress >= cancel_at->progress)
+        {
+            token.cancel();
+        }
+    }
+
+    virtual void finish() const override
+    {
+        ++finished;
+    }
+
+    mutable unsigned int               started  = 0;
+    mutable unsigned int               finished = 0;
+    mutable std::vector<double>        reported;
+    mutable common::cancellation_token token;
+
+    std::optional<cancel_info> cancel_at = std::nullopt;
+};
 
 } // namespace
 
@@ -76,7 +114,7 @@ TEST(DiagsessionDataProvider, ProcessInner)
 
     analysis::diagsession_data_provider data_provider(symbol_options);
 
-    data_provider.process(file_path);
+    data_provider.process(file_path, nullptr, nullptr);
 
     EXPECT_EQ(data_provider.session_info().command_line, "\"C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\Team Tools\\DiagnosticsHub\\Collector\\VSDiagnostics.exe\" start 8822D5E9-64DD-5269-B4F5-5387BD6C2FCB /launch:D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe /loadAgent:4EA90761-2248-496C-B854-3C0399A591A4;DiagnosticsHub.CpuAgent.dll ");
     EXPECT_EQ(data_provider.session_info().date, std::chrono::sys_seconds(1688212877s));
@@ -430,6 +468,72 @@ TEST(DiagsessionDataProvider, ProcessInner)
     EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 0);
 }
 
+TEST(DiagsessionDataProvider, ProcessInnerCancel)
+{
+    ASSERT_TRUE(get_root_dir().has_value()) << "Missing root dir. Did you forget to pass --snail-root-dir=<dir> to the test executable?";
+    const auto data_dir  = get_root_dir().value() / "tests" / "apps" / "inner" / "dist" / "windows" / "deb";
+    const auto file_path = data_dir / "record" / "inner.diagsession";
+    ASSERT_TRUE(std::filesystem::exists(file_path)) << "Missing test file:\n  " << file_path << "\nDid you forget checking out GIT LFS files?";
+
+    // Disable all symbol downloading & caching
+    analysis::pdb_symbol_find_options symbol_options;
+    symbol_options.symbol_server_urls_.clear();
+    symbol_options.symbol_cache_dir_ = common::get_temp_dir() / "should-not-exist-2f4f23da-ef58-4f0c-8f99-a83aed90fbbe";
+
+    // Make sure the executable & pdb is found
+    symbol_options.search_dirs_.clear();
+    symbol_options.search_dirs_.push_back(data_dir / "bin");
+
+    {
+        // Do not cancel at all
+        analysis::diagsession_data_provider data_provider(symbol_options);
+
+        const test_progress_listener progress_listener(0.1);
+
+        data_provider.process(file_path, &progress_listener, nullptr);
+
+        EXPECT_EQ(progress_listener.started, 2);
+        EXPECT_EQ(progress_listener.finished, 2);
+        EXPECT_EQ(progress_listener.reported,
+                  (std::vector<double>{0.0, 19.5, 29.3, 39, 48.8, 58.5, 68.3, 78, 87.8, 97.6, 100.0,
+                                       0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0}));
+    }
+    {
+        // Cancel during extraction of the diagsession file
+        analysis::diagsession_data_provider data_provider(symbol_options);
+
+        test_progress_listener progress_listener(0.1);
+        progress_listener.cancel_at = test_progress_listener::cancel_info{
+            .run      = 1,
+            .progress = 0.2};
+
+        data_provider.process(file_path, &progress_listener, &progress_listener.token);
+
+        EXPECT_EQ(progress_listener.started, 1);
+        EXPECT_EQ(progress_listener.finished, 0);
+        EXPECT_EQ(progress_listener.reported,
+                  (std::vector<double>{0.0, 19.5, 29.3}));
+    }
+
+    {
+        // Cancel while processing extracted ETL file
+        analysis::diagsession_data_provider data_provider(symbol_options);
+
+        test_progress_listener progress_listener(0.1);
+        progress_listener.cancel_at = test_progress_listener::cancel_info{
+            .run      = 2,
+            .progress = 0.2};
+
+        data_provider.process(file_path, &progress_listener, &progress_listener.token);
+
+        EXPECT_EQ(progress_listener.started, 2);
+        EXPECT_EQ(progress_listener.finished, 1);
+        EXPECT_EQ(progress_listener.reported,
+                  (std::vector<double>{0.0, 19.5, 29.3, 39, 48.8, 58.5, 68.3, 78, 87.8, 97.6, 100.0,
+                                       0.0, 10.0, 20.0}));
+    }
+}
+
 TEST(EtlDataProvider, ProcessOrdered)
 {
     ASSERT_TRUE(get_root_dir().has_value()) << "Missing root dir. Did you forget to pass --snail-root-dir=<dir> to the test executable?";
@@ -448,7 +552,7 @@ TEST(EtlDataProvider, ProcessOrdered)
 
     analysis::etl_data_provider data_provider(symbol_options);
 
-    data_provider.process(file_path);
+    data_provider.process(file_path, nullptr, nullptr);
 
     EXPECT_EQ(data_provider.session_info().command_line, "\"C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit\\xperf.exe\" -SetProfInt 2000 -on PROC_THREAD+LOADER+PMC_PROFILE+PROFILE -PmcProfile BranchMispredictions,LLCReference,LLCMisses -stackwalk Profile -PidNewProcess \"C:\\data\\sandbox\\ordered\\dist\\windows\\deb\\bin\\ordered.exe 10000000\" -WaitForNewProcess -f ordered.etl");
     EXPECT_EQ(data_provider.session_info().date, std::chrono::sys_seconds(1713198358s));
@@ -551,6 +655,53 @@ TEST(EtlDataProvider, ProcessOrdered)
     EXPECT_EQ(data_provider.count_samples(sample_source_3.id, unique_sampling_process_id, filter), 3059);
 }
 
+TEST(EtlDataProvider, ProcessOrderedCancel)
+{
+    ASSERT_TRUE(get_root_dir().has_value()) << "Missing root dir. Did you forget to pass --snail-root-dir=<dir> to the test executable?";
+    const auto data_dir  = get_root_dir().value() / "tests" / "apps" / "ordered" / "dist" / "windows" / "deb";
+    const auto file_path = data_dir / "record" / "ordered_merged.etl";
+    ASSERT_TRUE(std::filesystem::exists(file_path)) << "Missing test file:\n  " << file_path << "\nDid you forget checking out GIT LFS files?";
+
+    // Disable all symbol downloading & caching
+    analysis::pdb_symbol_find_options symbol_options;
+    symbol_options.symbol_server_urls_.clear();
+    symbol_options.symbol_cache_dir_ = common::get_temp_dir() / "should-not-exist-2f4f23da-ef58-4f0c-8f99-a83aed90fbbe";
+
+    // Make sure the executable & pdb is found
+    symbol_options.search_dirs_.clear();
+    symbol_options.search_dirs_.push_back(data_dir / "bin");
+
+    {
+        // Do not cancel at all
+        analysis::etl_data_provider data_provider(symbol_options);
+
+        const test_progress_listener progress_listener(0.1);
+
+        data_provider.process(file_path, &progress_listener, nullptr);
+
+        EXPECT_EQ(progress_listener.started, 1);
+        EXPECT_EQ(progress_listener.finished, 1);
+        EXPECT_EQ(progress_listener.reported,
+                  (std::vector<double>{0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0}));
+    }
+    {
+        // Cancel during ETL file processing
+        analysis::etl_data_provider data_provider(symbol_options);
+
+        test_progress_listener progress_listener(0.1);
+        progress_listener.cancel_at = test_progress_listener::cancel_info{
+            .run      = 1,
+            .progress = 0.2};
+
+        data_provider.process(file_path, &progress_listener, &progress_listener.token);
+
+        EXPECT_EQ(progress_listener.started, 1);
+        EXPECT_EQ(progress_listener.finished, 0);
+        EXPECT_EQ(progress_listener.reported,
+                  (std::vector<double>{0.0, 10.0, 20.0}));
+    }
+}
+
 TEST(PerfDataDataProvider, ProcessInner)
 {
     ASSERT_TRUE(get_root_dir().has_value()) << "Missing root dir. Did you forget to pass --snail-root-dir=<dir> to the test executable?";
@@ -569,7 +720,7 @@ TEST(PerfDataDataProvider, ProcessInner)
 
     analysis::perf_data_data_provider data_provider(symbol_options);
 
-    data_provider.process(file_path);
+    data_provider.process(file_path, nullptr, nullptr);
 
     EXPECT_EQ(data_provider.session_info().command_line, "/usr/bin/perf record -g -o inner-perf.data /tmp/build/inner/Debug/build/inner");
     // EXPECT_EQ(data_provider.session_info().date, std::chrono::sys_seconds(1688327245s)); // This is not stable
@@ -798,6 +949,53 @@ TEST(PerfDataDataProvider, ProcessInner)
     EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 0);
 }
 
+TEST(PerfDataDataProvider, ProcessInnerCancel)
+{
+    ASSERT_TRUE(get_root_dir().has_value()) << "Missing root dir. Did you forget to pass --snail-root-dir=<dir> to the test executable?";
+    const auto data_dir  = get_root_dir().value() / "tests" / "apps" / "inner" / "dist" / "linux" / "deb";
+    const auto file_path = data_dir / "record" / "inner-perf.data";
+    ASSERT_TRUE(std::filesystem::exists(file_path)) << "Missing test file:\n  " << file_path << "\nDid you forget checking out GIT LFS files?";
+
+    // Disable all symbol downloading & caching
+    analysis::dwarf_symbol_find_options symbol_options;
+    symbol_options.debuginfod_urls_.clear();
+    symbol_options.debuginfod_cache_dir_ = common::get_temp_dir() / "should-not-exist-2f4f23da-ef58-4f0c-8f99-a83aed90fbbe";
+
+    // Make sure the executable with debug info is found
+    symbol_options.search_dirs_.clear();
+    symbol_options.search_dirs_.push_back(data_dir / "bin");
+
+    {
+        // Do not cancel at all
+        analysis::perf_data_data_provider data_provider(symbol_options);
+
+        const test_progress_listener progress_listener(0.1);
+
+        data_provider.process(file_path, &progress_listener, nullptr);
+
+        EXPECT_EQ(progress_listener.started, 1);
+        EXPECT_EQ(progress_listener.finished, 1);
+        EXPECT_EQ(progress_listener.reported,
+                  (std::vector<double>{0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0}));
+    }
+    {
+        // Cancel during perf-data file processing
+        analysis::perf_data_data_provider data_provider(symbol_options);
+
+        test_progress_listener progress_listener(0.1);
+        progress_listener.cancel_at = test_progress_listener::cancel_info{
+            .run      = 1,
+            .progress = 0.2};
+
+        data_provider.process(file_path, &progress_listener, &progress_listener.token);
+
+        EXPECT_EQ(progress_listener.started, 1);
+        EXPECT_EQ(progress_listener.finished, 0);
+        EXPECT_EQ(progress_listener.reported,
+                  (std::vector<double>{0.0, 10.0, 20.0}));
+    }
+}
+
 TEST(PerfDataDataProvider, ProcessOrdered)
 {
     ASSERT_TRUE(get_root_dir().has_value()) << "Missing root dir. Did you forget to pass --snail-root-dir=<dir> to the test executable?";
@@ -816,7 +1014,7 @@ TEST(PerfDataDataProvider, ProcessOrdered)
 
     analysis::perf_data_data_provider data_provider(symbol_options);
 
-    data_provider.process(file_path);
+    data_provider.process(file_path, nullptr, nullptr);
 
     EXPECT_EQ(data_provider.session_info().command_line, "/usr/bin/perf record -g -e cycles,branch-misses,cache-references,cache-misses -F 5000 -o ordered-perf.data /tmp/build/ordered/Debug/build/ordered");
     // EXPECT_EQ(data_provider.session_info().date, std::chrono::sys_seconds(1688327245s)); // This is not stable

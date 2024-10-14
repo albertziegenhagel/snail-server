@@ -29,7 +29,9 @@ public:
 
     virtual ~perf_data_data_provider();
 
-    virtual void process(const std::filesystem::path& file_path) override;
+    virtual void process(const std::filesystem::path&      file_path,
+                         const common::progress_listener*  progress_listener,
+                         const common::cancellation_token* cancellation_token) override;
 
     virtual const analysis::session_info& session_info() const override;
 

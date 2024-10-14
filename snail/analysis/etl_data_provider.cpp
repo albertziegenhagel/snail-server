@@ -182,12 +182,16 @@ etl_data_provider::etl_data_provider(pdb_symbol_find_options find_options,
 
 etl_data_provider::~etl_data_provider() = default;
 
-void etl_data_provider::process(const std::filesystem::path& file_path)
+void etl_data_provider::process(const std::filesystem::path&      file_path,
+                                const common::progress_listener*  progress_listener,
+                                const common::cancellation_token* cancellation_token)
 {
     process_context_ = std::make_unique<detail::etl_file_process_context>();
 
     etl::etl_file file(file_path);
-    file.process(process_context_->observer());
+    file.process(process_context_->observer(),
+                 progress_listener,
+                 cancellation_token);
 
     process_context_->finish();
 

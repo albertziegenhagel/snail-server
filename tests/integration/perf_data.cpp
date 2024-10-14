@@ -2,6 +2,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <string>
 
 #include <folders.hpp>
@@ -81,6 +82,37 @@ std::string_view event_type_to_string(perf_data::parser::event_type event_type)
     return "UNKNOWN";
 }
 
+struct test_progress_listener : public common::progress_listener
+{
+    using common::progress_listener::progress_listener;
+
+    virtual void start() const override
+    {
+        started = true;
+    }
+
+    virtual void report(double progress) const override
+    {
+        reported.push_back(std::round(progress * 1000.0) / 10.0); // percent rounded to one digit after the point
+        if(cancel_at && progress >= *cancel_at)
+        {
+            token.cancel();
+        }
+    }
+
+    virtual void finish() const override
+    {
+        finished = true;
+    }
+
+    mutable bool                       started  = false;
+    mutable bool                       finished = false;
+    mutable std::vector<double>        reported;
+    mutable common::cancellation_token token;
+
+    std::optional<double> cancel_at = std::nullopt;
+};
+
 } // namespace
 
 namespace snail::perf_data::parser {
@@ -103,7 +135,14 @@ TEST(PerfDataFile, ReadInner)
 
     counting_event_observer counting_observer;
 
-    file.process(counting_observer);
+    const test_progress_listener progress_listener(0.1);
+
+    file.process(counting_observer, &progress_listener);
+
+    EXPECT_TRUE(progress_listener.started);
+    EXPECT_TRUE(progress_listener.finished);
+    EXPECT_EQ(progress_listener.reported,
+              (std::vector<double>{0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0}));
 
     EXPECT_EQ(file.metadata().hostname, "DESKTOP-0RH3TEF");
     EXPECT_EQ(file.metadata().os_release, "5.15.90.1-microsoft-standard-WSL2");
@@ -235,6 +274,39 @@ TEST(PerfDataFile, ReadOrdered)
         {perf_data::parser::event_type::thread_map,     1    },
         {perf_data::parser::event_type::cpu_map,        1    },
         {perf_data::parser::event_type::finished_init,  1    }
+    };
+
+    EXPECT_EQ(counting_observer.counts, expected_event_counts);
+}
+
+TEST(PerfDataFile, ReadInnerCancel)
+{
+    ASSERT_TRUE(get_root_dir().has_value()) << "Missing root dir. Did you forget to pass --snail-root-dir=<dir> to the test executable?";
+    const auto file_path = get_root_dir().value() / "tests" / "apps" / "inner" / "dist" / "linux" / "deb" / "record" / "inner-perf.data";
+    ASSERT_TRUE(std::filesystem::exists(file_path)) << "Missing test file:\n  " << file_path << "\nDid you forget checking out GIT LFS files?";
+
+    perf_data::perf_data_file file(file_path);
+
+    counting_event_observer counting_observer;
+
+    test_progress_listener progress_listener(0.1);
+    progress_listener.cancel_at = 0.2;
+
+    file.process(counting_observer, &progress_listener, &progress_listener.token);
+
+    EXPECT_TRUE(progress_listener.started);
+    EXPECT_FALSE(progress_listener.finished);
+    EXPECT_EQ(progress_listener.reported,
+              (std::vector<double>{0.0, 10.0, 20.0}));
+
+    const std::map<perf_data::parser::event_type, std::size_t> expected_event_counts = {
+        {perf_data::parser::event_type::comm,          2  },
+        {perf_data::parser::event_type::sample,        301},
+        {perf_data::parser::event_type::mmap2,         7  },
+        {perf_data::parser::event_type::id_index,      1  },
+        {perf_data::parser::event_type::thread_map,    1  },
+        {perf_data::parser::event_type::cpu_map,       1  },
+        {perf_data::parser::event_type::finished_init, 1  }
     };
 
     EXPECT_EQ(counting_observer.counts, expected_event_counts);

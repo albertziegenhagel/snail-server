@@ -1,6 +1,8 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
+
 #include <folders.hpp>
 
 #include <snail/etl/dispatching_event_observer.hpp>
@@ -94,6 +96,63 @@ auto make_key(const etl::parser::event_header_trace_header_view& trace_header)
         trace_header.event_descriptor().version()};
 }
 
+void register_counting(etl::dispatching_event_observer&                                 counting_observer,
+                       std::unordered_map<etl::detail::guid_handler_key, std::size_t>&  guid_event_counts,
+                       std::unordered_map<etl::detail::group_handler_key, std::size_t>& group_event_counts)
+{
+    counting_observer.register_unknown_event(
+        [&guid_event_counts]([[maybe_unused]] const etl::etl_file::header_data& file_header,
+                             const etl::any_guid_trace_header&                  header,
+                             [[maybe_unused]] const std::span<const std::byte>& event_data)
+        {
+            const auto header_key = std::visit([](const auto& header)
+                                               { return make_key(header); },
+                                               header);
+            ++guid_event_counts[header_key];
+        });
+    counting_observer.register_unknown_event(
+        [&group_event_counts]([[maybe_unused]] const etl::etl_file::header_data& file_header,
+                              const etl::any_group_trace_header&                 header,
+                              [[maybe_unused]] const std::span<const std::byte>& event_data)
+        {
+            const auto header_key = std::visit([](const auto& header)
+                                               { return make_key(header); },
+                                               header);
+            ++group_event_counts[header_key];
+        });
+}
+
+struct test_progress_listener : public common::progress_listener
+{
+    using common::progress_listener::progress_listener;
+
+    virtual void start() const override
+    {
+        started = true;
+    }
+
+    virtual void report(double progress) const override
+    {
+        reported.push_back(std::round(progress * 1000.0) / 10.0); // percent rounded to one digit after the point
+        if(cancel_at && progress >= *cancel_at)
+        {
+            token.cancel();
+        }
+    }
+
+    virtual void finish() const override
+    {
+        finished = true;
+    }
+
+    mutable bool                       started  = false;
+    mutable bool                       finished = false;
+    mutable std::vector<double>        reported;
+    mutable common::cancellation_token token;
+
+    std::optional<double> cancel_at = std::nullopt;
+};
+
 } // namespace
 
 namespace snail::etl::detail {
@@ -139,28 +198,16 @@ TEST(EtlFile, ReadInner)
     std::unordered_map<etl::detail::guid_handler_key, std::size_t>  guid_event_counts;
     std::unordered_map<etl::detail::group_handler_key, std::size_t> group_event_counts;
 
-    counting_observer.register_unknown_event(
-        [&guid_event_counts]([[maybe_unused]] const etl::etl_file::header_data& file_header,
-                             const etl::any_guid_trace_header&                  header,
-                             [[maybe_unused]] const std::span<const std::byte>& event_data)
-        {
-            const auto header_key = std::visit([](const auto& header)
-                                               { return make_key(header); },
-                                               header);
-            ++guid_event_counts[header_key];
-        });
-    counting_observer.register_unknown_event(
-        [&group_event_counts]([[maybe_unused]] const etl::etl_file::header_data& file_header,
-                              const etl::any_group_trace_header&                 header,
-                              [[maybe_unused]] const std::span<const std::byte>& event_data)
-        {
-            const auto header_key = std::visit([](const auto& header)
-                                               { return make_key(header); },
-                                               header);
-            ++group_event_counts[header_key];
-        });
+    register_counting(counting_observer, guid_event_counts, group_event_counts);
 
-    file.process(counting_observer);
+    const test_progress_listener progress_listener(0.1);
+
+    file.process(counting_observer, &progress_listener);
+
+    EXPECT_TRUE(progress_listener.started);
+    EXPECT_TRUE(progress_listener.finished);
+    EXPECT_EQ(progress_listener.reported,
+              (std::vector<double>{0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0}));
 
     const std::unordered_map<etl::detail::guid_handler_key, std::size_t> expected_guid_event_counts = {
         {etl::detail::guid_handler_key{etl::parser::image_id_guid, 0, 2},           7010},
@@ -252,26 +299,7 @@ TEST(EtlFile, ReadOrdered)
     std::unordered_map<etl::detail::guid_handler_key, std::size_t>  guid_event_counts;
     std::unordered_map<etl::detail::group_handler_key, std::size_t> group_event_counts;
 
-    counting_observer.register_unknown_event(
-        [&guid_event_counts]([[maybe_unused]] const etl::etl_file::header_data& file_header,
-                             const etl::any_guid_trace_header&                  header,
-                             [[maybe_unused]] const std::span<const std::byte>& event_data)
-        {
-            const auto header_key = std::visit([](const auto& header)
-                                               { return make_key(header); },
-                                               header);
-            ++guid_event_counts[header_key];
-        });
-    counting_observer.register_unknown_event(
-        [&group_event_counts]([[maybe_unused]] const etl::etl_file::header_data& file_header,
-                              const etl::any_group_trace_header&                 header,
-                              [[maybe_unused]] const std::span<const std::byte>& event_data)
-        {
-            const auto header_key = std::visit([](const auto& header)
-                                               { return make_key(header); },
-                                               header);
-            ++group_event_counts[header_key];
-        });
+    register_counting(counting_observer, guid_event_counts, group_event_counts);
 
     file.process(counting_observer);
 
@@ -350,4 +378,66 @@ TEST(EtlFile, ReadOrdered)
     // {
     //     std::cout << "{etl::detail::group_handler_key{etl::parser::event_trace_group::" << group_to_string(key.group) << ", " << (int)key.type << ", " << (int)key.version << "}, " << count << "},\n";
     // }
+}
+
+TEST(EtlFile, ReadInnerCancel)
+{
+    ASSERT_TRUE(get_root_dir().has_value()) << "Missing root dir. Did you forget to pass --snail-root-dir=<dir> to the test executable?";
+    const auto file_path = get_root_dir().value() / "tests" / "apps" / "inner" / "dist" / "windows" / "deb" / "record" / "inner.etl";
+    ASSERT_TRUE(std::filesystem::exists(file_path)) << "Missing test file:\n  " << file_path << "\nDid you forget checking out GIT LFS files?";
+
+    etl::etl_file file(file_path);
+
+    etl::dispatching_event_observer counting_observer;
+
+    std::unordered_map<etl::detail::guid_handler_key, std::size_t>  guid_event_counts;
+    std::unordered_map<etl::detail::group_handler_key, std::size_t> group_event_counts;
+
+    register_counting(counting_observer, guid_event_counts, group_event_counts);
+
+    test_progress_listener progress_listener(0.1);
+    progress_listener.cancel_at = 0.2;
+
+    file.process(counting_observer, &progress_listener, &progress_listener.token);
+
+    EXPECT_TRUE(progress_listener.started);
+    EXPECT_FALSE(progress_listener.finished);
+    EXPECT_EQ(progress_listener.reported,
+              (std::vector<double>{0.0, 10.0, 20.0}));
+
+    const std::unordered_map<etl::detail::guid_handler_key, std::size_t> expected_guid_event_counts = {
+        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 0, 2},           563},
+        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 36, 2},          563},
+        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 38, 2},          461},
+        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 40, 1},          461},
+        {etl::detail::guid_handler_key{etl::parser::image_id_guid, 64, 0},          284},
+        {etl::detail::guid_handler_key{etl::parser::system_config_ex_guid, 33, 0},  1  },
+        {etl::detail::guid_handler_key{etl::parser::system_config_ex_guid, 34, 0},  1  },
+        {etl::detail::guid_handler_key{etl::parser::system_config_ex_guid, 35, 0},  9  },
+        {etl::detail::guid_handler_key{etl::parser::vs_diagnostics_hub_guid, 1, 2}, 1  },
+        {etl::detail::guid_handler_key{etl::parser::vs_diagnostics_hub_guid, 6, 0}, 23 }
+    };
+
+    const std::unordered_map<etl::detail::group_handler_key, std::size_t> expected_group_event_counts = {
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::header, 0, 2},     1   },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::header, 5, 2},     2   },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::header, 8, 2},     3   },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::header, 32, 2},    3   },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::process, 1, 4},    3   },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::process, 2, 4},    1   },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::process, 3, 4},    272 },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::process, 10, 3},   58  },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::process, 11, 2},   1   },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::thread, 1, 3},     48  },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::thread, 2, 3},     8   },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::thread, 3, 3},     2385},
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::image, 2, 3},      17  },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::image, 3, 3},      494 },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::perfinfo, 46, 2},  6269},
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::perfinfo, 73, 3},  1   },
+        {etl::detail::group_handler_key{etl::parser::event_trace_group::stackwalk, 32, 2}, 425 }
+    };
+
+    EXPECT_EQ(guid_event_counts, expected_guid_event_counts);
+    EXPECT_EQ(group_event_counts, expected_group_event_counts);
 }
