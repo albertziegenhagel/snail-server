@@ -70,13 +70,21 @@ jobs:
         with:
           vcpkgGitCommitId: "${{ env.VCPKG_GIT_COMMIT_ID }}"
 
-      - name: Build & Test project
-        uses: lukka/run-cmake@v10
+      - name: Restore vcpkg cache
+        id: vcpkg-cache
+        uses: TAServers/vcpkg-cache@v3
         with:
-          configurePreset: "coverage"
-          configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Debug', '-DCMAKE_CXX_FLAGS=-gdwarf-4', '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}']"
-          buildPreset: "coverage"
-          testPreset: "coverage"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          prefix: vcpkg-${{ matrix.triplet }}-clang/
+
+      - name: Build & Test project
+        env:
+          VCPKG_BINARY_SOURCES: "clear;files,${{ steps.vcpkg-cache.outputs.path }},readwrite"
+        run: |
+          cd '${{ github.workspace }}'
+          cmake --preset coverage . -G Ninja -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Debug "-DCMAKE_CXX_FLAGS=-gdwarf-4" "-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}"
+          cmake --build --preset coverage .
+          ctest --preset coverage
 
       - name: Coverage Report
         run: cmake --build ${{ github.workspace }}/build/coverage --target code_coverage_report
