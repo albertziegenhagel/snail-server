@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        run-on: [ubuntu-22.04, windows-latest]
+        run-on: [ubuntu-24.04, windows-latest]
         compiler: [any]
         include:
           - run-on: windows-latest
@@ -27,12 +27,12 @@ jobs:
             arch: x86_64
             platform: windows
             compiler: msvc
-          - run-on: ubuntu-22.04
+          - run-on: ubuntu-24.04
             triplet: x64-linux-release
             arch: x86_64
             platform: linux
             compiler: gcc
-          - run-on: ubuntu-22.04
+          - run-on: ubuntu-24.04
             triplet: x64-linux-release
             arch: x86_64
             platform: linux
@@ -45,24 +45,6 @@ jobs:
       VCPKG_GIT_COMMIT_ID: "c82f74667287d3dc386bce81e44964370c91a289"
 
     steps:
-      - name: Install gcc-13
-        if: runner.os == 'Linux'
-        run: |
-          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-          sudo apt update
-          sudo apt install gcc-13 g++-13
-          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 60 --slave /usr/bin/g++ g++ /usr/bin/g++-13
-
-      - name: Install clang-17(dev)
-        if: runner.os == 'Linux' && matrix.compiler == 'clang'
-        run: |
-          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-          sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-17 main'
-          sudo apt update
-          sudo apt install clang-17
-          echo "CC=clang-17" >> $GITHUB_ENV
-          echo "CXX=clang++-17" >> $GITHUB_ENV
-
       - uses: actions/checkout@v4
         with:
           lfs: 'false'
@@ -94,72 +76,40 @@ jobs:
         with:
           arch: x64
 
-      - name: Setup vcpkg (windows)
+      - name: Set vcpkg root (Windows)
         if: runner.os == 'Windows'
-        run: |
-          cd "C:\"
-          if(Test-Path C:\vcpkg) { rm -r -Force "C:\vcpkg" }
-          git clone --depth 1 --branch "2024.09.30" https://github.com/microsoft/vcpkg.git
-
-      - name: Restore vcpkg-tool (windows)
-        if: runner.os == 'Windows'
-        id: restore-vcpkg-tool
-        uses: actions/cache/restore@v3
-        with:
-          path: C:\vcpkg\vcpkg.exe
-          key: windows-cache-vcpkg-tool
-
-      - name: Build vcpkg-tool (windows)
-        if: runner.os == 'Windows' && steps.restore-vcpkg-tool.outputs.cache-hit != 'true'
-        run: |
-          cd "C:\"
-          if(Test-Path C:\vcpkg-tool) { rm -r -Force "C:\vcpkg-tool" }
-          git clone --depth 1 --branch gha-upload-fixes https://github.com/albertziegenhagel/vcpkg-tool.git
-          cd "C:\vcpkg-tool"
-          mkdir build
-          cd build
-          cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release
-          ninja
-          cp .\vcpkg.exe C:\vcpkg\
-
-      - name: Store vcpkg-tool (windows)
-        if: runner.os == 'Windows' && steps.restore-vcpkg-tool.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v3
-        with:
-          path: C:\vcpkg\vcpkg.exe
-          key: ${{ steps.restore-vcpkg-tool.outputs.cache-primary-key }}
-
-      - name: Setup GHA cache
-        if: runner.os == 'Windows'
-        uses: actions/github-script@v6
-        with:
-          script: |
-            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
-            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
-
-      - name: Setup vcpkg (non-windows)
+        run: echo "VCPKG_ROOT=C:\vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Set vcpkg root (!Windows)
         if: runner.os != 'Windows'
+        run: echo "VCPKG_ROOT=${{ github.workspace }}/vcpkg" >> "$GITHUB_ENV"
+
+      - name: Setup clang
+        if: runner.os == 'Linux' && matrix.compiler == 'clang'
+        run: |
+          echo "CC=clang" >> $GITHUB_ENV
+          echo "CXX=clang++" >> $GITHUB_ENV
+
+      - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
         with:
+          vcpkgDirectory: "${{ env.VCPKG_ROOT }}"
           vcpkgGitCommitId: "${{ env.VCPKG_GIT_COMMIT_ID }}"
 
-      - name: Build & Test project (Windows)
-        if: runner.os == 'Windows'
+      - name: Restore vcpkg cache
+        id: vcpkg-cache
+        uses: TAServers/vcpkg-cache@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          prefix: vcpkg-${{ matrix.triplet }}-${{ matrix.compiler }}/
+
+      - name: Build & Test project
+        env:
+          VCPKG_BINARY_SOURCES: "clear;files,${{ steps.vcpkg-cache.outputs.path }},readwrite"
         run: |
           cd '${{ github.workspace }}'
-          $env:VCPKG_BINARY_SOURCES="clear;x-gha,readwrite"
-          cmake --preset ci . -G Ninja -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake -DCMAKE_BUILD_TYPE=Release "-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}" "-DVCPKG_INSTALL_OPTIONS=--debug"
+          cmake --preset ci . -G Ninja -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Release "-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}"
           cmake --build --preset ci .
           ctest --preset ci
-
-      - name: Build & Test project (default)
-        uses: lukka/run-cmake@v10
-        if: runner.os == 'Linux'
-        with:
-          configurePreset: "ci"
-          configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Release', '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}', '-DVCPKG_VERBOSE=ON', '-DVCPKG_INSTALL_OPTIONS=--debug']"
-          buildPreset: "ci"
-          testPreset: "ci"
 
       - name: Install
         run: |

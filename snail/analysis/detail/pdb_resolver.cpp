@@ -293,7 +293,11 @@ pdb_resolver::pdb_resolver(pdb_symbol_find_options find_options,
     module_path_map_(std::move(module_path_map)),
     filter_(std::move(filter)),
     use_dia_sdk_(use_dia_sdk)
-{}
+{
+#ifndef SNAIL_HAS_LLVM
+    (void)use_dia_sdk_;
+#endif
+}
 
 pdb_resolver::~pdb_resolver() = default;
 

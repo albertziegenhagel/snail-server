@@ -31,6 +31,7 @@ using namespace snail::analysis::detail;
 
 namespace {
 
+#ifdef SNAIL_HAS_LLVM
 std::optional<std::filesystem::path> find_or_retrieve_binary(const std::filesystem::path&              input_binary_path,
                                                              const std::optional<perf_data::build_id>& build_id,
                                                              const dwarf_symbol_find_options&          options)
@@ -85,6 +86,7 @@ std::optional<std::filesystem::path> find_or_retrieve_binary(const std::filesyst
 
     return std::nullopt;
 }
+#endif // SNAIL_HAS_LLVM
 
 } // namespace
 

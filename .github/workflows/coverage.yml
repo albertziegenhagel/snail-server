@@ -15,9 +15,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        run-on: [ubuntu-22.04]
+        run-on: [ubuntu-24.04]
         include:
-          - run-on: ubuntu-22.04
+          - run-on: ubuntu-24.04
             triplet: x64-linux-release
             platform: linux
 
@@ -26,22 +26,6 @@ jobs:
       VCPKG_GIT_COMMIT_ID: "c82f74667287d3dc386bce81e44964370c91a289"
 
     steps:
-      - name: Install gcc-13
-        run: |
-          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-          sudo apt update
-          sudo apt install gcc-13 g++-13
-          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 60 --slave /usr/bin/g++ g++ /usr/bin/g++-13
-
-      - name: Install clang-17(dev)
-        run: |
-          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-          sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-17 main'
-          sudo apt update
-          sudo apt install clang-17
-          echo "CC=clang-17" >> $GITHUB_ENV
-          echo "CXX=clang++-17" >> $GITHUB_ENV
-
       - uses: actions/checkout@v4
         with:
           lfs: 'false'
@@ -65,18 +49,31 @@ jobs:
           cmakeVersion: "~3.25.0"
           ninjaVersion: "^1.11.1"
 
+      - name: Setup clang
+        run: |
+          echo "CC=clang" >> $GITHUB_ENV
+          echo "CXX=clang++" >> $GITHUB_ENV
+
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgGitCommitId: "${{ env.VCPKG_GIT_COMMIT_ID }}"
 
-      - name: Build & Test project
-        uses: lukka/run-cmake@v10
+      - name: Restore vcpkg cache
+        id: vcpkg-cache
+        uses: TAServers/vcpkg-cache@v3
         with:
-          configurePreset: "coverage"
-          configurePresetAdditionalArgs: "['-DCMAKE_BUILD_TYPE=Debug', '-DCMAKE_CXX_FLAGS=-gdwarf-4', '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}']"
-          buildPreset: "coverage"
-          testPreset: "coverage"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          prefix: vcpkg-${{ matrix.triplet }}-clang/
+
+      - name: Build & Test project
+        env:
+          VCPKG_BINARY_SOURCES: "clear;files,${{ steps.vcpkg-cache.outputs.path }},readwrite"
+        run: |
+          cd '${{ github.workspace }}'
+          cmake --preset coverage . -G Ninja -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Debug "-DCMAKE_CXX_FLAGS=-gdwarf-4" "-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}"
+          cmake --build --preset coverage .
+          ctest --preset coverage
 
       - name: Coverage Report
         run: cmake --build ${{ github.workspace }}/build/coverage --target code_coverage_report
