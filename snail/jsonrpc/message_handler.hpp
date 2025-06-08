@@ -1,6 +1,6 @@
 #pragma once
 
-#include <optional>
+#include <functional>
 #include <string>
 
 namespace snail::jsonrpc {
@@ -8,9 +8,11 @@ namespace snail::jsonrpc {
 class message_handler
 {
 public:
+    using respond_callback = std::function<void(std::string)>;
+
     virtual ~message_handler() = default;
 
-    virtual std::optional<std::string> handle(std::string_view data) = 0;
+    virtual void handle(std::string data, respond_callback respond) = 0;
 };
 
 } // namespace snail::jsonrpc

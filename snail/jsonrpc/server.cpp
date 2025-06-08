@@ -16,59 +16,83 @@ server::server(std::unique_ptr<message_connection> connection,
 
 server::~server() = default;
 
-[[noreturn]] void server::serve_forever()
-{
-    connection_->serve_forever(*this);
-}
-
 void server::serve_next()
 {
     connection_->serve_next(*this);
 }
 
-void server::register_method(std::string name, std::function<std::optional<nlohmann::json>(const nlohmann::json&)> handler)
+void server::handle(std::string data, respond_callback respond)
 {
-    methods_.emplace(std::move(name), std::move(handler));
-}
-
-std::optional<std::string> server::handle(std::string_view data)
-{
-    const nlohmann::json* error_id = nullptr;
+    jsonrpc::request request;
     try
     {
-        auto request = protocol_->load_request(data);
-
-        if(request.id.has_value())
-        {
-            error_id = &request.id.value();
-        }
-
-        auto response = handle_request(request);
-
-        if(!response) return std::nullopt;
-
-        return protocol_->dump_response(*response);
+        request = protocol_->load_request(data);
     }
     catch(rpc_error& e)
     {
-        return protocol_->dump_error(e, error_id);
+        respond(protocol_->dump_error(e, nullptr));
+        return;
     }
     catch(std::exception& e)
     {
-        return protocol_->dump_error(internal_error(e.what()), error_id);
+        respond(protocol_->dump_error(internal_error(e.what()), nullptr));
+        return;
     }
-}
 
-std::optional<response> server::handle_request(const jsonrpc::request& request)
-{
-    const auto& method = methods_.find(request.method);
-    if(method == methods_.end()) throw unknown_method_error(std::format("Unknown method: '{}'", request.method.c_str()).c_str());
+    if(request.id)
+    {
+        const auto& handler = request_handlers_.find(request.method);
+        if(handler == request_handlers_.end())
+        {
+            respond(protocol_->dump_error(unknown_method_error(std::format("Unknown request method: '{}'", request.method.c_str()).c_str()), &(*request.id)));
+            return;
+        }
 
-    auto result = method->second(request.params);
+        auto respond_wrapper = [this, respond = respond, id = *request.id](nlohmann::json result)
+        {
+            auto response = jsonrpc::response{
+                .result = std::move(result),
+                .id     = id};
 
-    if(!result) return std::nullopt;
+            auto response_str = protocol_->dump_response(response);
 
-    return response{
-        .result = std::move(*result),
-        .id     = request.id};
+            {
+                std::lock_guard<std::mutex> response_guard(response_mutex_);
+                respond(response_str);
+            }
+        };
+
+        auto error_wrapper = [this, respond = respond, id = *request.id](std::string message)
+        {
+            auto error_str = protocol_->dump_error(internal_error(message.c_str()), &id);
+
+            {
+                std::lock_guard<std::mutex> response_guard(response_mutex_);
+                respond(error_str);
+            }
+        };
+
+        handler->second(request.params, respond_wrapper, error_wrapper);
+    }
+    else
+    {
+        const auto& handler = notification_handlers_.find(request.method);
+        if(handler == notification_handlers_.end())
+        {
+            respond(protocol_->dump_error(unknown_method_error(std::format("Unknown notification method: '{}'", request.method.c_str()).c_str()), nullptr));
+            return;
+        }
+
+        auto error_wrapper = [this, respond = std::move(respond)](std::string message)
+        {
+            auto error_str = protocol_->dump_error(internal_error(message.c_str()), nullptr);
+
+            {
+                std::lock_guard<std::mutex> response_guard(response_mutex_);
+                respond(std::move(error_str));
+            }
+        };
+
+        handler->second(request.params, error_wrapper);
+    }
 }

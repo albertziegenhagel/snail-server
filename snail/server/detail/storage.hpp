@@ -8,6 +8,8 @@
 #include <snail/analysis/data/functions.hpp>
 #include <snail/analysis/data/sample_source.hpp>
 
+#include <snail/server/detail/document_id.hpp>
+
 namespace snail::analysis {
 
 struct stacks_analysis;
@@ -19,12 +21,7 @@ class data_provider;
 
 } // namespace snail::analysis
 
-namespace snail::server {
-
-struct document_id
-{
-    std::size_t id_;
-};
+namespace snail::server::detail {
 
 struct sort_by_name
 {};
@@ -53,7 +50,8 @@ public:
 
     analysis::path_map& get_module_path_map();
 
-    document_id read_document(const std::filesystem::path& path);
+    document_id create_document(const std::filesystem::path& path);
+    void        read_document(const document_id& id);
     void        close_document(const document_id& id);
 
     const analysis::data_provider& get_data(const document_id& id);
@@ -77,4 +75,4 @@ private:
     std::unique_ptr<impl> impl_;
 };
 
-} // namespace snail::server
+} // namespace snail::server::detail
