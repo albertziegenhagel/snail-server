@@ -25,7 +25,8 @@ public:
     virtual void close() override;
 
 private:
-    void* pipe_handle_;
+    struct impl;
+    std::unique_ptr<impl> impl_;
 
     virtual std::streamsize read(char_type* buffer, std::streamsize bytes_to_read) override;
     virtual std::streamsize write(const char_type* buffer, std::streamsize bytes_to_write) override;

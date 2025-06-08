@@ -7,6 +7,7 @@ add_test_executable(common
     common/utility.cpp
     common/compression.cpp
     common/progress.cpp
+    common/thread_pool.cpp
   DEPENDENCIES
     common
 )

@@ -1,5 +1,5 @@
 
-#include <snail/server/storage/storage.hpp>
+#include <snail/server/detail/storage.hpp>
 
 #include <algorithm>
 #include <ranges>
@@ -12,6 +12,7 @@
 
 using namespace snail;
 using namespace snail::server;
+using namespace snail::server::detail;
 
 namespace {
 
@@ -93,7 +94,7 @@ struct document_storage
         return std::visit(
             [&data, &stacks_analysis, &function_ids_view]<typename T>(const T& sort_by) -> const std::vector<analysis::function_info::id_t>&
             {
-                if constexpr(std::is_same_v<T, server::sort_by_name>)
+                if constexpr(std::is_same_v<T, detail::sort_by_name>)
                 {
                     if(data.functions_by_name == std::nullopt)
                     {
@@ -103,12 +104,12 @@ struct document_storage
                     }
                     return *data.functions_by_name;
                 }
-                if constexpr(std::is_same_v<T, server::sort_by_samples>)
+                if constexpr(std::is_same_v<T, detail::sort_by_samples>)
                 {
                     const auto source_id   = sort_by.sample_source_id;
                     auto&      source_data = data.functions_by_samples[source_id];
 
-                    auto& sorted_functions = sort_by.sum == server::sort_by_samples::sum_type::self ?
+                    auto& sorted_functions = sort_by.sum == detail::sort_by_samples::sum_type::self ?
                                                  source_data.by_self_samples :
                                                  source_data.by_total_samples;
                     if(sorted_functions == std::nullopt)
@@ -117,7 +118,7 @@ struct document_storage
                         switch(sort_by.sum)
                         {
                         default:
-                        case server::sort_by_samples::sum_type::total:
+                        case detail::sort_by_samples::sum_type::total:
                             std::ranges::sort(*sorted_functions,
                                               [&stacks_analysis, source_id](const snail::analysis::function_info::id_t& lhs, const snail::analysis::function_info::id_t& rhs)
                                               {
@@ -128,7 +129,7 @@ struct document_storage
                                                   return lhs_value < rhs_value || (lhs_value == rhs_value && lhs_function.name < rhs_function.name);
                                               });
                             break;
-                        case server::sort_by_samples::sum_type::self:
+                        case detail::sort_by_samples::sum_type::self:
                             std::ranges::sort(*sorted_functions,
                                               [&stacks_analysis, source_id](const snail::analysis::function_info::id_t& lhs, const snail::analysis::function_info::id_t& rhs)
                                               {
@@ -154,11 +155,11 @@ struct storage::impl
 {
     analysis::options                                 options;
     analysis::path_map                                module_path_map;
-    std::unordered_map<std::size_t, document_storage> open_documents;
+    std::unordered_map<document_id, document_storage> open_documents;
 
     document_storage& get_document_storage(const document_id& id)
     {
-        auto iter = open_documents.find(id.id_);
+        auto iter = open_documents.find(id);
         if(iter == open_documents.end()) throw std::runtime_error("invalid document id");
 
         return iter->second;
@@ -189,37 +190,48 @@ analysis::path_map& storage::get_module_path_map()
     return impl_->module_path_map;
 }
 
-document_id storage::read_document(const std::filesystem::path& path)
+document_id storage::create_document(const std::filesystem::path& path)
 {
-    auto data_provider = analysis::make_data_provider(path.extension(),
-                                                      impl_->options,
-                                                      impl_->module_path_map);
+    const auto new_id = impl_->take_document_id();
 
-    data_provider->process(path);
-
-    const auto new_id                 = impl_->take_document_id();
-    impl_->open_documents[new_id.id_] = document_storage{
+    impl_->open_documents[new_id] = document_storage{
         .path                 = path,
-        .data_provider        = std::move(data_provider),
+        .data_provider        = nullptr,
         .filter               = {},
         .total_samples_counts = {},
         .analysis_per_process = {},
     };
-
     return new_id;
+}
+
+void storage::read_document(const document_id& id)
+{
+    auto iter = impl_->open_documents.find(id);
+    if(iter == impl_->open_documents.end()) return;
+
+    auto& document = impl_->get_document_storage(id);
+
+    auto data_provider = analysis::make_data_provider(document.path.extension(),
+                                                      impl_->options,
+                                                      impl_->module_path_map);
+
+    data_provider->process(document.path);
+
+    document.data_provider = std::move(data_provider);
 }
 
 void storage::close_document(const document_id& id)
 {
-    auto iter = impl_->open_documents.find(id.id_);
+    auto iter = impl_->open_documents.find(id);
     if(iter == impl_->open_documents.end()) return;
 
     impl_->open_documents.erase(iter);
 }
 
-const analysis::data_provider& storage::get_data(const server::document_id& document_id)
+const analysis::data_provider& storage::get_data(const detail::document_id& document_id)
 {
     auto& document = impl_->get_document_storage(document_id);
+    if(document.data_provider == nullptr) throw std::runtime_error("Document has not been read yet.");
     return *document.data_provider;
 }
 
@@ -232,20 +244,20 @@ void storage::apply_document_filter(const document_id& document_id, analysis::sa
     document.analysis_per_process.clear();
 }
 
-const std::unordered_map<analysis::sample_source_info::id_t, std::size_t>& storage::get_total_samples_counts(const server::document_id& document_id)
+const std::unordered_map<analysis::sample_source_info::id_t, std::size_t>& storage::get_total_samples_counts(const detail::document_id& document_id)
 {
     auto& document = impl_->get_document_storage(document_id);
     return document.get_total_samples_counts();
 }
 
-const analysis::stacks_analysis& storage::get_stacks_analysis(const server::document_id&  document_id,
+const analysis::stacks_analysis& storage::get_stacks_analysis(const detail::document_id&  document_id,
                                                               analysis::unique_process_id process_id)
 {
     auto& document = impl_->get_document_storage(document_id);
     return document.get_process_analysis(process_id);
 }
 
-std::span<const analysis::function_info::id_t> storage::get_functions_page(const server::document_id&  document_id,
+std::span<const analysis::function_info::id_t> storage::get_functions_page(const detail::document_id&  document_id,
                                                                            analysis::unique_process_id process_id,
                                                                            sort_by_kind                sort_by,
                                                                            bool                        reversed,

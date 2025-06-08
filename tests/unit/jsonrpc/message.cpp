@@ -15,10 +15,10 @@ using namespace snail::jsonrpc;
 
 struct test_message_handler : public message_handler
 {
-    std::optional<std::string> handle(std::string_view data) override
+    void handle(std::string data, respond_callback respond) override
     {
-        request = data;
-        return response;
+        request = std::move(data);
+        if(response) respond(*response);
     }
 
     std::string                request;

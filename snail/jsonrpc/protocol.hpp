@@ -26,11 +26,11 @@ class protocol
 public:
     virtual ~protocol() = default;
 
-    [[nodiscard]] virtual request load_request(std::string_view content) = 0;
+    [[nodiscard]] virtual request load_request(std::string_view content) const = 0;
 
-    [[nodiscard]] virtual std::string dump_response(const jsonrpc::response& response) = 0;
+    [[nodiscard]] virtual std::string dump_response(const jsonrpc::response& response) const = 0;
 
-    [[nodiscard]] virtual std::string dump_error(const rpc_error& error, const nlohmann::json* id) = 0;
+    [[nodiscard]] virtual std::string dump_error(const rpc_error& error, const nlohmann::json* id) const = 0;
 };
 
 } // namespace snail::jsonrpc
