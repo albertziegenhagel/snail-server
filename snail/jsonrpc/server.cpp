@@ -72,7 +72,7 @@ void server::handle(std::string data, respond_callback respond)
             }
         };
 
-        handler->second(request.params, respond_wrapper, error_wrapper);
+        handler->second(*request.id, request.params, respond_wrapper, error_wrapper);
     }
     else
     {
