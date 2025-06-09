@@ -5,6 +5,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <string_view>
 #include <unordered_map>
 
 #include <nlohmann/json.hpp>
@@ -35,7 +36,7 @@ public:
 
     template<typename RequestType, typename HandlerType>
         requires detail::is_request_v<RequestType> &&
-                 std::invocable<HandlerType, RequestType, request_response_callback, error_callback>
+                 std::invocable<HandlerType, const nlohmann::json&, RequestType, request_response_callback, error_callback>
     void register_request(HandlerType&& handler);
 
     template<typename RequestType, typename HandlerType>
@@ -51,7 +52,7 @@ private:
     std::unique_ptr<message_connection> connection_;
     std::unique_ptr<protocol>           protocol_;
 
-    using request_callback      = std::function<void(const nlohmann::json&, request_response_callback, error_callback)>;
+    using request_callback      = std::function<void(const nlohmann::json&, const nlohmann::json&, request_response_callback, error_callback)>;
     using notification_callback = std::function<void(const nlohmann::json&, error_callback)>;
 
     std::unordered_map<std::string, request_callback>      request_handlers_;
@@ -62,14 +63,14 @@ private:
 
 template<typename RequestType, typename HandlerType>
     requires detail::is_request_v<RequestType> &&
-             std::invocable<HandlerType, RequestType, request_response_callback, error_callback>
+             std::invocable<HandlerType, const nlohmann::json&, RequestType, request_response_callback, error_callback>
 void server::register_request(HandlerType&& handler)
 {
     request_handlers_.emplace(
         std::string(RequestType::name),
-        [handler = std::forward<HandlerType>(handler)](const nlohmann::json& data, request_response_callback respond, error_callback report_error)
+        [handler = std::forward<HandlerType>(handler)](const nlohmann::json& id, const nlohmann::json& data, request_response_callback respond, error_callback report_error)
         {
-            std::invoke(handler, detail::unpack_request<RequestType>(data), std::move(respond), std::move(report_error));
+            std::invoke(handler, id, detail::unpack_request<RequestType>(data), std::move(respond), std::move(report_error));
         });
 }
 

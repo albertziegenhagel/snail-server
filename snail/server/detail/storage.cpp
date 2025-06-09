@@ -65,14 +65,17 @@ struct document_storage
         return new_counts;
     }
 
-    const analysis::stacks_analysis& get_process_analysis(analysis::unique_process_id process_id)
+    const analysis::stacks_analysis& get_process_analysis(analysis::unique_process_id       process_id,
+                                                          const common::progress_listener*  progress_listener,
+                                                          const common::cancellation_token* cancellation_token)
     {
         auto& data = analysis_per_process[process_id];
 
         if(data.stacks_analysis == std::nullopt)
         {
             data = analysis_data{
-                .stacks_analysis      = snail::analysis::analyze_stacks(*data_provider, process_id, filter),
+                .stacks_analysis      = snail::analysis::analyze_stacks(*data_provider, process_id, filter,
+                                                                        progress_listener, cancellation_token),
                 .functions_by_name    = {},
                 .functions_by_samples = {},
             };
@@ -80,10 +83,12 @@ struct document_storage
         return *data.stacks_analysis;
     }
 
-    const std::vector<analysis::function_info::id_t>& get_sorted_functions(analysis::unique_process_id process_id,
-                                                                           sort_by_kind                sort_by)
+    const std::vector<analysis::function_info::id_t>& get_sorted_functions(analysis::unique_process_id       process_id,
+                                                                           sort_by_kind                      sort_by,
+                                                                           const common::progress_listener*  progress_listener,
+                                                                           const common::cancellation_token* cancellation_token)
     {
-        const auto& stacks_analysis = get_process_analysis(process_id);
+        const auto& stacks_analysis = get_process_analysis(process_id, progress_listener, cancellation_token);
 
         const auto function_ids_view = stacks_analysis.all_functions() |
                                        std::views::transform([](const snail::analysis::function_info& function)
@@ -204,7 +209,9 @@ document_id storage::create_document(const std::filesystem::path& path)
     return new_id;
 }
 
-void storage::read_document(const document_id& id)
+void storage::read_document(const document_id&                id,
+                            const common::progress_listener*  progress_listener,
+                            const common::cancellation_token* cancellation_token)
 {
     auto iter = impl_->open_documents.find(id);
     if(iter == impl_->open_documents.end()) return;
@@ -215,7 +222,7 @@ void storage::read_document(const document_id& id)
                                                       impl_->options,
                                                       impl_->module_path_map);
 
-    data_provider->process(document.path);
+    data_provider->process(document.path, progress_listener, cancellation_token);
 
     document.data_provider = std::move(data_provider);
 }
@@ -250,22 +257,26 @@ const std::unordered_map<analysis::sample_source_info::id_t, std::size_t>& stora
     return document.get_total_samples_counts();
 }
 
-const analysis::stacks_analysis& storage::get_stacks_analysis(const detail::document_id&  document_id,
-                                                              analysis::unique_process_id process_id)
+const analysis::stacks_analysis& storage::get_stacks_analysis(const detail::document_id&        document_id,
+                                                              analysis::unique_process_id       process_id,
+                                                              const common::progress_listener*  progress_listener,
+                                                              const common::cancellation_token* cancellation_token)
 {
     auto& document = impl_->get_document_storage(document_id);
-    return document.get_process_analysis(process_id);
+    return document.get_process_analysis(process_id, progress_listener, cancellation_token);
 }
 
 std::span<const analysis::function_info::id_t> storage::get_functions_page(const detail::document_id&  document_id,
                                                                            analysis::unique_process_id process_id,
                                                                            sort_by_kind                sort_by,
                                                                            bool                        reversed,
-                                                                           std::size_t page_size, std::size_t page_index)
+                                                                           std::size_t page_size, std::size_t page_index,
+                                                                           const common::progress_listener*  progress_listener,
+                                                                           const common::cancellation_token* cancellation_token)
 {
     auto& document = impl_->get_document_storage(document_id);
 
-    const auto& sorted_functions = document.get_sorted_functions(process_id, sort_by);
+    const auto& sorted_functions = document.get_sorted_functions(process_id, sort_by, progress_listener, cancellation_token);
 
     const auto page_start = std::min(page_index * page_size, sorted_functions.size());
     const auto page_end   = std::min((page_index + 1) * page_size, sorted_functions.size());
