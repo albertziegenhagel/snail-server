@@ -610,9 +610,9 @@ struct impl_cancel_request_request
     static constexpr std::string_view name = "$/cancelRequest";
 
     static constexpr auto parameters = std::tuple(
-        snail::jsonrpc::detail::request_parameter<std::string>{"id"});
+        snail::jsonrpc::detail::request_parameter<std::variant<std::int64_t, std::string>>{"id"});
 
-    const std::string& id() const
+    const std::variant<std::int64_t, std::string>& id() const
     {
         return std::get<0>(data_);
     }
@@ -623,7 +623,7 @@ struct impl_cancel_request_request
 
 private:
     std::tuple<
-        std::string>
+        std::variant<std::int64_t, std::string>>
         data_;
 };
 namespace snail::jsonrpc::detail {

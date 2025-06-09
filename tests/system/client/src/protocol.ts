@@ -142,6 +142,10 @@ export interface LineHits {
     hits: HitCounts[];
 }
 
+export interface CancelRequestParams {
+    id: number | string;
+}
+
 export interface InitializeParams {
 }
 
@@ -400,6 +404,9 @@ export const retrieveLineInfoRequestType = new rpc.RequestType<RetrieveLineInfoP
 
 
 export const setSampleFiltersRequestType = new rpc.RequestType<SetSampleFiltersParams, null, void>('setSampleFilters');
+
+
+export const cancelRequestNotificationType = new rpc.NotificationType<CancelRequestParams>('$/cancelRequest');
 
 
 export const closeDocumentNotificationType = new rpc.NotificationType<CloseDocumentParams>('closeDocument');

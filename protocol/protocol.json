@@ -702,8 +702,17 @@
                 {
                     "name": "id",
                     "type": {
-                        "kind": "base",
-                        "name": "string"
+                        "kind": "or",
+                        "items": [
+                            {
+                                "kind": "base",
+                                "name": "integer"
+                            },
+                            {
+                                "kind": "base",
+                                "name": "string"
+                            }
+                        ]
                     }
                 }
             ]

@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs-extra';
 import * as snail from '../src/protocol';
 import * as fixture from './server';
+import { CancellationTokenSource } from 'vscode-jsonrpc';
 
 describe("InnerDiagsession", function () {
     this.timeout(60 * 1000);
@@ -71,6 +72,24 @@ describe("InnerDiagsession", function () {
         await fixture.connection.sendNotification(snail.closeDocumentNotificationType, {
             documentId: documentId
         });
+    });
+
+    it("cancelReadDocument", async () => {
+        if (process.env.SNAIL_ROOT_DIR === undefined) {
+            assert.fail("Missing environment variable \"SNAIL_ROOT_DIR\".");
+        }
+        const dataDir = path.join(process.env.SNAIL_ROOT_DIR, 'tests', 'apps', 'inner', 'dist', 'windows', 'deb');
+
+        const cancellationSource = new CancellationTokenSource();
+
+        const promise = fixture.connection.sendRequest(snail.readDocumentRequestType, {
+            filePath: path.join(dataDir, 'record', 'inner.diagsession')
+        },
+            cancellationSource.token);
+
+        cancellationSource.cancel();
+
+        const response = await promise;
     });
 
     it("systemInfo", async () => {
