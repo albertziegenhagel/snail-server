@@ -69,6 +69,8 @@ public:
         std::string    image_filename;
         std::u16string command_line;
 
+        os_pid_t parent_id;
+
         std::optional<timestamp_t> end_time;
 
         std::optional<unique_process_id> unique_id;

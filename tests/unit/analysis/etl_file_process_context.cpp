@@ -104,6 +104,7 @@ void push_process_event(const etl::etl_file::header_data& file_header,
                         std::span<std::byte>              buffer,
                         std::uint64_t                     timestamp,
                         std::uint32_t                     process_id,
+                        std::uint32_t                     parent_id,
                         std::string_view                  image_filename,
                         std::u16string_view               command_line,
                         bool                              load)
@@ -113,11 +114,13 @@ void push_process_event(const etl::etl_file::header_data& file_header,
     const auto event_data = buffer.subspan(etl::parser::system_trace_header_view::static_size);
 
     set_at(event_data, 8, process_id);
+    set_at(event_data, 12, parent_id);
     set_at(event_data, 24 + 2 * file_header.pointer_size, image_filename);
     set_at(event_data, 24 + 2 * file_header.pointer_size + image_filename.size() + 1, command_line);
     const auto event_data_size = 24 + 2 * file_header.pointer_size + image_filename.size() + 1 + command_line.size() * 2 + 2 + 4;
 
     assert(etl::parser::process_v4_type_group1_event_view(event_data, file_header.pointer_size).process_id() == process_id);
+    assert(etl::parser::process_v4_type_group1_event_view(event_data, file_header.pointer_size).parent_id() == parent_id);
     assert(etl::parser::process_v4_type_group1_event_view(event_data, file_header.pointer_size).image_filename() == image_filename);
     assert(etl::parser::process_v4_type_group1_event_view(event_data, file_header.pointer_size).command_line() == command_line);
 
@@ -725,25 +728,25 @@ TEST(EtlFileProcessContext, Processes)
 
     // Start a process, but do not end it
     push_process_event(file_header, context.observer(), writable_bytes_buffer,
-                       10, 123, "\\Device\\HarddiskVolume1\\my\\path\\to\\a.exe", u"a.exe arg1 arg2", true);
+                       10, 123, 0, "\\Device\\HarddiskVolume1\\my\\path\\to\\a.exe", u"a.exe arg1 arg2", true);
 
     // Start at process that will be ended later
     push_process_event(file_header, context.observer(), writable_bytes_buffer,
-                       15, 456, "\\Device\\HarddiskVolume1\\my\\path\\to\\b.exe", u"b.exe", true);
+                       15, 456, 0, "\\Device\\HarddiskVolume1\\my\\path\\to\\b.exe", u"b.exe", true);
 
     // End a process, that has never been started (just make sure we are fault tolerant)
     push_process_event(file_header, context.observer(), writable_bytes_buffer,
-                       17, 789, "\\Device\\HarddiskVolume1\\my\\path\\to\\c.exe", u"c.exe", false);
+                       17, 789, 0, "\\Device\\HarddiskVolume1\\my\\path\\to\\c.exe", u"c.exe", false);
 
     // End the process that we have started second
     push_process_event(file_header, context.observer(), writable_bytes_buffer,
-                       20, 456, "\\Device\\HarddiskVolume1\\my\\path\\to\\b.exe", u"b.exe", false);
+                       20, 456, 0, "\\Device\\HarddiskVolume1\\my\\path\\to\\b.exe", u"b.exe", false);
 
     // Start and end a process with the same process id that was already running and has ended
     push_process_event(file_header, context.observer(), writable_bytes_buffer,
-                       35, 456, "\\Device\\HarddiskVolume1\\my\\path\\to\\d.exe", u"d.exe", true);
+                       35, 456, 0, "\\Device\\HarddiskVolume1\\my\\path\\to\\d.exe", u"d.exe", true);
     push_process_event(file_header, context.observer(), writable_bytes_buffer,
-                       45, 456, "\\Device\\HarddiskVolume1\\my\\path\\to\\d.exe", u"d.exe", false);
+                       45, 456, 0, "\\Device\\HarddiskVolume1\\my\\path\\to\\d.exe", u"d.exe", false);
 
     context.finish();
 
@@ -790,7 +793,7 @@ TEST(EtlFileProcessContext, Threads)
 
     // Start a first process
     push_process_event(file_header, context.observer(), writable_bytes_buffer,
-                       10, 123, "\\Device\\HarddiskVolume1\\my\\path\\to\\a.exe", u"a.exe arg1 arg2", true);
+                       10, 123, 0, "\\Device\\HarddiskVolume1\\my\\path\\to\\a.exe", u"a.exe arg1 arg2", true);
 
     // Start a thread
     push_thread_event(file_header, context.observer(), writable_bytes_buffer,
@@ -801,7 +804,7 @@ TEST(EtlFileProcessContext, Threads)
 
     // Start another process
     push_process_event(file_header, context.observer(), writable_bytes_buffer,
-                       15, 456, "\\Device\\HarddiskVolume1\\my\\path\\to\\b.exe", u"b.exe", true);
+                       15, 456, 0, "\\Device\\HarddiskVolume1\\my\\path\\to\\b.exe", u"b.exe", true);
 
     // Start and end a thread
     push_thread_event(file_header, context.observer(), writable_bytes_buffer,
@@ -815,9 +818,9 @@ TEST(EtlFileProcessContext, Threads)
 
     // End the second process and start a new one with the same PID
     push_process_event(file_header, context.observer(), writable_bytes_buffer,
-                       25, 456, "\\Device\\HarddiskVolume1\\my\\path\\to\\b.exe", u"b.exe", false);
+                       25, 456, 0, "\\Device\\HarddiskVolume1\\my\\path\\to\\b.exe", u"b.exe", false);
     push_process_event(file_header, context.observer(), writable_bytes_buffer,
-                       35, 456, "\\Device\\HarddiskVolume1\\my\\path\\to\\d.exe", u"d.exe", true);
+                       35, 456, 0, "\\Device\\HarddiskVolume1\\my\\path\\to\\d.exe", u"d.exe", true);
 
     // Start a new thread for the second process with PID 456
     push_thread_event(file_header, context.observer(), writable_bytes_buffer,
@@ -1548,7 +1551,7 @@ TEST(EtlFileProcessContext, ContextSwitchPmc)
 
     // Start a first process
     push_process_event(file_header, context.observer(), writable_bytes_buffer,
-                       10, 123, "\\Device\\HarddiskVolume1\\my\\path\\to\\a.exe", u"a.exe arg1 arg2", true);
+                       10, 123, 0, "\\Device\\HarddiskVolume1\\my\\path\\to\\a.exe", u"a.exe arg1 arg2", true);
 
     // Context switch before the actual threads exist (no PMC counters)
     push_context_switch_event(file_header, context.observer(), writable_bytes_buffer,
@@ -1586,7 +1589,7 @@ TEST(EtlFileProcessContext, ContextSwitchPmc)
 
     // Start second process and reuse first thread id
     push_process_event(file_header, context.observer(), writable_bytes_buffer,
-                       35, 456, "\\Device\\HarddiskVolume1\\my\\path\\to\\b.exe", u"b.exe", true);
+                       35, 456, 0, "\\Device\\HarddiskVolume1\\my\\path\\to\\b.exe", u"b.exe", true);
     push_thread_event(file_header, context.observer(), writable_bytes_buffer,
                       35, 456, 111, true);
 
@@ -1726,4 +1729,68 @@ TEST(EtlFileProcessContext, SnailProfiler)
     const auto process_456 = processes.at(etl_file_process_context::process_key{456, 20});
     EXPECT_EQ(process_456.process_id, 456);
     EXPECT_EQ(process_456.start_timestamp, 20);
+}
+
+TEST(EtlFileProcessContext, SnailProfilerChildren)
+{
+    etl_file_process_context context;
+
+    std::array<std::uint8_t, 1024> buffer;
+    const auto                     writable_bytes_buffer = std::as_writable_bytes(std::span(buffer));
+
+    // Start the first process and mark it to be profiled
+    push_process_event(file_header, context.observer(), writable_bytes_buffer,
+                       10, 123, 0, "\\Device\\HarddiskVolume1\\my\\path\\to\\a.exe", u"a.exe arg1 arg2", true);
+
+    push_snail_prof_target_event(file_header, context.observer(), writable_bytes_buffer,
+                                 15, 123);
+
+    // Now, start a child of the first process
+    push_process_event(file_header, context.observer(), writable_bytes_buffer,
+                       20, 456, 123, "\\Device\\HarddiskVolume1\\my\\path\\to\\b.exe", u"b.exe", true);
+
+    // And start an unrelated third process
+    push_process_event(file_header, context.observer(), writable_bytes_buffer,
+                       21, 789, 0, "\\Device\\HarddiskVolume1\\my\\path\\to\\c.exe", u"c.exe", true);
+
+    // Start another child of the first process
+    push_process_event(file_header, context.observer(), writable_bytes_buffer,
+                       22, 891, 123, "\\Device\\HarddiskVolume1\\my\\path\\to\\d.exe", u"d.exe", true);
+
+    // And start a child of the child
+    push_process_event(file_header, context.observer(), writable_bytes_buffer,
+                       23, 910, 891, "\\Device\\HarddiskVolume1\\my\\path\\to\\e.exe", u"e.exe", true);
+
+    // Now end all the processes
+    push_process_event(file_header, context.observer(), writable_bytes_buffer,
+                       25, 456, 123, "\\Device\\HarddiskVolume1\\my\\path\\to\\b.exe", u"b.exe", false);
+    push_process_event(file_header, context.observer(), writable_bytes_buffer,
+                       30, 789, 0, "\\Device\\HarddiskVolume1\\my\\path\\to\\c.exe", u"c.exe", false);
+    push_process_event(file_header, context.observer(), writable_bytes_buffer,
+                       31, 891, 123, "\\Device\\HarddiskVolume1\\my\\path\\to\\c.exe", u"d.exe", false);
+    push_process_event(file_header, context.observer(), writable_bytes_buffer,
+                       32, 910, 891, "\\Device\\HarddiskVolume1\\my\\path\\to\\c.exe", u"e.exe", false);
+    push_process_event(file_header, context.observer(), writable_bytes_buffer,
+                       35, 123, 0, "\\Device\\HarddiskVolume1\\my\\path\\to\\a.exe", u"a.exe arg1 arg2", false);
+
+    context.finish();
+
+    const auto& processes = context.profiler_processes();
+    EXPECT_EQ(processes.size(), 4);
+
+    const auto process_123 = processes.at(etl_file_process_context::process_key{123, 15});
+    EXPECT_EQ(process_123.process_id, 123);
+    EXPECT_EQ(process_123.start_timestamp, 15);
+
+    const auto process_456 = processes.at(etl_file_process_context::process_key{456, 20});
+    EXPECT_EQ(process_456.process_id, 456);
+    EXPECT_EQ(process_456.start_timestamp, 20);
+
+    const auto process_891 = processes.at(etl_file_process_context::process_key{891, 22});
+    EXPECT_EQ(process_891.process_id, 891);
+    EXPECT_EQ(process_891.start_timestamp, 22);
+
+    const auto process_910 = processes.at(etl_file_process_context::process_key{910, 23});
+    EXPECT_EQ(process_910.process_id, 910);
+    EXPECT_EQ(process_910.start_timestamp, 23);
 }
