@@ -267,6 +267,82 @@ void etl_file_process_context::finish()
             }
         }
     }
+    else
+    {
+        // If we have some explicit profiling processes, we want to add
+        // all their children to the profiling processes as well.
+
+        // Start by building a map from all processes to their children
+        std::unordered_map<process_key, std::vector<process_key>> children_per_process;
+        for(auto& [id, entries] : processes.all_entries())
+        {
+            for(const auto& process_entry : entries)
+            {
+                // The conhost process is sometimes initiated as child process, but this should
+                // not be one we are usually interested in, so just ignore it.
+                // Should this be controlled by an option?
+                if(process_entry.payload.image_filename == "conhost.exe") continue;
+
+                const auto* const parent_process = processes.find_at(process_entry.payload.parent_id, process_entry.timestamp);
+                if(parent_process == nullptr) continue;
+
+                const auto parent_key = process_key{parent_process->id, parent_process->timestamp};
+                const auto child_key  = process_key{process_entry.id, process_entry.timestamp};
+
+                children_per_process[parent_key].push_back(child_key);
+            }
+        }
+
+        // Now iteratively add the the children of all profiled processes
+        // to the list of profiled processes.
+        auto prev_profiler_processes = profiler_processes_;
+        while(true)
+        {
+            std::unordered_map<process_key, profiler_process_info> new_profiler_processes;
+
+            // Loop over the previously added processes, and try to add their children
+            for(const auto& [key, entry] : prev_profiler_processes)
+            {
+                // First, try to find the children right for exactly that key.
+                // we might not find them for this key, since the child process list
+                // uses the process start time in it's key, but the profiler processes
+                // could use the timestep of when profiling started.
+                auto children_iter = children_per_process.find(key);
+                if(children_iter == children_per_process.end())
+                {
+                    // If we could not find an exact match, try to find the process in the list
+                    // and retry with a key using the processes start time. This should always find the
+                    // process if it has children, since the start timestep is what we used to build
+                    // the children map.
+                    const auto* const process = processes.find_at(key.id, key.time);
+                    if(process == nullptr) continue;
+                    children_iter = children_per_process.find(process_key{process->id, process->timestamp});
+                    if(children_iter == children_per_process.end()) continue;
+                }
+
+                // Now add all the children as processes to be profiled.
+                for(const auto& child_key : children_iter->second)
+                {
+                    // Just to be sure: never add a process to the list that is already in it.
+                    // This should never happen (except if we would somehow have a cyclic parent child
+                    // chain), but checking it anyway should prevent this from becoming an endless-loop.
+                    if(profiler_processes_.find(child_key) != profiler_processes_.end()) continue;
+
+                    new_profiler_processes[child_key] = profiler_process_info{
+                        .process_id      = child_key.id,
+                        .start_timestamp = child_key.time};
+                }
+            }
+
+            // If we did not add any new processes in this iteration, we are done.
+            if(new_profiler_processes.empty()) break;
+
+            // Remember the processes added in this iteration and merge the newly
+            // added ones into the full list.
+            prev_profiler_processes = new_profiler_processes;
+            profiler_processes_.merge(std::move(new_profiler_processes));
+        }
+    }
 }
 
 etl_file_process_context::process_key etl_file_process_context::id_to_key(unique_process_id id) const
@@ -397,6 +473,7 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
                          process_data{
                              .image_filename = utf8::replace_invalid(event.image_filename()),
                              .command_line   = std::u16string(event.command_line()),
+                             .parent_id      = event.parent_id(),
                              .end_time       = {},
                              .unique_id      = {},
                          });

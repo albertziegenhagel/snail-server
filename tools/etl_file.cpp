@@ -917,11 +917,14 @@ int main(int argc, char* argv[])
                 assert(event.dynamic_size() == event.buffer().size());
 
                 const auto process_id = event.process_id();
-                if(!options.all_processes && process_id != options.process_of_interest) return;
+                const auto parent_id  = event.parent_id();
+                if(!options.all_processes &&
+                   process_id != options.process_of_interest &&
+                   parent_id != options.process_of_interest) return;
 
                 if(should_ignore(options, observer.current_event_name)) return;
 
-                std::cout << std::format("@{} {:30}: pid {} filename '{}' cmd '{}' unique {} flags {} ...\n", header.timestamp, observer.current_event_name, process_id, event.image_filename(), utf8::utf16to8(event.command_line()), event.unique_process_key(), event.flags());
+                std::cout << std::format("@{} {:30}: pid {} ppid {} filename '{}' cmd '{}' unique {} flags {} ...\n", header.timestamp, observer.current_event_name, process_id, parent_id, event.image_filename(), utf8::utf16to8(event.command_line()), event.unique_process_key(), event.flags());
 
                 if(options.dump_trace_headers) common::detail::dump_buffer(header.buffer, 0, header.buffer.size(), "header");
                 if(options.dump_events) common::detail::dump_buffer(event.buffer(), 0, event.buffer().size(), "event");

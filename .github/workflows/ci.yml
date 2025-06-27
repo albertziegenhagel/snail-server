@@ -107,7 +107,7 @@ jobs:
           VCPKG_BINARY_SOURCES: "clear;files,${{ steps.vcpkg-cache.outputs.path }},readwrite"
         run: |
           cd '${{ github.workspace }}'
-          cmake --preset ci . -G Ninja -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Release "-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}"
+          cmake --preset ci . -G Ninja -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Release "-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}" "-DVCPKG_INSTALL_OPTIONS=--debug"
           cmake --build --preset ci .
           ctest --preset ci
 
