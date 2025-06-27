@@ -30,3 +30,13 @@ install(
     server
   RUNTIME DESTINATION bin
 )
+if(SNAIL_INSTALL_PDB)
+  install(
+    FILES
+      "$<TARGET_PDB_FILE:snailserver>"
+    COMPONENT
+      server
+    DESTINATION "bin"
+    OPTIONAL
+  )
+endif()
