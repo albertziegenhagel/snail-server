@@ -21,3 +21,15 @@ install(
     tools
   RUNTIME DESTINATION bin
 )
+if(SNAIL_INSTALL_PDB)
+  install(
+    FILES
+      "$<TARGET_PDB_FILE:snail_tool_etl>"
+      "$<TARGET_PDB_FILE:snail_tool_perf_data>"
+      "$<TARGET_PDB_FILE:snail_tool_analysis>"
+    COMPONENT
+      tools
+    DESTINATION "bin"
+    OPTIONAL
+  )
+endif()

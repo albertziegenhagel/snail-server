@@ -107,14 +107,14 @@ jobs:
           VCPKG_BINARY_SOURCES: "clear;files,${{ steps.vcpkg-cache.outputs.path }},readwrite"
         run: |
           cd '${{ github.workspace }}'
-          cmake --preset ci . -G Ninja -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Release "-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}" "-DVCPKG_INSTALL_OPTIONS=--debug"
-          cmake --build --preset ci .
-          ctest --preset ci
+          cmake --preset ci-${{matrix.platform}} . -G Ninja -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Release "-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}" "-DVCPKG_INSTALL_OPTIONS=--debug"
+          cmake --build --preset ci-${{matrix.platform}} .
+          ctest --preset ci-${{matrix.platform}}
 
       - name: Install
         run: |
-          cmake --install ${{ github.workspace }}/build/ci --component server --prefix ${{ github.workspace }}/install/server
-          cmake --install ${{ github.workspace }}/build/ci --component tools --prefix ${{ github.workspace }}/install/tools
+          cmake --install ${{ github.workspace }}/build/ci-${{matrix.platform}} --component server --prefix ${{ github.workspace }}/install/server
+          cmake --install ${{ github.workspace }}/build/ci-${{matrix.platform}} --component tools --prefix ${{ github.workspace }}/install/tools
 
       - name: Create build info
         shell: pwsh
@@ -132,6 +132,7 @@ jobs:
           name: snail-server-${{ matrix.arch }}-${{ matrix.platform }}
           path: |
             ${{ github.workspace }}/install/server/bin/snail-server*
+            !${{ github.workspace }}/install/server/bin/snail-server*.pdb
             ${{ github.workspace }}/install/server/bin/info.txt
 
       - name: Upload tool binaries
@@ -141,4 +142,23 @@ jobs:
           name: snail-tools-${{ matrix.arch }}-${{ matrix.platform }}
           path: |
             ${{ github.workspace }}/install/tools/bin/snail-tool-*
+            !${{ github.workspace }}/install/tools/bin/snail-tool-*.pdb
+            ${{ github.workspace }}/install/tools/bin/info.txt
+
+      - name: Upload server debug symbols
+        uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows'
+        with:
+          name: snail-server-${{ matrix.arch }}-${{ matrix.platform }}-debug-symbols
+          path: |
+            ${{ github.workspace }}/install/server/bin/snail-server*.pdb
+            ${{ github.workspace }}/install/server/bin/info.txt
+
+      - name: Upload tool debug symbols
+        uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows'
+        with:
+          name: snail-tools-${{ matrix.arch }}-${{ matrix.platform }}-debug-symbols
+          path: |
+            ${{ github.workspace }}/install/tools/bin/snail-tool-*.pdb
             ${{ github.workspace }}/install/tools/bin/info.txt

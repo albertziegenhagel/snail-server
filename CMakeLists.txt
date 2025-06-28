@@ -23,6 +23,8 @@ option(SNAIL_WITH_LLVM "Required to resolve symbols from PDB and DWARF files." O
 
 option(SNAIL_ENABLE_SYSTEMTESTS "Whether to enable system testing" ON)
 
+option(SNAIL_INSTALL_PDB "Install PDB files with the DLLs" OFF)
+
 # =======
 # Dependencies
 

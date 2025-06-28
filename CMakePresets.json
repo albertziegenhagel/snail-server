@@ -7,7 +7,30 @@
     },
     "configurePresets": [
         {
-            "name": "ci",
+            "name": "windows-debug-symbols",
+            "displayName": "Configure with debug symbols on Windows",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            },
+            "cacheVariables": {
+                "CMAKE_MSVC_DEBUG_INFORMATION_FORMAT": {
+                    "type": "STRING",
+                    "value": "Embedded"
+                },
+                "CMAKE_EXE_LINKER_FLAGS_INIT": {
+                    "type": "STRING",
+                    "value": "/debug"
+                },
+                "SNAIL_INSTALL_PDB": {
+                    "type": "BOOL",
+                    "value": "ON"
+                }
+            }
+        },
+        {
+            "name": "ci-common",
             "displayName": "Configure for CI",
             "binaryDir": "${sourceDir}/build/${presetName}",
             "generator": "Ninja",
@@ -22,6 +45,21 @@
                     "value": "ON"
                 }
             }
+        },
+        {
+            "name": "ci-windows",
+            "inherits": [
+                "ci-common",
+                "windows-debug-symbols"
+            ],
+            "displayName": "Configure for CI on Windows"
+        },
+        {
+            "name": "ci-linux",
+            "inherits": [
+                "ci-common"
+            ],
+            "displayName": "Configure for CI on Linux"
         },
         {
             "name": "coverage",
@@ -47,9 +85,14 @@
     ],
     "buildPresets": [
         {
-            "name": "ci",
-            "configurePreset": "ci",
-            "displayName": "Build for CI"
+            "name": "ci-windows",
+            "configurePreset": "ci-windows",
+            "displayName": "Build for CI on Windows"
+        },
+        {
+            "name": "ci-linux",
+            "configurePreset": "ci-linux",
+            "displayName": "Build for CI on Linux"
         },
         {
             "name": "coverage",
@@ -59,8 +102,15 @@
     ],
     "testPresets": [
         {
-            "name": "ci",
-            "configurePreset": "ci",
+            "name": "ci-windows",
+            "configurePreset": "ci-windows",
+            "output": {
+                "outputOnFailure": true
+            }
+        },
+        {
+            "name": "ci-linux",
+            "configurePreset": "ci-linux",
             "output": {
                 "outputOnFailure": true
             }
