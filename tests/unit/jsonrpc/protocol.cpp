@@ -31,6 +31,12 @@ TEST(JsonRpcV2Protocol, LoadRequest)
         EXPECT_EQ(request.id, std::nullopt);
     }
     {
+        const auto request = protocol.load_request(R"({"jsonrpc":"2.0","method":"myCall","params":{}})");
+        EXPECT_EQ(request.method, "myCall");
+        EXPECT_EQ(request.params, nlohmann::json::object());
+        EXPECT_EQ(request.id, std::nullopt);
+    }
+    {
         const auto request = protocol.load_request(R"({"jsonrpc":"2.0","method":"myCall","id":"my-id"})");
         EXPECT_EQ(request.method, "myCall");
         EXPECT_EQ(request.params, nlohmann::json());
@@ -111,6 +117,50 @@ TEST(JsonRpcV2Protocol, LoadRequestInvalid)
 
     EXPECT_THROW(load_wrapper(protocol, R"({"jsonrpc":"2.0", "method":"myCall", "params":{}, "id":"my-id", "unknown":{}})"),
                  invalid_request_error);
+}
+
+TEST(JsonRpcV2Protocol, DumpRequest)
+{
+    v2_protocol protocol;
+
+    EXPECT_EQ(protocol.dump_request(request{
+                  .method = "myCall",
+                  .params = nlohmann::json(),
+                  .id     = {}}),
+              R"({"jsonrpc":"2.0","method":"myCall"})");
+
+    EXPECT_EQ(protocol.dump_request(request{
+                  .method = "myCall",
+                  .params = nlohmann::json::object(),
+                  .id     = {}}),
+              R"({"jsonrpc":"2.0","method":"myCall","params":{}})");
+
+    EXPECT_EQ(protocol.dump_request(request{
+                  .method = "myCall",
+                  .params = nlohmann::json(),
+                  .id     = nlohmann::json("my-id"s)}),
+              R"({"jsonrpc":"2.0","method":"myCall","id":"my-id"})");
+
+    EXPECT_EQ(protocol.dump_request(request{
+                  .method = "myCall",
+                  .params = nlohmann::json::object(),
+                  .id     = nlohmann::json("my-id"s)}),
+              R"({"jsonrpc":"2.0","method":"myCall","id":"my-id","params":{}})");
+
+    EXPECT_EQ(protocol.dump_request(request{
+                  .method = "myCall",
+                  .params = (nlohmann::json{{"my-param-1"s, false},
+                                            {"my-param-2"s, 123}}
+                    ),
+                  .id     = nlohmann::json("my-id"s)
+    }),
+              R"({"jsonrpc":"2.0","method":"myCall","id":"my-id","params":{"my-param-1":false,"my-param-2":123}})");
+
+    EXPECT_EQ(protocol.dump_request(request{
+                  .method = "myCall",
+                  .params = (nlohmann::json{123, "text"s}),
+                  .id     = nlohmann::json("my-id"s)}),
+              R"({"jsonrpc":"2.0","method":"myCall","id":"my-id","params":[123,"text"]})");
 }
 
 TEST(JsonRpcV2Protocol, DumpResponse)

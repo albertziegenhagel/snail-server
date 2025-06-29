@@ -60,6 +60,24 @@ request v2_protocol::load_request(std::string_view content) const
         .id     = std::move(id_data)};
 }
 
+std::string v2_protocol::dump_request(const jsonrpc::request& request) const
+{
+    if(request.id)
+    {
+        if(!request.params.is_null())
+        {
+            return std::format(R"({{"jsonrpc":"2.0","method":"{}","id":{},"params":{}}})", request.method, request.id->dump(), request.params.dump());
+        }
+        return std::format(R"({{"jsonrpc":"2.0","method":"{}","id":{}}})", request.method, request.id->dump());
+    }
+
+    if(!request.params.is_null())
+    {
+        return std::format(R"({{"jsonrpc":"2.0","method":"{}","params":{}}})", request.method, request.params.dump());
+    }
+    return std::format(R"({{"jsonrpc":"2.0","method":"{}"}})", request.method);
+}
+
 std::string v2_protocol::dump_response(const jsonrpc::response& response) const
 {
     if(response.id)
