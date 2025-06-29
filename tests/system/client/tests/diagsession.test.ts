@@ -5,6 +5,37 @@ import * as snail from '../src/protocol';
 import * as fixture from './server';
 import { CancellationTokenSource } from 'vscode-jsonrpc';
 
+class ProgressCollector {
+
+    public _titles: string[];
+    public _messages: (string | undefined)[];
+    public _percentages: (number | undefined)[];
+
+    public constructor(workDoneToken: snail.ProgressToken) {
+
+        this._titles = [];
+        this._messages = [];
+        this._percentages = [];
+
+        fixture.connection.onProgress(snail.workDoneProgressType, workDoneToken, (param) => {
+            switch (param.kind) {
+                case 'begin':
+                    this._titles.push(param.title);
+                    this._messages.push(param.message);
+                    this._percentages.push(param.percentage);
+                    break;
+                case 'report':
+                    this._messages.push(param.message);
+                    this._percentages.push(param.percentage);
+                    break;
+                case 'end':
+                    this._messages.push(param.message);
+                    break;
+            }
+        });
+    }
+};
+
 describe("InnerDiagsession", function () {
     this.timeout(60 * 1000);
 
@@ -55,9 +86,21 @@ describe("InnerDiagsession", function () {
             symbolCacheDir: cacheDir
         });
 
+        const workDoneToken: snail.ProgressToken = 'fb3f7ec8-18c6-47fc-baec-cef069a98f89';
+        const progress = new ProgressCollector(workDoneToken);
         const response = await fixture.connection.sendRequest(snail.readDocumentRequestType, {
-            filePath: path.join(dataDir, 'record', 'inner.diagsession')
+            filePath: path.join(dataDir, 'record', 'inner.diagsession'),
+            workDoneToken
         });
+
+        assert.deepEqual(progress._titles, [
+            "Unpacking diagsession file",
+            "Processing events"
+        ]);
+        assert.deepEqual(progress._percentages, [
+            0, 0, 9, 19, 29, 39, 48, 58, 68, 78, 87, 97, 100,
+            0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 100
+        ]);
 
         fs.removeSync(cacheDir);
 
@@ -483,7 +526,6 @@ describe("InnerDiagsession", function () {
             documentId: documentId!,
             sortBy: snail.FunctionsSortBy.name,
             sortOrder: snail.SortDirection.ascending,
-            sortSourceId: null,
             processKey: process!.key,
             pageSize: 3,
             pageIndex: 0
@@ -772,8 +814,6 @@ describe("InnerDiagsession", function () {
 
         await fixture.connection.sendRequest(snail.setSampleFiltersRequestType, {
             documentId: documentId!,
-            minTime: null,
-            maxTime: null,
             excludedProcesses: [process!.key],
             excludedThreads: []
         });
@@ -803,8 +843,6 @@ describe("InnerDiagsession", function () {
 
         await fixture.connection.sendRequest(snail.setSampleFiltersRequestType, {
             documentId: documentId!,
-            minTime: null,
-            maxTime: null,
             excludedProcesses: [],
             excludedThreads: [thread3828!.key, thread4224!.key]
         });

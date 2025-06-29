@@ -187,6 +187,14 @@
             }
         },
         {
+            "method": "$/progress",
+            "messageDirection": "serverToClient",
+            "params": {
+                "kind": "reference",
+                "name": "ProgressParams"
+            }
+        },
+        {
             "method": "closeDocument",
             "messageDirection": "clientToServer",
             "params": {
@@ -232,6 +240,19 @@
         }
     ],
     "structures": [
+        {
+            "name": "WorkDoneProgressParams",
+            "properties": [
+                {
+                    "name": "workDoneToken",
+                    "type": {
+                        "kind": "reference",
+                        "name": "ProgressToken"
+                    },
+                    "optional": true
+                }
+            ]
+        },
         {
             "name": "SampleSourceInfo",
             "properties": [
@@ -718,6 +739,137 @@
             ]
         },
         {
+            "name": "WorkDoneProgressBegin",
+            "properties": [
+                {
+                    "name": "kind",
+                    "type": {
+                        "kind": "stringLiteral",
+                        "value": "begin"
+                    }
+                },
+                {
+                    "name": "title",
+                    "type": {
+                        "kind": "base",
+                        "name": "string"
+                    }
+                },
+                {
+                    "name": "cancellable",
+                    "type": {
+                        "kind": "base",
+                        "name": "boolean"
+                    },
+                    "optional": true
+                },
+                {
+                    "name": "message",
+                    "type": {
+                        "kind": "base",
+                        "name": "string"
+                    },
+                    "optional": true
+                },
+                {
+                    "name": "percentage",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        {
+            "name": "WorkDoneProgressReport",
+            "properties": [
+                {
+                    "name": "kind",
+                    "type": {
+                        "kind": "stringLiteral",
+                        "value": "report"
+                    }
+                },
+                {
+                    "name": "cancellable",
+                    "type": {
+                        "kind": "base",
+                        "name": "boolean"
+                    },
+                    "optional": true
+                },
+                {
+                    "name": "message",
+                    "type": {
+                        "kind": "base",
+                        "name": "string"
+                    },
+                    "optional": true
+                },
+                {
+                    "name": "percentage",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        {
+            "name": "WorkDoneProgressEnd",
+            "properties": [
+                {
+                    "name": "kind",
+                    "type": {
+                        "kind": "stringLiteral",
+                        "value": "end"
+                    }
+                },
+                {
+                    "name": "message",
+                    "type": {
+                        "kind": "base",
+                        "name": "string"
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        {
+            "name": "ProgressParams",
+            "properties": [
+                {
+                    "name": "token",
+                    "type": {
+                        "kind": "reference",
+                        "name": "ProgressToken"
+                    }
+                },
+                {
+                    "name": "value",
+                    "type": {
+                        "kind": "or",
+                        "items": [
+                            {
+                                "kind": "reference",
+                                "name": "WorkDoneProgressBegin"
+                            },
+                            {
+                                "kind": "reference",
+                                "name": "WorkDoneProgressReport"
+                            },
+                            {
+                                "kind": "reference",
+                                "name": "WorkDoneProgressEnd"
+                            }
+                        ]
+                    }
+                }
+            ]
+        },
+        {
             "name": "InitializeParams",
             "properties": []
         },
@@ -742,6 +894,12 @@
                         "kind": "base",
                         "name": "DocumentUri"
                     }
+                }
+            ],
+            "mixins": [
+                {
+                    "kind": "reference",
+                    "name": "WorkDoneProgressParams"
                 }
             ]
         },
@@ -874,6 +1032,12 @@
                     "kind": "reference",
                     "name": "_DocumentIdParams"
                 }
+            ],
+            "mixins": [
+                {
+                    "kind": "reference",
+                    "name": "WorkDoneProgressParams"
+                }
             ]
         },
         {
@@ -906,6 +1070,12 @@
                 {
                     "kind": "reference",
                     "name": "_ProcessParams"
+                }
+            ],
+            "mixins": [
+                {
+                    "kind": "reference",
+                    "name": "WorkDoneProgressParams"
                 }
             ]
         },
@@ -966,6 +1136,12 @@
                     "kind": "reference",
                     "name": "_ProcessParams"
                 }
+            ],
+            "mixins": [
+                {
+                    "kind": "reference",
+                    "name": "WorkDoneProgressParams"
+                }
             ]
         },
         {
@@ -998,6 +1174,12 @@
                 {
                     "kind": "reference",
                     "name": "_ProcessParams"
+                }
+            ],
+            "mixins": [
+                {
+                    "kind": "reference",
+                    "name": "WorkDoneProgressParams"
                 }
             ]
         },
@@ -1038,6 +1220,12 @@
                 {
                     "kind": "reference",
                     "name": "_FunctionParams"
+                }
+            ],
+            "mixins": [
+                {
+                    "kind": "reference",
+                    "name": "WorkDoneProgressParams"
                 }
             ]
         },
@@ -1080,6 +1268,12 @@
                 {
                     "kind": "reference",
                     "name": "_FunctionParams"
+                }
+            ],
+            "mixins": [
+                {
+                    "kind": "reference",
+                    "name": "WorkDoneProgressParams"
                 }
             ]
         },
@@ -1388,6 +1582,22 @@
                 "name": "null"
             },
             "documentation": "Unused"
+        },
+        {
+            "name": "ProgressToken",
+            "type": {
+                "kind": "or",
+                "items": [
+                    {
+                        "kind": "base",
+                        "name": "integer"
+                    },
+                    {
+                        "kind": "base",
+                        "name": "string"
+                    }
+                ]
+            }
         }
     ]
 }

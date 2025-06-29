@@ -71,6 +71,8 @@ sort_direction enum_from_value<sort_direction>(const std::string_view& value)
 }
 } // namespace snail::jsonrpc::detail
 
+using progress_token = std::variant<long long, std::string>;
+
 struct initialize_request
 {
     static constexpr std::string_view name = "initialize";
@@ -116,11 +118,17 @@ struct read_document_request
     static constexpr std::string_view name = "readDocument";
 
     static constexpr auto parameters = std::tuple(
-        snail::jsonrpc::detail::request_parameter<std::string>{"filePath"});
+        snail::jsonrpc::detail::request_parameter<std::string>{"filePath"},
+        snail::jsonrpc::detail::request_parameter<std::optional<progress_token>>{"workDoneToken"});
 
     const std::string& file_path() const
     {
         return std::get<0>(data_);
+    }
+
+    const std::optional<progress_token>& work_done_token() const
+    {
+        return std::get<1>(data_);
     }
 
     template<typename RequestType>
@@ -129,7 +137,8 @@ struct read_document_request
 
 private:
     std::tuple<
-        std::string>
+        std::string,
+        std::optional<progress_token>>
         data_;
 };
 namespace snail::jsonrpc::detail {
@@ -261,7 +270,8 @@ struct retrieve_hottest_functions_request
     static constexpr auto parameters = std::tuple(
         snail::jsonrpc::detail::request_parameter<std::size_t>{"count"},
         snail::jsonrpc::detail::request_parameter<std::size_t>{"sourceId"},
-        snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"});
+        snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"},
+        snail::jsonrpc::detail::request_parameter<std::optional<progress_token>>{"workDoneToken"});
 
     const std::size_t& count() const
     {
@@ -279,6 +289,11 @@ struct retrieve_hottest_functions_request
         return std::get<2>(data_);
     }
 
+    const std::optional<progress_token>& work_done_token() const
+    {
+        return std::get<3>(data_);
+    }
+
     template<typename RequestType>
         requires snail::jsonrpc::detail::is_request_v<RequestType>
     friend RequestType snail::jsonrpc::detail::unpack_request(const nlohmann::json& raw_data);
@@ -287,7 +302,8 @@ private:
     std::tuple<
         std::size_t,
         std::size_t,
-        std::size_t>
+        std::size_t,
+        std::optional<progress_token>>
         data_;
 };
 namespace snail::jsonrpc::detail {
@@ -303,7 +319,8 @@ struct retrieve_call_tree_hot_path_request
     static constexpr auto parameters = std::tuple(
         snail::jsonrpc::detail::request_parameter<std::size_t>{"sourceId"},
         snail::jsonrpc::detail::request_parameter<std::uint64_t>{"processKey"},
-        snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"});
+        snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"},
+        snail::jsonrpc::detail::request_parameter<std::optional<progress_token>>{"workDoneToken"});
 
     const std::size_t& source_id() const
     {
@@ -321,6 +338,11 @@ struct retrieve_call_tree_hot_path_request
         return std::get<2>(data_);
     }
 
+    const std::optional<progress_token>& work_done_token() const
+    {
+        return std::get<3>(data_);
+    }
+
     template<typename RequestType>
         requires snail::jsonrpc::detail::is_request_v<RequestType>
     friend RequestType snail::jsonrpc::detail::unpack_request(const nlohmann::json& raw_data);
@@ -329,7 +351,8 @@ private:
     std::tuple<
         std::size_t,
         std::uint64_t,
-        std::size_t>
+        std::size_t,
+        std::optional<progress_token>>
         data_;
 };
 namespace snail::jsonrpc::detail {
@@ -349,7 +372,8 @@ struct retrieve_functions_page_request
         snail::jsonrpc::detail::request_parameter<std::size_t>{"pageSize"},
         snail::jsonrpc::detail::request_parameter<std::size_t>{"pageIndex"},
         snail::jsonrpc::detail::request_parameter<std::uint64_t>{"processKey"},
-        snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"});
+        snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"},
+        snail::jsonrpc::detail::request_parameter<std::optional<progress_token>>{"workDoneToken"});
 
     const functions_sort_by& sort_by() const
     {
@@ -387,6 +411,11 @@ struct retrieve_functions_page_request
         return std::get<6>(data_);
     }
 
+    const std::optional<progress_token>& work_done_token() const
+    {
+        return std::get<7>(data_);
+    }
+
     template<typename RequestType>
         requires snail::jsonrpc::detail::is_request_v<RequestType>
     friend RequestType snail::jsonrpc::detail::unpack_request(const nlohmann::json& raw_data);
@@ -399,7 +428,8 @@ private:
         std::size_t,
         std::size_t,
         std::uint64_t,
-        std::size_t>
+        std::size_t,
+        std::optional<progress_token>>
         data_;
 };
 namespace snail::jsonrpc::detail {
@@ -415,7 +445,8 @@ struct expand_call_tree_node_request
     static constexpr auto parameters = std::tuple(
         snail::jsonrpc::detail::request_parameter<std::size_t>{"nodeId"},
         snail::jsonrpc::detail::request_parameter<std::uint64_t>{"processKey"},
-        snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"});
+        snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"},
+        snail::jsonrpc::detail::request_parameter<std::optional<progress_token>>{"workDoneToken"});
 
     const std::size_t& node_id() const
     {
@@ -433,6 +464,11 @@ struct expand_call_tree_node_request
         return std::get<2>(data_);
     }
 
+    const std::optional<progress_token>& work_done_token() const
+    {
+        return std::get<3>(data_);
+    }
+
     template<typename RequestType>
         requires snail::jsonrpc::detail::is_request_v<RequestType>
     friend RequestType snail::jsonrpc::detail::unpack_request(const nlohmann::json& raw_data);
@@ -441,7 +477,8 @@ private:
     std::tuple<
         std::size_t,
         std::uint64_t,
-        std::size_t>
+        std::size_t,
+        std::optional<progress_token>>
         data_;
 };
 namespace snail::jsonrpc::detail {
@@ -459,7 +496,8 @@ struct retrieve_callers_callees_request
         snail::jsonrpc::detail::request_parameter<std::size_t>{"maxEntries"},
         snail::jsonrpc::detail::request_parameter<std::size_t>{"functionId"},
         snail::jsonrpc::detail::request_parameter<std::uint64_t>{"processKey"},
-        snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"});
+        snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"},
+        snail::jsonrpc::detail::request_parameter<std::optional<progress_token>>{"workDoneToken"});
 
     const std::size_t& sort_source_id() const
     {
@@ -487,6 +525,11 @@ struct retrieve_callers_callees_request
         return std::get<4>(data_);
     }
 
+    const std::optional<progress_token>& work_done_token() const
+    {
+        return std::get<5>(data_);
+    }
+
     template<typename RequestType>
         requires snail::jsonrpc::detail::is_request_v<RequestType>
     friend RequestType snail::jsonrpc::detail::unpack_request(const nlohmann::json& raw_data);
@@ -497,7 +540,8 @@ private:
         std::size_t,
         std::size_t,
         std::uint64_t,
-        std::size_t>
+        std::size_t,
+        std::optional<progress_token>>
         data_;
 };
 namespace snail::jsonrpc::detail {
@@ -513,7 +557,8 @@ struct retrieve_line_info_request
     static constexpr auto parameters = std::tuple(
         snail::jsonrpc::detail::request_parameter<std::size_t>{"functionId"},
         snail::jsonrpc::detail::request_parameter<std::uint64_t>{"processKey"},
-        snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"});
+        snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"},
+        snail::jsonrpc::detail::request_parameter<std::optional<progress_token>>{"workDoneToken"});
 
     const std::size_t& function_id() const
     {
@@ -531,6 +576,11 @@ struct retrieve_line_info_request
         return std::get<2>(data_);
     }
 
+    const std::optional<progress_token>& work_done_token() const
+    {
+        return std::get<3>(data_);
+    }
+
     template<typename RequestType>
         requires snail::jsonrpc::detail::is_request_v<RequestType>
     friend RequestType snail::jsonrpc::detail::unpack_request(const nlohmann::json& raw_data);
@@ -539,7 +589,8 @@ private:
     std::tuple<
         std::size_t,
         std::uint64_t,
-        std::size_t>
+        std::size_t,
+        std::optional<progress_token>>
         data_;
 };
 namespace snail::jsonrpc::detail {
