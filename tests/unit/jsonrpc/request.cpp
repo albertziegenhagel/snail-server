@@ -52,6 +52,26 @@ SNAIL_JSONRPC_REQUEST_2(test_4,
 SNAIL_JSONRPC_REQUEST_1(test_5,
                         std::optional<int>, opt_num)
 
+using int_or_str_variant = std::variant<int, std::string>;
+SNAIL_JSONRPC_REQUEST_1(test_6,
+                        int_or_str_variant, int_or_str)
+
+using uint_or_str_variant = std::variant<unsigned int, std::string>;
+SNAIL_JSONRPC_REQUEST_1(test_7,
+                        uint_or_str_variant, uint_or_str)
+
+using bool_or_double_variant = std::variant<bool, double>;
+SNAIL_JSONRPC_REQUEST_1(test_8,
+                        bool_or_double_variant, bool_or_double)
+
+using str_or_float_variant = std::variant<std::string, float>;
+SNAIL_JSONRPC_REQUEST_1(test_9,
+                        str_or_float_variant, str_or_float)
+
+using str_variant = std::variant<std::string>;
+SNAIL_JSONRPC_REQUEST_1(test_10,
+                        str_variant, str)
+
 TEST(JsonRpc, UnpackRequest)
 {
     {
@@ -180,5 +200,155 @@ TEST(JsonRpc, UnpackRequest)
         const auto request = snail::jsonrpc::detail::unpack_request<test_5_request>(data);
 
         EXPECT_EQ(request.opt_num(), std::nullopt);
+    }
+
+    {
+        const nlohmann::json data = {
+            {"int_or_str", 15},
+        };
+
+        const auto request = snail::jsonrpc::detail::unpack_request<test_6_request>(data);
+
+        EXPECT_EQ(request.int_or_str(), int_or_str_variant(15));
+    }
+
+    {
+        const nlohmann::json data = {
+            {"int_or_str", 15u},
+        };
+
+        const auto request = snail::jsonrpc::detail::unpack_request<test_6_request>(data);
+
+        EXPECT_EQ(request.int_or_str(), int_or_str_variant(15));
+    }
+
+    {
+        const nlohmann::json data = {
+            {"int_or_str", "test_str"},
+        };
+
+        const auto request = snail::jsonrpc::detail::unpack_request<test_6_request>(data);
+
+        EXPECT_EQ(request.int_or_str(), int_or_str_variant("test_str"));
+    }
+
+    {
+        const nlohmann::json data = {
+            {"uint_or_str", 15},
+        };
+
+        const auto request = snail::jsonrpc::detail::unpack_request<test_7_request>(data);
+
+        EXPECT_EQ(request.uint_or_str(), uint_or_str_variant(15u));
+    }
+
+    {
+        const nlohmann::json data = {
+            {"uint_or_str", 15u},
+        };
+
+        const auto request = snail::jsonrpc::detail::unpack_request<test_7_request>(data);
+
+        EXPECT_EQ(request.uint_or_str(), uint_or_str_variant(15u));
+    }
+
+    {
+        const nlohmann::json data = {
+            {"bool_or_double", true},
+        };
+
+        const auto request = snail::jsonrpc::detail::unpack_request<test_8_request>(data);
+
+        EXPECT_EQ(request.bool_or_double(), bool_or_double_variant(true));
+    }
+
+    {
+        const nlohmann::json data = {
+            {"bool_or_double", 1.23},
+        };
+
+        const auto request = snail::jsonrpc::detail::unpack_request<test_8_request>(data);
+
+        EXPECT_EQ(request.bool_or_double(), bool_or_double_variant(1.23));
+    }
+
+    {
+        const nlohmann::json data = {
+            {"bool_or_double", 1.23f},
+        };
+
+        const auto request = snail::jsonrpc::detail::unpack_request<test_8_request>(data);
+
+        EXPECT_EQ(request.bool_or_double(), bool_or_double_variant(1.23f));
+    }
+
+    {
+        const nlohmann::json data = {
+            {"bool_or_double", "test_str"},
+        };
+
+        EXPECT_THROW(
+            snail::jsonrpc::detail::unpack_request<test_8_request>(data),
+            snail::jsonrpc::invalid_parameters_error);
+    }
+
+    {
+        const nlohmann::json data = {
+            {"str_or_float", 1.23},
+        };
+
+        const auto request = snail::jsonrpc::detail::unpack_request<test_9_request>(data);
+
+        EXPECT_EQ(request.str_or_float(), str_or_float_variant(1.23f));
+    }
+
+    {
+        const nlohmann::json data = {
+            {"str_or_float", 1.23f},
+        };
+
+        const auto request = snail::jsonrpc::detail::unpack_request<test_9_request>(data);
+
+        EXPECT_EQ(request.str_or_float(), str_or_float_variant(1.23f));
+    }
+
+    {
+        const nlohmann::json data = {
+            {"str", true},
+        };
+
+        EXPECT_THROW(
+            snail::jsonrpc::detail::unpack_request<test_10_request>(data),
+            snail::jsonrpc::invalid_parameters_error);
+    }
+
+    {
+        const nlohmann::json data = {
+            {"str", 15},
+        };
+
+        EXPECT_THROW(
+            snail::jsonrpc::detail::unpack_request<test_10_request>(data),
+            snail::jsonrpc::invalid_parameters_error);
+    }
+
+    {
+        const nlohmann::json data = {
+            {"str", 15u},
+        };
+
+        EXPECT_THROW(
+            snail::jsonrpc::detail::unpack_request<test_10_request>(data),
+            snail::jsonrpc::invalid_parameters_error);
+    }
+
+    {
+        const nlohmann::json data = {
+            {"str", 1.23},
+        };
+
+        EXPECT_THROW(
+            snail::jsonrpc::detail::unpack_request<test_10_request>(data),
+            snail::jsonrpc::invalid_parameters_error);
     }
 }

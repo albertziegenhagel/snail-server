@@ -142,3 +142,20 @@ TEST(MessageConnection, ServeSome)
               "\r\n"
               "my-response");
 }
+
+TEST(MessageConnection, Send)
+{
+    std::stringstream in_stream(std::ios::in | std::ios::out | std::ios::binary);
+    std::stringstream out_stream(std::ios::in | std::ios::out | std::ios::binary);
+
+    message_connection connection(
+        std::make_unique<stream_message_reader>(in_stream),
+        std::make_unique<stream_message_writer>(out_stream));
+
+    connection.send("{\"my-message\": 123}");
+
+    EXPECT_EQ(out_stream.str(),
+              "Content-Length: 19\r\n"
+              "\r\n"
+              "{\"my-message\": 123}");
+}

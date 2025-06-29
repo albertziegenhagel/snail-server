@@ -36,13 +36,16 @@ TEST(JsonRpcServer, ServeValidRequestAndNotification)
             std::make_unique<stream_message_writer>(out_stream)),
         std::make_unique<v2_protocol>());
 
+    request_id  test_1_id;
     std::string test_1_str;
     int         test_1_num;
     server.register_request<my_test_1_request>(
-        [&](const my_test_1_request&  request,
+        [&](const request_id&         request_id,
+            const my_test_1_request&  request,
             request_response_callback respond,
             error_callback /*report_error*/)
         {
+            test_1_id  = request_id;
             test_1_str = request.str();
             test_1_num = request.num();
             respond(nlohmann::json("response string"));
@@ -70,6 +73,7 @@ TEST(JsonRpcServer, ServeValidRequestAndNotification)
     // handle the request
     server.serve_next();
 
+    EXPECT_EQ(test_1_id, request_id(1));
     EXPECT_EQ(test_1_str, "something");
     EXPECT_EQ(test_1_num, 42);
     EXPECT_EQ(out_stream.str(),
@@ -178,7 +182,8 @@ TEST(JsonRpcServer, UnexpectedError)
 
     // Test request that reports an unexpected error.
     server.register_request<my_test_3_request>(
-        [&](const my_test_3_request&,
+        [&](const request_id&,
+            const my_test_3_request&,
             request_response_callback /*respond*/,
             error_callback report_error)
         {

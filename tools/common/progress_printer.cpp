@@ -88,14 +88,16 @@ progress_printer::progress_printer() :
     snail::common::progress_listener(0.01) // every 1%
 {}
 
-void progress_printer::start() const {}
+void progress_printer::start([[maybe_unused]] std::string_view                title,
+                             [[maybe_unused]] std::optional<std::string_view> message) const {}
 
-void progress_printer::report(double progress) const
+void progress_printer::report(double                                           progress,
+                              [[maybe_unused]] std::optional<std::string_view> message) const
 {
     draw_progress_bar(progress);
 }
 
-void progress_printer::finish() const
+void progress_printer::finish([[maybe_unused]] std::optional<std::string_view> message) const
 {
     std::cout << std::endl;
 }

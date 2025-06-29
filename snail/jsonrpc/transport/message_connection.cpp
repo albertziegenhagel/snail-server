@@ -28,3 +28,8 @@ void message_connection::serve_next(message_handler& handler)
             writer_->write(response);
         });
 }
+
+void message_connection::send(std::string_view message)
+{
+    writer_->write(message);
+}

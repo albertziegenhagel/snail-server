@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <string_view>
 
 namespace snail::jsonrpc {
 
@@ -18,6 +19,8 @@ public:
     ~message_connection();
 
     void serve_next(message_handler& handler);
+
+    void send(std::string_view message);
 
 private:
     std::unique_ptr<message_reader> reader_;

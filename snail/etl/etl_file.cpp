@@ -438,7 +438,8 @@ void etl_file::process(event_observer&                   callbacks,
     std::vector<processor_data> per_processor_data{header_.number_of_processors};
 
     common::progress_reporter progress(progress_listener,
-                                       header_.number_of_buffers * header_.buffer_size);
+                                       header_.number_of_buffers * header_.buffer_size,
+                                       "Processing events");
 
     {
         std::array<std::byte, parser::wmi_buffer_header_view::static_size> header_buffer_data;

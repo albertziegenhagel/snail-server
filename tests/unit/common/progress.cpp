@@ -15,21 +15,25 @@ struct collecting_progress_listener : public progress_listener
 {
     using progress_listener::progress_listener;
 
-    virtual void start() const override
+    virtual void start(std::string_view                                 title_,
+                       [[maybe_unused]] std::optional<std::string_view> message) const override
     {
-        started = true;
+        started     = true;
+        this->title = title_;
     }
 
-    virtual void report(double progress) const override
+    virtual void report(double                                           progress,
+                        [[maybe_unused]] std::optional<std::string_view> message) const override
     {
         reported.push_back(std::round(progress * 1000.0) / 10.0); // percent rounded to one digit after the point
     }
 
-    virtual void finish() const override
+    virtual void finish([[maybe_unused]] std::optional<std::string_view> message) const override
     {
         finished = true;
     }
 
+    mutable std::string         title;
     mutable bool                started  = false;
     mutable bool                finished = false;
     mutable std::vector<double> reported;
@@ -40,7 +44,7 @@ struct collecting_progress_listener : public progress_listener
 TEST(Progress, UnitWork100)
 {
     const collecting_progress_listener listener(0.1);
-    progress_reporter                  reporter(&listener, 100);
+    progress_reporter                  reporter(&listener, 100, "Title");
 
     for(progress_reporter::work_type work = 0; work < 100; ++work)
     {
@@ -49,6 +53,7 @@ TEST(Progress, UnitWork100)
 
     reporter.finish();
 
+    EXPECT_EQ(listener.title, "Title");
     EXPECT_TRUE(listener.started);
     EXPECT_EQ(listener.reported,
               (std::vector<double>{0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0}));
@@ -58,7 +63,7 @@ TEST(Progress, UnitWork100)
 TEST(Progress, UnitWork123)
 {
     const collecting_progress_listener listener(0.1);
-    progress_reporter                  reporter(&listener, 123);
+    progress_reporter                  reporter(&listener, 123, "Title");
 
     for(progress_reporter::work_type work = 0; work < 123; ++work)
     {
@@ -67,6 +72,7 @@ TEST(Progress, UnitWork123)
 
     reporter.finish();
 
+    EXPECT_EQ(listener.title, "Title");
     EXPECT_TRUE(listener.started);
     EXPECT_EQ(listener.reported,
               (std::vector<double>{0.0, 10.6, 20.3, 30.1, 40.7, 50.4, 60.2, 70.7, 80.5, 90.2, 100.0}));
@@ -76,7 +82,7 @@ TEST(Progress, UnitWork123)
 TEST(Progress, UnitWork7)
 {
     const collecting_progress_listener listener(0.1);
-    progress_reporter                  reporter(&listener, 7);
+    progress_reporter                  reporter(&listener, 7, "Title");
 
     for(progress_reporter::work_type work = 0; work < 7; ++work)
     {
@@ -85,6 +91,7 @@ TEST(Progress, UnitWork7)
 
     reporter.finish();
 
+    EXPECT_EQ(listener.title, "Title");
     EXPECT_TRUE(listener.started);
     EXPECT_EQ(listener.reported,
               (std::vector<double>{0.0, 14.3, 28.6, 42.9, 57.1, 71.4, 85.7, 100.0}));
@@ -94,7 +101,7 @@ TEST(Progress, UnitWork7)
 TEST(Progress, UnitWorkOddReport100)
 {
     const collecting_progress_listener listener(0.13);
-    progress_reporter                  reporter(&listener, 100);
+    progress_reporter                  reporter(&listener, 100, "Title");
 
     for(progress_reporter::work_type work = 0; work < 100; ++work)
     {
@@ -103,6 +110,7 @@ TEST(Progress, UnitWorkOddReport100)
 
     reporter.finish();
 
+    EXPECT_EQ(listener.title, "Title");
     EXPECT_TRUE(listener.started);
     EXPECT_EQ(listener.reported,
               (std::vector<double>{0.0, 13.0, 26.0, 39.0, 52.0, 65.0, 78.0, 91.0, 100.0}));
@@ -112,7 +120,7 @@ TEST(Progress, UnitWorkOddReport100)
 TEST(Progress, UnitWorkOddOverWorkReport100)
 {
     const collecting_progress_listener listener(0.13);
-    progress_reporter                  reporter(&listener, 100);
+    progress_reporter                  reporter(&listener, 100, "Title");
 
     for(progress_reporter::work_type work = 0; work < 130; ++work)
     {
@@ -121,6 +129,7 @@ TEST(Progress, UnitWorkOddOverWorkReport100)
 
     reporter.finish();
 
+    EXPECT_EQ(listener.title, "Title");
     EXPECT_TRUE(listener.started);
     EXPECT_EQ(listener.reported,
               (std::vector<double>{0.0, 13.0, 26.0, 39.0, 52.0, 65.0, 78.0, 91.0, 100.0, 104.0, 117.0, 130.0}));
@@ -130,7 +139,7 @@ TEST(Progress, UnitWorkOddOverWorkReport100)
 TEST(Progress, JumpWork100)
 {
     const collecting_progress_listener listener(0.1);
-    progress_reporter                  reporter(&listener, 100);
+    progress_reporter                  reporter(&listener, 100, "Title");
 
     // progress = 0
     reporter.progress(15); // progress = 15
@@ -143,6 +152,7 @@ TEST(Progress, JumpWork100)
 
     reporter.finish();
 
+    EXPECT_EQ(listener.title, "Title");
     EXPECT_TRUE(listener.started);
     EXPECT_EQ(listener.reported,
               (std::vector<double>{0.0, 15.0, 40.0, 69.0, 70.0, 85.0, 100.0}));
@@ -152,7 +162,7 @@ TEST(Progress, JumpWork100)
 TEST(Progress, OverWork100)
 {
     const collecting_progress_listener listener(0.1);
-    progress_reporter                  reporter(&listener, 100);
+    progress_reporter                  reporter(&listener, 100, "Title");
 
     for(progress_reporter::work_type work = 0; work < 200; ++work)
     {
@@ -161,6 +171,7 @@ TEST(Progress, OverWork100)
 
     reporter.finish();
 
+    EXPECT_EQ(listener.title, "Title");
     EXPECT_TRUE(listener.started);
     EXPECT_EQ(listener.reported,
               (std::vector<double>{0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0,
@@ -172,7 +183,7 @@ TEST(Progress, WorkRoundIssue)
 {
     const collecting_progress_listener listener(0.1);
     const progress_reporter::work_type total = 5373952;
-    progress_reporter                  reporter(&listener, total);
+    progress_reporter                  reporter(&listener, total, "Title");
 
     const progress_reporter::work_type first = 4836568;
     reporter.progress(first);
@@ -181,6 +192,7 @@ TEST(Progress, WorkRoundIssue)
 
     reporter.finish();
 
+    EXPECT_EQ(listener.title, "Title");
     EXPECT_TRUE(listener.started);
     EXPECT_EQ(listener.reported,
               (std::vector<double>{0.0, 90.0, 100.0}));
@@ -189,7 +201,7 @@ TEST(Progress, WorkRoundIssue)
 
 TEST(Progress, NoListener)
 {
-    progress_reporter reporter(nullptr, 100);
+    progress_reporter reporter(nullptr, 100, "Title");
 
     // just test that it does not crash?
 

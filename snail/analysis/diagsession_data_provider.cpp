@@ -184,7 +184,7 @@ void diagsession_data_provider::process(const std::filesystem::path&      file_p
         std::ofstream etl_file_stream(*temp_etl_file_path_, std::ios::binary);
 
         common::progress_reporter progress(progress_listener,
-                                           etl_file_entry.getSize());
+                                           etl_file_entry.getSize(), "Unpacking diagsession file");
 
         const auto result = archive.readEntry(
             etl_file_entry,

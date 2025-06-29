@@ -2,6 +2,8 @@
 
 #include <atomic>
 #include <cstddef>
+#include <optional>
+#include <string_view>
 
 namespace snail::common {
 
@@ -12,9 +14,13 @@ public:
 
     double resolution() const;
 
-    virtual void start() const                 = 0;
-    virtual void report(double progress) const = 0;
-    virtual void finish() const                = 0;
+    virtual void start(std::string_view                title,
+                       std::optional<std::string_view> message) const = 0;
+
+    virtual void report(double                          progress,
+                        std::optional<std::string_view> message) const = 0;
+
+    virtual void finish(std::optional<std::string_view> message) const = 0;
 
 private:
     double resolution_;
@@ -35,12 +41,15 @@ class progress_reporter
 public:
     using work_type = std::size_t;
 
-    progress_reporter(const progress_listener* listener,
-                      work_type                total_work);
+    progress_reporter(const progress_listener*        listener,
+                      work_type                       total_work,
+                      std::string_view                title,
+                      std::optional<std::string_view> message = std::nullopt);
 
-    void start();
-    void progress(work_type work);
-    void finish();
+    void progress(work_type                       work,
+                  std::optional<std::string_view> message = std::nullopt);
+
+    void finish(std::optional<std::string_view> message = std::nullopt);
 
 private:
     const progress_listener* listener_;

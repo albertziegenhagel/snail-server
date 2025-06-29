@@ -3,10 +3,13 @@
 #include <chrono>
 #include <format>
 #include <iostream>
+#include <memory>
 #include <mutex>
 #include <queue>
 #include <thread>
+#include <unordered_map>
 
+#include <snail/common/progress.hpp>
 #include <snail/common/thread.hpp>
 #include <snail/common/wildcard.hpp>
 
@@ -26,33 +29,71 @@ using namespace snail::server;
 
 namespace {
 
-template<typename RequestType, typename HandlerType>
-    requires jsonrpc::detail::is_request_v<RequestType> &&
-             std::invocable<HandlerType, RequestType> &&
-             std::is_convertible_v<std::invoke_result_t<HandlerType, RequestType>, nlohmann::json>
-std::function<void()> make_request_task(HandlerType                        handler,
-                                        RequestType                        request,
-                                        jsonrpc::request_response_callback respond,
-                                        jsonrpc::error_callback            report_error)
-{
-    return [handler      = std::move(handler),
-            request      = std::move(request),
-            respond      = std::move(respond),
-            report_error = std::move(report_error)]()
+template<typename T>
+concept supports_work_done_progress = requires(const T& request) {
     {
-        nlohmann::json result;
-        try
-        {
-            result = handler(request);
-        }
-        catch(const std::runtime_error& e)
-        {
-            report_error(e.what());
-            return;
-        }
-        respond(std::move(result));
-    };
-}
+        request.work_done_token()
+    } -> std::same_as<const std::optional<progress_token>&>;
+};
+
+struct reporting_progress_listener : public common::progress_listener
+{
+    reporting_progress_listener(jsonrpc::server&      jsonrpc_server,
+                                const progress_token& token) :
+        common::progress_listener(0.01), // 1% resolution
+        jsonrpc_server_(jsonrpc_server),
+        token_(std::holds_alternative<std::string>(token) ?
+                   nlohmann::json(std::get<std::string>(token)) :
+                   nlohmann::json(std::get<long long>(token)))
+    {}
+
+    virtual void start(std::string_view                title,
+                       std::optional<std::string_view> message) const override
+    {
+        auto value = nlohmann::json{
+            {"kind",       "begin"},
+            {"title",      title  },
+            {"percentage", 0      }
+        };
+        if(message) value["message"] = *message;
+        send_progress_notification(std::move(value));
+    }
+
+    virtual void report(double                          progress,
+                        std::optional<std::string_view> message) const override
+    {
+        auto value = nlohmann::json{
+            {"kind",       "report"                          },
+            {"percentage", static_cast<int>(progress * 100.0)}
+        };
+        if(message) value["message"] = *message;
+        send_progress_notification(std::move(value));
+    }
+
+    virtual void finish(std::optional<std::string_view> message) const override
+    {
+        auto value = nlohmann::json{
+            {"kind", "end"},
+        };
+        if(message) value["message"] = *message;
+        send_progress_notification(std::move(value));
+    }
+
+private:
+    jsonrpc::server&     jsonrpc_server_;
+    const nlohmann::json token_;
+
+    void send_progress_notification(nlohmann::json value) const
+    {
+        jsonrpc_server_.send_request(jsonrpc::request{
+            .method = "$/progress",
+            .params = {
+                       {"token", token_},
+                       {"value", std::move(value)}},
+            .id = {}
+        });
+    }
+};
 
 template<typename RequestType, typename HandlerType>
     requires jsonrpc::detail::is_request_v<RequestType> &&
@@ -291,19 +332,84 @@ struct snail_server::impl
     bool is_shutting_down_;
     bool exit_;
 
+    std::mutex                                                                           active_requests_mutex;
+    std::unordered_map<jsonrpc::request_id, std::unique_ptr<common::cancellation_token>> active_requests;
+
+    template<typename RequestType, typename HandlerType>
+        requires jsonrpc::detail::is_request_v<RequestType> &&
+                 ((std::invocable<HandlerType, RequestType, const common::cancellation_token&> &&
+                   std::is_convertible_v<std::invoke_result_t<HandlerType, RequestType, const common::cancellation_token&>, nlohmann::json>) ||
+                  (supports_work_done_progress<RequestType> &&
+                   std::invocable<HandlerType, RequestType, const common::cancellation_token&, const common::progress_listener*> &&
+                   std::is_convertible_v<std::invoke_result_t<HandlerType, RequestType, const common::cancellation_token&, const common::progress_listener*>, nlohmann::json>))
+    std::function<void()> make_request_task(HandlerType                        handler,
+                                            const jsonrpc::request_id&         request_id,
+                                            RequestType                        request,
+                                            jsonrpc::request_response_callback respond,
+                                            jsonrpc::error_callback            report_error)
+    {
+        auto active_iter = [this, request_id]()
+        {
+            auto guard = std::lock_guard(active_requests_mutex);
+            return active_requests.emplace(request_id, std::make_unique<common::cancellation_token>()).first;
+        }();
+
+        return [this,
+                handler      = std::move(handler),
+                request      = std::move(request),
+                respond      = std::move(respond),
+                report_error = std::move(report_error),
+                active_iter  = std::move(active_iter)]()
+        {
+            nlohmann::json result;
+            try
+            {
+                if constexpr(supports_work_done_progress<RequestType>)
+                {
+                    if(request.work_done_token() != std::nullopt)
+                    {
+                        reporting_progress_listener progress_handler(jsonrpc_server_, *request.work_done_token());
+                        result = handler(request, *active_iter->second, &progress_handler);
+                    }
+                    else
+                    {
+                        result = handler(request, *active_iter->second, nullptr);
+                    }
+                }
+                else
+                {
+                    result = handler(request, *active_iter->second);
+                }
+            }
+            catch(const std::runtime_error& e)
+            {
+                report_error(e.what());
+                return;
+            }
+            respond(std::move(result));
+
+            {
+                auto guard = std::lock_guard(active_requests_mutex);
+                active_requests.erase(active_iter);
+            }
+        };
+    }
+
     // Register a request to be handled in the main thread
     template<typename RequestType, typename HandlerType>
         requires jsonrpc::detail::is_request_v<RequestType> &&
-                 std::invocable<HandlerType, RequestType> &&
-                 std::is_convertible_v<std::invoke_result_t<HandlerType, RequestType>, nlohmann::json>
+                 std::invocable<HandlerType, RequestType, const common::cancellation_token&> &&
+                 std::is_convertible_v<std::invoke_result_t<HandlerType, RequestType, const common::cancellation_token&>, nlohmann::json>
     void register_serial_request(HandlerType handler)
     {
         jsonrpc_server_.register_request<RequestType>(
-            [handler = std::move(handler)](RequestType                        request,
-                                           jsonrpc::request_response_callback respond,
-                                           jsonrpc::error_callback            report_error)
+            [this, handler = std::move(handler)](const jsonrpc::request_id&         request_id,
+                                                 RequestType                        request,
+                                                 jsonrpc::request_response_callback respond,
+                                                 jsonrpc::error_callback            report_error)
             {
                 auto task = make_request_task(std::move(handler),
+                                              request_id,
                                               std::move(request),
                                               std::move(respond),
                                               std::move(report_error));
@@ -311,19 +417,21 @@ struct snail_server::impl
             });
     }
 
-    // Register a request to be handler concurrently in the thread pool
+    // Register a request to be handled concurrently in the thread pool
     template<typename RequestType, typename HandlerType>
         requires jsonrpc::detail::is_request_v<RequestType> &&
-                 std::invocable<HandlerType, RequestType> &&
-                 std::is_convertible_v<std::invoke_result_t<HandlerType, RequestType>, nlohmann::json>
+                 std::invocable<HandlerType, RequestType, const common::cancellation_token&> &&
+                 std::is_convertible_v<std::invoke_result_t<HandlerType, RequestType, const common::cancellation_token&>, nlohmann::json>
     void register_concurrent_request(HandlerType handler)
     {
         jsonrpc_server_.register_request<RequestType>(
-            [this, handler = std::move(handler)](RequestType                        request,
+            [this, handler = std::move(handler)](const jsonrpc::request_id&         request_id,
+                                                 RequestType                        request,
                                                  jsonrpc::request_response_callback respond,
                                                  jsonrpc::error_callback            report_error)
             {
                 auto task = make_request_task(std::move(handler),
+                                              request_id,
                                               std::move(request),
                                               std::move(respond),
                                               std::move(report_error));
@@ -353,18 +461,23 @@ struct snail_server::impl
     // Register a request to be handled by the document scheduler
     template<typename RequestType, typename HandlerType>
         requires jsonrpc::detail::is_request_v<RequestType> &&
-                 std::invocable<HandlerType, RequestType> &&
-                 std::is_convertible_v<std::invoke_result_t<HandlerType, RequestType>, nlohmann::json>
+                 ((std::invocable<HandlerType, RequestType, const common::cancellation_token&> &&
+                   std::is_convertible_v<std::invoke_result_t<HandlerType, RequestType, const common::cancellation_token&>, nlohmann::json>) ||
+                  (supports_work_done_progress<RequestType> &&
+                   std::invocable<HandlerType, RequestType, const common::cancellation_token&, const common::progress_listener*> &&
+                   std::is_convertible_v<std::invoke_result_t<HandlerType, RequestType, const common::cancellation_token&, const common::progress_listener*>, nlohmann::json>))
     void register_document_request(detail::document_access_type access_type, HandlerType handler)
     {
         jsonrpc_server_.register_request<RequestType>(
-            [this, access_type, handler = std::move(handler)](RequestType                        request,
+            [this, access_type, handler = std::move(handler)](const jsonrpc::request_id&         request_id,
+                                                              RequestType                        request,
                                                               jsonrpc::request_response_callback respond,
                                                               jsonrpc::error_callback            report_error)
             {
                 const auto document_id = detail::document_id{request.document_id()};
 
                 auto task = make_request_task(std::move(handler),
+                                              request_id,
                                               std::move(request),
                                               std::move(respond),
                                               std::move(report_error));
@@ -433,18 +546,22 @@ struct snail_server::impl
     void register_all()
     {
         register_serial_notification<impl_cancel_request_request>(
-            [](impl_cancel_request_request) {
-
+            [this](const impl_cancel_request_request& request)
+            {
+                auto guard = std::lock_guard(active_requests_mutex);
+                auto iter  = active_requests.find(request.id());
+                if(iter == active_requests.end()) return;
+                iter->second->cancel();
             });
         register_serial_request<initialize_request>(
-            [](initialize_request) -> nlohmann::json
+            [](initialize_request, const common::cancellation_token&) -> nlohmann::json
             {
                 return {
                     {"success", true}
                 };
             });
         register_serial_request<shutdown_request>(
-            [this](shutdown_request) -> nlohmann::json
+            [this](shutdown_request, const common::cancellation_token&) -> nlohmann::json
             {
                 std::cout << "Shutting down...\n";
                 is_shutting_down_ = true;
@@ -537,20 +654,24 @@ struct snail_server::impl
             });
 
         jsonrpc_server_.register_request<read_document_request>(
-            [this](read_document_request              request,
+            [this](const jsonrpc::request_id&         request_id,
+                   read_document_request              request,
                    jsonrpc::request_response_callback respond,
                    jsonrpc::error_callback            report_error)
             {
                 const auto new_document_id = storage_.create_document(request.file_path());
 
                 auto task = make_request_task(
-                    [this, new_document_id](read_document_request /*request*/) -> nlohmann::json
+                    [this, new_document_id](read_document_request /*request*/,
+                                            const common::cancellation_token& cancellation_token,
+                                            const common::progress_listener*  progress_listener) -> nlohmann::json
                     {
-                        storage_.read_document(new_document_id);
+                        storage_.read_document(new_document_id, progress_listener, &cancellation_token);
                         return {
                             {"documentId", new_document_id.id_}
                         };
                     },
+                    request_id,
                     std::move(request),
                     std::move(respond),
                     std::move(report_error));
@@ -570,7 +691,7 @@ struct snail_server::impl
 
         register_document_request<retrieve_sample_sources_request>(
             detail::document_access_type::read_only,
-            [this](retrieve_sample_sources_request request) -> nlohmann::json
+            [this](retrieve_sample_sources_request request, const common::cancellation_token&) -> nlohmann::json
             {
                 const auto& data_provider = storage_.get_data({request.document_id()});
 
@@ -593,7 +714,7 @@ struct snail_server::impl
 
         register_document_request<set_sample_filters_request>(
             detail::document_access_type::write,
-            [this](const set_sample_filters_request& request) -> nlohmann::json
+            [this](const set_sample_filters_request& request, const common::cancellation_token&) -> nlohmann::json
             {
                 analysis::sample_filter filter;
 
@@ -616,7 +737,7 @@ struct snail_server::impl
 
         register_document_request<retrieve_session_info_request>(
             detail::document_access_type::read_only,
-            [this](const retrieve_session_info_request& request) -> nlohmann::json
+            [this](const retrieve_session_info_request& request, const common::cancellation_token&) -> nlohmann::json
             {
                 const auto& data_provider = storage_.get_data({request.document_id()});
 
@@ -650,7 +771,7 @@ struct snail_server::impl
 
         register_document_request<retrieve_system_info_request>(
             detail::document_access_type::read_only,
-            [this](const retrieve_system_info_request& request) -> nlohmann::json
+            [this](const retrieve_system_info_request& request, const common::cancellation_token&) -> nlohmann::json
             {
                 const auto& system_info = storage_.get_data({request.document_id()}).system_info();
 
@@ -666,7 +787,7 @@ struct snail_server::impl
 
         register_document_request<set_sample_filters_request>(
             detail::document_access_type::read_only,
-            [this](const set_sample_filters_request& request) -> nlohmann::json
+            [this](const set_sample_filters_request& request, const common::cancellation_token&) -> nlohmann::json
             {
                 const auto& data_provider = storage_.get_data({request.document_id()});
 
@@ -702,7 +823,7 @@ struct snail_server::impl
 
         register_document_request<retrieve_processes_request>(
             detail::document_access_type::read_only,
-            [&](const retrieve_processes_request& request) -> nlohmann::json
+            [&](const retrieve_processes_request& request, const common::cancellation_token&) -> nlohmann::json
             {
                 const auto& data_provider = storage_.get_data({request.document_id()});
 
@@ -738,7 +859,9 @@ struct snail_server::impl
 
         register_document_request<retrieve_hottest_functions_request>(
             detail::document_access_type::write, // TODO: change to read_only?
-            [this](const retrieve_hottest_functions_request& request) -> nlohmann::json
+            [this](const retrieve_hottest_functions_request& request,
+                   const common::cancellation_token&         cancellation_token,
+                   const common::progress_listener*          progress_listener) -> nlohmann::json
             {
                 struct intermediate_function_info
                 {
@@ -759,11 +882,12 @@ struct snail_server::impl
 
                 for(const auto process_id : data_provider.sampling_processes())
                 {
-                    const auto& stacks_analysis = storage_.get_stacks_analysis({request.document_id()}, process_id);
+                    const auto& stacks_analysis = storage_.get_stacks_analysis({request.document_id()}, process_id, progress_listener, &cancellation_token);
                     const auto& function_ids    = storage_.get_functions_page({request.document_id()}, process_id,
                                                                               sort_by,
                                                                               true,
-                                                                              request.count(), 0);
+                                                                              request.count(), 0,
+                                                                              progress_listener, &cancellation_token);
 
                     for(const auto function_id : function_ids)
                     {
@@ -784,7 +908,7 @@ struct snail_server::impl
                 auto json_functions = nlohmann::json::array();
                 for(const auto& entry : intermediate_functions | std::views::take(request.count()))
                 {
-                    const auto& stacks_analysis = storage_.get_stacks_analysis({request.document_id()}, entry.process_id);
+                    const auto& stacks_analysis = storage_.get_stacks_analysis({request.document_id()}, entry.process_id, progress_listener, &cancellation_token);
                     const auto& process_info    = data_provider.process_info(entry.process_id);
                     json_functions.push_back({
                         {"processKey", entry.process_id.key},
@@ -799,7 +923,9 @@ struct snail_server::impl
 
         register_document_request<retrieve_functions_page_request>(
             detail::document_access_type::write, // TODO: change to read_only?
-            [this](const retrieve_functions_page_request& request) -> nlohmann::json
+            [this](const retrieve_functions_page_request& request,
+                   const common::cancellation_token&      cancellation_token,
+                   const common::progress_listener*       progress_listener) -> nlohmann::json
             {
                 const auto sort_by = [&request]() -> detail::sort_by_kind
                 {
@@ -821,10 +947,11 @@ struct snail_server::impl
                     }
                 }();
 
-                const auto& stacks_analysis = storage_.get_stacks_analysis({request.document_id()}, {request.process_key()});
+                const auto& stacks_analysis = storage_.get_stacks_analysis({request.document_id()}, {request.process_key()}, progress_listener, &cancellation_token);
                 const auto& function_ids    = storage_.get_functions_page({request.document_id()}, {request.process_key()},
                                                                           sort_by, request.sort_order() == sort_direction::descending,
-                                                                          request.page_size(), request.page_index());
+                                                                          request.page_size(), request.page_index(),
+                                                                          progress_listener, &cancellation_token);
 
                 const auto& data_provider = storage_.get_data({request.document_id()});
 
@@ -837,6 +964,7 @@ struct snail_server::impl
                 {
                     for(const auto function_id : std::views::reverse(function_ids))
                     {
+                        if(cancellation_token.is_canceled()) break;
                         json_functions.push_back(make_function_json(stacks_analysis, process_info, stacks_analysis.get_function(function_id), total_hits));
                     }
                 }
@@ -844,6 +972,7 @@ struct snail_server::impl
                 {
                     for(const auto function_id : function_ids)
                     {
+                        if(cancellation_token.is_canceled()) break;
                         json_functions.push_back(make_function_json(stacks_analysis, process_info, stacks_analysis.get_function(function_id), total_hits));
                     }
                 }
@@ -855,9 +984,11 @@ struct snail_server::impl
 
         register_document_request<retrieve_call_tree_hot_path_request>(
             detail::document_access_type::write, // TODO: change to read_only?
-            [this](const retrieve_call_tree_hot_path_request& request) -> nlohmann::json
+            [this](const retrieve_call_tree_hot_path_request& request,
+                   const common::cancellation_token&          cancellation_token,
+                   const common::progress_listener*           progress_listener) -> nlohmann::json
             {
-                const auto& stacks_analysis = storage_.get_stacks_analysis({request.document_id()}, {request.process_key()});
+                const auto& stacks_analysis = storage_.get_stacks_analysis({request.document_id()}, {request.process_key()}, progress_listener, &cancellation_token);
 
                 const auto& data_provider = storage_.get_data({request.document_id()});
                 const auto& process       = data_provider.process_info({request.process_key()});
@@ -892,6 +1023,8 @@ struct snail_server::impl
 
                     current_json_node = &children[top_child_index];
                     current_node      = top_child;
+
+                    if(cancellation_token.is_canceled()) break;
                 }
 
                 return {
@@ -901,9 +1034,11 @@ struct snail_server::impl
 
         register_document_request<expand_call_tree_node_request>(
             detail::document_access_type::write, // TODO: change to read_only?
-            [this](const expand_call_tree_node_request& request) -> nlohmann::json
+            [this](const expand_call_tree_node_request& request,
+                   const common::cancellation_token&    cancellation_token,
+                   const common::progress_listener*     progress_listener) -> nlohmann::json
             {
-                const auto& stacks_analysis = storage_.get_stacks_analysis({request.document_id()}, {request.process_key()});
+                const auto& stacks_analysis = storage_.get_stacks_analysis({request.document_id()}, {request.process_key()}, progress_listener, &cancellation_token);
 
                 const auto& total_hits = storage_.get_total_samples_counts({request.document_id()});
 
@@ -919,9 +1054,11 @@ struct snail_server::impl
 
         register_document_request<retrieve_callers_callees_request>(
             detail::document_access_type::write, // TODO: change to read_only?
-            [this](const retrieve_callers_callees_request& request) -> nlohmann::json
+            [this](const retrieve_callers_callees_request& request,
+                   const common::cancellation_token&       cancellation_token,
+                   const common::progress_listener*        progress_listener) -> nlohmann::json
             {
-                const auto& stacks_analysis = storage_.get_stacks_analysis({request.document_id()}, {request.process_key()});
+                const auto& stacks_analysis = storage_.get_stacks_analysis({request.document_id()}, {request.process_key()}, progress_listener, &cancellation_token);
 
                 const auto& data_provider = storage_.get_data({request.document_id()});
                 const auto& process       = data_provider.process_info({request.process_key()});
@@ -946,9 +1083,11 @@ struct snail_server::impl
 
         register_document_request<retrieve_line_info_request>(
             detail::document_access_type::write, // TODO: change to read_only?
-            [this](const retrieve_line_info_request& request) -> nlohmann::json
+            [this](const retrieve_line_info_request& request,
+                   const common::cancellation_token& cancellation_token,
+                   const common::progress_listener*  progress_listener) -> nlohmann::json
             {
-                const auto& stacks_analysis = storage_.get_stacks_analysis({request.document_id()}, {request.process_key()});
+                const auto& stacks_analysis = storage_.get_stacks_analysis({request.document_id()}, {request.process_key()}, progress_listener, &cancellation_token);
                 const auto& function        = stacks_analysis.get_function(request.function_id());
 
                 if(function.file_id == std::nullopt || function.line_number == std::nullopt)
@@ -965,6 +1104,8 @@ struct snail_server::impl
                 line_hits.reserve(function.hits_by_line.size());
                 for(const auto& [line_number, hits] : function.hits_by_line)
                 {
+                    if(cancellation_token.is_canceled()) break;
+
                     line_hits.push_back(
                         nlohmann::json{
                             {"lineNumber", line_number},

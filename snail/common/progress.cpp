@@ -25,8 +25,10 @@ bool cancellation_token::is_canceled() const
     return cancel_.load();
 }
 
-progress_reporter::progress_reporter(const progress_listener* listener,
-                                     work_type                total_work) :
+progress_reporter::progress_reporter(const progress_listener*        listener,
+                                     work_type                       total_work,
+                                     std::string_view                title,
+                                     std::optional<std::string_view> message) :
     listener_(listener),
     total_work_(total_work),
     step_work_(((listener != nullptr) ? listener->resolution() : 1.0) * total_work_),
@@ -36,18 +38,19 @@ progress_reporter::progress_reporter(const progress_listener* listener,
 {
     if(listener_ != nullptr)
     {
-        listener_->start();
-        listener_->report(0.0);
+        listener_->start(title, message);
+        listener_->report(0.0, message);
     }
 }
 
-void progress_reporter::progress(work_type work)
+void progress_reporter::progress(work_type                       work,
+                                 std::optional<std::string_view> message)
 {
     current_work_ += work;
     if(current_work_ < next_report_work_) return;
 
     const auto current_progress = double(current_work_) / total_work_;
-    if(listener_ != nullptr) listener_->report(current_progress);
+    if(listener_ != nullptr) listener_->report(current_progress, message);
 
     const auto current_step = static_cast<unsigned int>(double(current_work_) / step_work_);
 
@@ -67,9 +70,9 @@ void progress_reporter::progress(work_type work)
     }
 }
 
-void progress_reporter::finish()
+void progress_reporter::finish(std::optional<std::string_view> message)
 {
     if(listener_ == nullptr) return;
-    if(current_work_ < total_work_) listener_->report(1.0);
-    listener_->finish();
+    if(current_work_ < total_work_) listener_->report(1.0, message);
+    listener_->finish(message);
 }

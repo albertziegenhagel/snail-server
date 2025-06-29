@@ -574,8 +574,6 @@ describe("InnerPerfData", function () {
 
         await fixture.connection.sendRequest(snail.setSampleFiltersRequestType, {
             documentId: documentId!,
-            minTime: null,
-            maxTime: null,
             excludedProcesses: [process!.key],
             excludedThreads: []
         });
@@ -601,8 +599,6 @@ describe("InnerPerfData", function () {
 
         await fixture.connection.sendRequest(snail.setSampleFiltersRequestType, {
             documentId: documentId!,
-            minTime: null,
-            maxTime: null,
             excludedProcesses: [],
             excludedThreads: [thread!.key]
         });

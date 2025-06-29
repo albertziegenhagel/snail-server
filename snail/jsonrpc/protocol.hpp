@@ -28,6 +28,8 @@ public:
 
     [[nodiscard]] virtual request load_request(std::string_view content) const = 0;
 
+    [[nodiscard]] virtual std::string dump_request(const jsonrpc::request& request) const = 0;
+
     [[nodiscard]] virtual std::string dump_response(const jsonrpc::response& response) const = 0;
 
     [[nodiscard]] virtual std::string dump_error(const rpc_error& error, const nlohmann::json* id) const = 0;

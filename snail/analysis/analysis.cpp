@@ -232,7 +232,7 @@ stacks_analysis snail::analysis::analyze_stacks(const samples_provider&         
         total_work = std::numeric_limits<std::size_t>::max();
     }
 
-    common::progress_reporter progress(progress_listener, total_work);
+    common::progress_reporter progress(progress_listener, total_work, "Analyzing samples");
 
     bool cancel = false;
 
