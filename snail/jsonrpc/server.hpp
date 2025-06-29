@@ -47,10 +47,10 @@ public:
                  std::invocable<HandlerType, RequestType, error_callback>
     void register_notification(HandlerType&& handler);
 
+    void send_request(const jsonrpc::request& request);
+
 private:
     virtual void handle(std::string data, respond_callback respond) override;
-
-    void respond();
 
     std::unique_ptr<message_connection> connection_;
     std::unique_ptr<protocol>           protocol_;

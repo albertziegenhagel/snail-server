@@ -21,6 +21,11 @@ void server::serve_next()
     connection_->serve_next(*this);
 }
 
+void server::send_request(const jsonrpc::request& request)
+{
+    connection_->send(protocol_->dump_request(request));
+}
+
 void server::handle(std::string data, respond_callback respond)
 {
     jsonrpc::request request;
