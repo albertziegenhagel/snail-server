@@ -86,12 +86,14 @@ struct test_progress_listener : public common::progress_listener
 {
     using common::progress_listener::progress_listener;
 
-    virtual void start() const override
+    virtual void start([[maybe_unused]] std::string_view                title,
+                       [[maybe_unused]] std::optional<std::string_view> message) const override
     {
         started = true;
     }
 
-    virtual void report(double progress) const override
+    virtual void report(double                                           progress,
+                        [[maybe_unused]] std::optional<std::string_view> message) const override
     {
         reported.push_back(std::round(progress * 1000.0) / 10.0); // percent rounded to one digit after the point
         if(cancel_at && progress >= *cancel_at)
@@ -100,7 +102,7 @@ struct test_progress_listener : public common::progress_listener
         }
     }
 
-    virtual void finish() const override
+    virtual void finish([[maybe_unused]] std::optional<std::string_view> message) const override
     {
         finished = true;
     }

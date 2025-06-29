@@ -143,7 +143,8 @@ void read_events(std::ifstream&                            file_stream,
                  const common::progress_listener*          progress_listener,
                  const common::cancellation_token*         cancellation_token)
 {
-    common::progress_reporter progress(progress_listener, size);
+    common::progress_reporter progress(progress_listener, size,
+                                       "Processing events");
 
     auto reader = common::chunked_reader<max_chunk_size>(file_stream, offset, size);
     while(reader.keep_going())
