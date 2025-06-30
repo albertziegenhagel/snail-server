@@ -38,8 +38,8 @@ TEST(PdbResolver, ResolveSymbol)
         EXPECT_FALSE(symbol.is_generic);
         EXPECT_EQ(symbol.name, "double __cdecl compute_inner_product(class std::vector<double, class std::allocator<double>> const &, class std::vector<double, class std::allocator<double>> const &)");
         EXPECT_EQ(symbol.file_path, "D:\\a\\snail-server\\snail-server\\tests\\apps\\inner\\main.cpp");
-        EXPECT_EQ(symbol.function_line_number, 27);
-        EXPECT_EQ(symbol.instruction_line_number, 35);
+        EXPECT_EQ(symbol.function_line_number, 28);
+        EXPECT_EQ(symbol.instruction_line_number, 36);
     }
     {
         const auto symbol = resolver.resolve_symbol(module, module.image_base + 0x0000'1A80 + 0); // function ends at 0x00001BE2
@@ -47,8 +47,8 @@ TEST(PdbResolver, ResolveSymbol)
         EXPECT_FALSE(symbol.is_generic);
         EXPECT_EQ(symbol.name, "void __cdecl make_random_vector(class std::vector<double, class std::allocator<double>> &, unsigned __int64)");
         EXPECT_EQ(symbol.file_path, "D:\\a\\snail-server\\snail-server\\tests\\apps\\inner\\main.cpp");
-        EXPECT_EQ(symbol.function_line_number, 11);
-        EXPECT_EQ(symbol.instruction_line_number, 11);
+        EXPECT_EQ(symbol.function_line_number, 12);
+        EXPECT_EQ(symbol.instruction_line_number, 12);
     }
     {
         const auto symbol = resolver.resolve_symbol(module, module.image_base + 0xFFAA'FFAA + 0);

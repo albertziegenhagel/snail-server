@@ -50,7 +50,7 @@ TEST(DwarfResolver, ResolveSymbol)
         EXPECT_EQ(symbol.name, "compute_inner_product(std::vector<double, std::allocator<double>> const&, std::vector<double, std::allocator<double>> const&)");
         EXPECT_EQ(replace_all(symbol.file_path, '\\', '/'), "/tmp/snail-server/tests/apps/inner/main.cpp");
         EXPECT_EQ(symbol.function_line_number, 26);
-        EXPECT_EQ(symbol.instruction_line_number, 38);
+        EXPECT_EQ(symbol.instruction_line_number, 39);
     }
     {
         const auto symbol = resolver.resolve_symbol(module, module.image_base + 0x25e0 + 0xbe - module.page_offset);
@@ -59,7 +59,7 @@ TEST(DwarfResolver, ResolveSymbol)
         EXPECT_EQ(symbol.name, "main");
         EXPECT_EQ(replace_all(symbol.file_path, '\\', '/'), "/tmp/snail-server/tests/apps/inner/main.cpp");
         EXPECT_EQ(symbol.function_line_number, 57);
-        EXPECT_EQ(symbol.instruction_line_number, 73);
+        EXPECT_EQ(symbol.instruction_line_number, 74);
     }
     {
         const auto symbol = resolver.resolve_symbol(module, module.image_base + 0xFFAA'FFAA + 0);

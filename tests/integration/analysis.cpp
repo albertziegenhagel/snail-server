@@ -248,12 +248,12 @@ TEST(DiagsessionDataProvider, ProcessInner)
         {39,
          {{"ntdll.dll!0x00007ffde3a5e44b", "C:\\Windows\\System32\\ntdll.dll", "", 0, 0},
           {"kernel32.dll!0x00007ffde2e54de0", "C:\\Windows\\System32\\kernel32.dll", "", 0, 0},
-          {"mainCRTStartup", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_main.cpp", 14, 16},
-          {"__scrt_common_main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 323, 330},
-          {"__scrt_common_main_seh", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 235, 287},
-          {"invoke_main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 76, 78},
-          {"main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/snail-server/snail-server/tests/apps/inner/main.cpp", 57, 69},
-          {"void __cdecl make_random_vector(class std::vector<double, class std::allocator<double>> &, unsigned __int64)", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/snail-server/snail-server/tests/apps/inner/main.cpp", 11, 19}}                                                          },
+          {"mainCRTStartup", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_main.cpp", 15, 17},
+          {"__scrt_common_main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 324, 331},
+          {"__scrt_common_main_seh", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 236, 288},
+          {"invoke_main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 77, 79},
+          {"main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/snail-server/snail-server/tests/apps/inner/main.cpp", 58, 70},
+          {"void __cdecl make_random_vector(class std::vector<double, class std::allocator<double>> &, unsigned __int64)", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/snail-server/snail-server/tests/apps/inner/main.cpp", 12, 20}}                                                          },
         {96,
          {{"ntoskrnl.exe!0xfffff80483a21be1", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0},
           {"ntoskrnl.exe!0xfffff80483a27c05", "C:\\Windows\\system32\\ntoskrnl.exe", "", 0, 0},
@@ -266,12 +266,12 @@ TEST(DiagsessionDataProvider, ProcessInner)
         {283,
          {{"ntdll.dll!0x00007ffde3a5e44b", "C:\\Windows\\System32\\ntdll.dll", "", 0, 0},
           {"kernel32.dll!0x00007ffde2e54de0", "C:\\Windows\\System32\\kernel32.dll", "", 0, 0},
-          {"mainCRTStartup", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_main.cpp", 14, 16},
-          {"__scrt_common_main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 323, 330},
-          {"__scrt_common_main_seh", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 235, 287},
-          {"invoke_main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 76, 78},
-          {"main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/snail-server/snail-server/tests/apps/inner/main.cpp", 57, 71},
-          {"double __cdecl compute_inner_product(class std::vector<double, class std::allocator<double>> const &, class std::vector<double, class std::allocator<double>> const &)", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/snail-server/snail-server/tests/apps/inner/main.cpp", 27, 36}}}
+          {"mainCRTStartup", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_main.cpp", 15, 17},
+          {"__scrt_common_main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 324, 331},
+          {"__scrt_common_main_seh", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 236, 288},
+          {"invoke_main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/_work/1/s/src/vctools/crt/vcstartup/src/startup/exe_common.inl", 77, 79},
+          {"main", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/snail-server/snail-server/tests/apps/inner/main.cpp", 58, 72},
+          {"double __cdecl compute_inner_product(class std::vector<double, class std::allocator<double>> const &, class std::vector<double, class std::allocator<double>> const &)", "D:\\a\\snail-server\\snail-server\\inner\\Debug\\build\\inner.exe", "D:/a/snail-server/snail-server/tests/apps/inner/main.cpp", 28, 37}}}
     };
 
     // No filter
@@ -776,14 +776,14 @@ TEST(PerfDataDataProvider, ProcessInner)
          {{"inner!0x0000000000402255", "/tmp/build/inner/Debug/build/inner", "", 0, 0},
           {"libc.so.6!0x00007f6062938c0b", "/usr/lib64/libc.so.6", "", 0, 0},
           {"libc.so.6!0x00007f6062938b4a", "/usr/lib64/libc.so.6", "", 0, 0},
-          {"main", "/tmp/build/inner/Debug/build/inner", "/tmp/snail-server/tests/apps/inner/main.cpp", 57, 69},
-          {"make_random_vector(std::vector<double, std::allocator<double>>&, unsigned long)", "/tmp/build/inner/Debug/build/inner", "/tmp/snail-server/tests/apps/inner/main.cpp", 11, 21}}                                              },
+          {"main", "/tmp/build/inner/Debug/build/inner", "/tmp/snail-server/tests/apps/inner/main.cpp", 57, 70},
+          {"make_random_vector(std::vector<double, std::allocator<double>>&, unsigned long)", "/tmp/build/inner/Debug/build/inner", "/tmp/snail-server/tests/apps/inner/main.cpp", 11, 22}}                                              },
         {1502,
          {{"inner!0x0000000000402255", "/tmp/build/inner/Debug/build/inner", "", 0, 0},
           {"libc.so.6!0x00007f6062938c0b", "/usr/lib64/libc.so.6", "", 0, 0},
           {"libc.so.6!0x00007f6062938b4a", "/usr/lib64/libc.so.6", "", 0, 0},
-          {"main", "/tmp/build/inner/Debug/build/inner", "/tmp/snail-server/tests/apps/inner/main.cpp", 57, 71},
-          {"compute_inner_product(std::vector<double, std::allocator<double>> const&, std::vector<double, std::allocator<double>> const&)", "/tmp/build/inner/Debug/build/inner", "/tmp/snail-server/tests/apps/inner/main.cpp", 26, 35}}}
+          {"main", "/tmp/build/inner/Debug/build/inner", "/tmp/snail-server/tests/apps/inner/main.cpp", 57, 72},
+          {"compute_inner_product(std::vector<double, std::allocator<double>> const&, std::vector<double, std::allocator<double>> const&)", "/tmp/build/inner/Debug/build/inner", "/tmp/snail-server/tests/apps/inner/main.cpp", 26, 36}}}
     };
 
     // No filter

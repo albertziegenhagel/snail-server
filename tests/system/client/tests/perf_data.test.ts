@@ -515,7 +515,7 @@ describe("InnerPerfData", function () {
 
         assert.strictEqual(response!.lineHits.length, 2);
 
-        assert.strictEqual(response!.lineHits[0].lineNumber, 69);
+        assert.strictEqual(response!.lineHits[0].lineNumber, 70);
         assert.strictEqual(response!.lineHits[0].hits.length, 1);
         assert.strictEqual(response!.lineHits[0].hits[0].sourceId, 0);
         assert.strictEqual(response!.lineHits[0].hits[0].totalSamples, 759);
@@ -523,7 +523,7 @@ describe("InnerPerfData", function () {
         assert.strictEqual(response!.lineHits[0].hits[0].totalPercent, 49.803149606299215);
         assert.strictEqual(response!.lineHits[0].hits[0].selfPercent, 0);
 
-        assert.strictEqual(response!.lineHits[1].lineNumber, 71);
+        assert.strictEqual(response!.lineHits[1].lineNumber, 72);
         assert.strictEqual(response!.lineHits[1].hits[0].totalSamples, 743);
         assert.strictEqual(response!.lineHits[1].hits[0].selfSamples, 0);
         assert.strictEqual(response!.lineHits[1].hits[0].totalPercent, 48.75328083989501);

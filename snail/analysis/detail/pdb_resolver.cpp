@@ -168,6 +168,8 @@ std::optional<detail::pdb_info> try_get_pdb_info_from_module(const std::string& 
         return std::nullopt;
     }
 
+    if(llvm_pdb_info == nullptr) return std::nullopt;
+
     if(llvm_pdb_info->Signature.CVSignature != llvm::OMF::Signature::PDB70) return std::nullopt;
 
     const auto signature_bytes = std::as_bytes(std::span(llvm_pdb_info->PDB70.Signature));
@@ -186,7 +188,7 @@ std::optional<std::filesystem::path> find_or_retrieve_pdb(const std::filesystem:
 
     if(pdb_info == std::nullopt)
     {
-        // If we have do not have any pdb-info, we guess the PDB name by the module name.
+        // If we do not have any pdb-info, we guess the PDB name by the module name.
         pdb_name = module_path.filename();
         pdb_name.replace_extension(".pdb");
     }
@@ -399,7 +401,7 @@ const pdb_resolver::symbol_info& pdb_resolver::resolve_symbol(const module_info&
             auto source_file = pdb_session->getSourceFileById(line_info->getSourceFileId());
 
             new_symbol.file_path            = source_file->getFileName();
-            new_symbol.function_line_number = line_info->getLineNumber() - 1; // we want line numbers to be zero based
+            new_symbol.function_line_number = line_info->getLineNumber();
         }
 
         const auto length       = pdb_function_symbol->getLength();
@@ -414,7 +416,7 @@ const pdb_resolver::symbol_info& pdb_resolver::resolve_symbol(const module_info&
 
             assert(new_symbol.file_path.empty() || new_symbol.file_path == source_file->getFileName());
             new_symbol.file_path               = source_file->getFileName();
-            new_symbol.instruction_line_number = line_info->getLineNumber() - 1; // we want line numbers to be zero based
+            new_symbol.instruction_line_number = line_info->getLineNumber();
         }
     }
 
