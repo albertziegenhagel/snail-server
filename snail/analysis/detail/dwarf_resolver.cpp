@@ -224,8 +224,7 @@ const dwarf_resolver::symbol_info& dwarf_resolver::resolve_symbol(const module_i
         .is_generic              = false,
         .file_path               = line_info.FileName,
         .function_line_number    = line_info.StartLine,
-        .instruction_line_number = line_info.Line - 1 // we want line numbers to be zero based
-    };
+        .instruction_line_number = line_info.Line};
 
     if(!llvm::nonMicrosoftDemangle(line_info.FunctionName.c_str(), new_symbol.name))
     {

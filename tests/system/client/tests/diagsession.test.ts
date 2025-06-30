@@ -694,7 +694,7 @@ describe("InnerDiagsession", function () {
         assert.isNotNull(response);
 
         assert.strictEqual(response!.filePath, "D:\\a\\snail-server\\snail-server\\tests\\apps\\inner\\main.cpp");
-        assert.strictEqual(response!.lineNumber, 57);
+        assert.strictEqual(response!.lineNumber, 58);
         assert.strictEqual(response!.hits.length, 1);
         assert.strictEqual(response!.hits[0].sourceId, 0);
         assert.strictEqual(response!.hits[0].totalSamples, 275);
@@ -708,7 +708,7 @@ describe("InnerDiagsession", function () {
 
         assert.strictEqual(response!.lineHits.length, 4);
 
-        assert.strictEqual(response!.lineHits[0].lineNumber, 63);
+        assert.strictEqual(response!.lineHits[0].lineNumber, 64);
         assert.strictEqual(response!.lineHits[0].hits.length, 1);
         assert.strictEqual(response!.lineHits[0].hits[0].sourceId, 0);
         assert.strictEqual(response!.lineHits[0].hits[0].totalSamples, 1);
@@ -716,7 +716,7 @@ describe("InnerDiagsession", function () {
         assert.strictEqual(response!.lineHits[0].hits[0].totalPercent, 0.3424657534246575);
         assert.strictEqual(response!.lineHits[0].hits[0].selfPercent, 0);
 
-        assert.strictEqual(response!.lineHits[1].lineNumber, 69);
+        assert.strictEqual(response!.lineHits[1].lineNumber, 70);
         assert.strictEqual(response!.lineHits[1].hits.length, 1);
         assert.strictEqual(response!.lineHits[1].hits[0].sourceId, 0);
         assert.strictEqual(response!.lineHits[1].hits[0].totalSamples, 133);
@@ -724,7 +724,7 @@ describe("InnerDiagsession", function () {
         assert.strictEqual(response!.lineHits[1].hits[0].totalPercent, 45.54794520547945);
         assert.strictEqual(response!.lineHits[1].hits[0].selfPercent, 0);
 
-        assert.strictEqual(response!.lineHits[2].lineNumber, 71);
+        assert.strictEqual(response!.lineHits[2].lineNumber, 72);
         assert.strictEqual(response!.lineHits[2].hits.length, 1);
         assert.strictEqual(response!.lineHits[2].hits[0].sourceId, 0);
         assert.strictEqual(response!.lineHits[2].hits[0].totalSamples, 138);
@@ -732,7 +732,7 @@ describe("InnerDiagsession", function () {
         assert.strictEqual(response!.lineHits[2].hits[0].totalPercent, 47.26027397260274);
         assert.strictEqual(response!.lineHits[2].hits[0].selfPercent, 0);
 
-        assert.strictEqual(response!.lineHits[3].lineNumber, 75);
+        assert.strictEqual(response!.lineHits[3].lineNumber, 76);
         assert.strictEqual(response!.lineHits[3].hits.length, 1);
         assert.strictEqual(response!.lineHits[3].hits[0].sourceId, 0);
         assert.strictEqual(response!.lineHits[3].hits[0].totalSamples, 3);
