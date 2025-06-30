@@ -168,6 +168,8 @@ std::optional<detail::pdb_info> try_get_pdb_info_from_module(const std::string& 
         return std::nullopt;
     }
 
+    if(llvm_pdb_info == nullptr) return std::nullopt;
+
     if(llvm_pdb_info->Signature.CVSignature != llvm::OMF::Signature::PDB70) return std::nullopt;
 
     const auto signature_bytes = std::as_bytes(std::span(llvm_pdb_info->PDB70.Signature));
