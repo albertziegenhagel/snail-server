@@ -81,9 +81,19 @@ public:
         return samples_.at(source_id).size();
     }
 
+    std::size_t count_samples(sample_source_info::id_t source_id,
+                              unique_thread_id         thread_id,
+                              const sample_filter& /*filter*/) const override
+    {
+        if(thread_id != expected_thread_id_) return 0;
+        if(!samples_.contains(source_id)) return 0;
+        return samples_.at(source_id).size();
+    }
+
     std::vector<sample_source_info> sources_;
 
     unique_process_id expected_process_id_;
+    unique_thread_id  expected_thread_id_;
 
     std::unordered_map<sample_source_info::id_t, std::vector<test_sample_data>> samples_;
 };

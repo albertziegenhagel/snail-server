@@ -37,6 +37,49 @@ detail::perf_data_file_process_context::timestamp_t to_relative_timestamp(std::c
     return start_timestamp + common::narrow_cast<detail::perf_data_file_process_context::timestamp_t>(timestamp.count());
 }
 
+struct time_span
+{
+    detail::perf_data_file_process_context::timestamp_t                start;
+    std::optional<detail::perf_data_file_process_context::timestamp_t> end;
+};
+
+time_span get_filter_timespan(const detail::perf_data_file_process_context::thread_info& thread,
+                              const sample_filter&                                       filter,
+                              std::uint64_t                                              session_start_time)
+{
+    const auto filter_min_timestamp =
+        filter.min_time == std::nullopt ?
+            std::nullopt :
+            std::make_optional(to_relative_timestamp(*filter.min_time, session_start_time));
+
+    const auto filter_max_timestamp =
+        filter.max_time == std::nullopt ?
+            std::nullopt :
+            std::make_optional(to_relative_timestamp(*filter.max_time, session_start_time));
+
+    const auto sample_min_time =
+        filter_min_timestamp ?
+            std::max(*filter_min_timestamp, thread.timestamp) :
+            thread.timestamp;
+
+    const auto sample_max_time =
+        filter_max_timestamp ?
+            (thread.payload.end_time ?
+                 std::min(*filter_max_timestamp, *thread.payload.end_time) :
+                 *filter_max_timestamp) :
+            thread.payload.end_time;
+
+    return time_span{sample_min_time, sample_max_time};
+}
+
+const detail::perf_data_file_process_context::thread_info* get_thread_from_id(const detail::perf_data_file_process_context& process_context,
+                                                                              unique_thread_id                              thread_id)
+{
+    const auto thread_key = process_context.id_to_key(thread_id);
+
+    return process_context.get_threads().find_at(thread_key.id, thread_key.time);
+}
+
 struct perf_data_sample_data : public sample_data
 {
     static constexpr std::string_view unkown_module_name = "[unknown]";
@@ -263,14 +306,13 @@ void perf_data_data_provider::process(const std::filesystem::path&      file_pat
 
         for(const auto& thread_id : threads)
         {
-            const auto        thread_key = process_context_->id_to_key(thread_id);
-            const auto* const thread     = process_context_->get_threads().find_at(thread_key.id, thread_key.time);
+            const auto* const thread = get_thread_from_id(*process_context_, thread_id);
             if(thread == nullptr) continue;
 
             for(sample_source_info::id_t source_id = 0; source_id < sample_sources_.size(); ++source_id)
             {
                 const auto source_internal_id = sample_source_internal_ids_[source_id];
-                const auto samples            = process_context_->thread_samples(thread_key.id, thread->timestamp, thread->payload.end_time, source_internal_id);
+                const auto samples            = process_context_->thread_samples(thread->id, thread->timestamp, thread->payload.end_time, source_internal_id);
 
                 auto& source_time_range = sample_source_times[source_id];
 
@@ -380,13 +422,15 @@ analysis::process_info perf_data_data_provider::process_info(unique_process_id p
     if(process == nullptr) throw std::runtime_error(std::format("Invalid process {} @{}", process_key.id, process_key.time));
 
     return analysis::process_info{
-        .unique_id  = process_id,
-        .os_id      = process->id,
-        .name       = process->payload.name ? *process->payload.name : "[unknown]",
-        .start_time = from_relative_timestamps<std::chrono::nanoseconds>(process->timestamp, session_start_time_),
-        .end_time   = process->payload.end_time ?
-                          from_relative_timestamps<std::chrono::nanoseconds>(*process->payload.end_time, session_start_time_) :
-                          from_relative_timestamps<std::chrono::nanoseconds>(session_end_time_, session_start_time_)};
+        .unique_id        = process_id,
+        .os_id            = process->id,
+        .name             = process->payload.name ? *process->payload.name : "[unknown]",
+        .start_time       = from_relative_timestamps<std::chrono::nanoseconds>(process->timestamp, session_start_time_),
+        .end_time         = process->payload.end_time ?
+                                from_relative_timestamps<std::chrono::nanoseconds>(*process->payload.end_time, session_start_time_) :
+                                from_relative_timestamps<std::chrono::nanoseconds>(session_end_time_, session_start_time_),
+        .context_switches = {}, // TODO: get correct values
+        .counters         = {}};
 }
 
 common::generator<analysis::thread_info> perf_data_data_provider::threads_info(unique_process_id process_id) const
@@ -397,8 +441,7 @@ common::generator<analysis::thread_info> perf_data_data_provider::threads_info(u
 
     for(const auto& thread_id : process_context_->get_process_threads(process_id))
     {
-        const auto        thread_key = process_context_->id_to_key(thread_id);
-        const auto* const thread     = process_context_->get_threads().find_at(thread_key.id, thread_key.time);
+        const auto* const thread = get_thread_from_id(*process_context_, thread_id);
         if(thread == nullptr) continue;
 
         co_yield analysis::thread_info{
@@ -424,9 +467,7 @@ common::generator<const sample_data&> perf_data_data_provider::samples(sample_so
                                                                        const sample_filter&     filter) const
 {
     if(process_context_ == nullptr) co_return;
-
     if(filter.excluded_processes.contains(process_id)) co_return;
-
     if(source_id >= sample_source_internal_ids_.size()) co_return;
 
     assert(symbol_resolver_ != nullptr);
@@ -443,12 +484,6 @@ common::generator<const sample_data&> perf_data_data_provider::samples(sample_so
     current_sample_data.build_id_map       = build_id_map_ ? &build_id_map_.value() : nullptr;
     current_sample_data.session_start_time = session_start_time_;
 
-    const auto filter_min_timestamp = filter.min_time == std::nullopt ? std::nullopt :
-                                                                        std::make_optional(to_relative_timestamp(*filter.min_time, session_start_time_));
-
-    const auto filter_max_timestamp = filter.max_time == std::nullopt ? std::nullopt :
-                                                                        std::make_optional(to_relative_timestamp(*filter.max_time, session_start_time_));
-
     const auto& threads = process_context.get_process_threads(process_id);
 
     std::priority_queue<next_sample_priority_info> sample_queue;
@@ -462,21 +497,12 @@ common::generator<const sample_data&> perf_data_data_provider::samples(sample_so
     {
         if(filter.excluded_threads.contains(thread_id)) continue;
 
-        const auto        thread_key = process_context.id_to_key(thread_id);
-        const auto* const thread     = process_context.get_threads().find_at(thread_key.id, thread_key.time);
+        const auto* const thread = get_thread_from_id(*process_context_, thread_id);
         if(thread == nullptr) continue;
 
-        const auto sample_min_time = filter_min_timestamp ?
-                                         std::max(*filter_min_timestamp, thread->timestamp) :
-                                         thread->timestamp;
+        const auto time_span = get_filter_timespan(*thread, filter, session_start_time_);
 
-        const auto sample_max_time = filter_max_timestamp ?
-                                         (thread->payload.end_time ?
-                                              std::min(*filter_max_timestamp, *thread->payload.end_time) :
-                                              *filter_max_timestamp) :
-                                         thread->payload.end_time;
-
-        const auto samples = process_context.thread_samples(thread_key.id, sample_min_time, sample_max_time, source_internal_id);
+        const auto samples = process_context.thread_samples(thread->id, time_span.start, time_span.end, source_internal_id);
 
         if(samples.empty()) continue;
 
@@ -536,47 +562,31 @@ std::size_t perf_data_data_provider::count_samples(sample_source_info::id_t sour
                                                    const sample_filter&     filter) const
 {
     if(process_context_ == nullptr) return 0;
-
     if(filter.excluded_processes.contains(process_id)) return 0;
-
     if(source_id >= sample_source_internal_ids_.size()) return 0;
 
-    // TODO: remove code duplication
+    std::size_t total_samples_count = 0;
+    for(const auto& thread_id : process_context_->get_process_threads(process_id))
+    {
+        total_samples_count += count_samples(source_id, thread_id, filter);
+    }
+    return total_samples_count;
+}
+
+std::size_t perf_data_data_provider::count_samples(sample_source_info::id_t source_id,
+                                                   unique_thread_id         thread_id,
+                                                   const sample_filter&     filter) const
+{
+    if(process_context_ == nullptr) return 0;
+    if(filter.excluded_threads.contains(thread_id)) return 0;
+    if(source_id >= sample_source_internal_ids_.size()) return 0;
 
     assert(symbol_resolver_ != nullptr);
 
-    const auto& process_context = *process_context_;
+    const auto* const thread = get_thread_from_id(*process_context_, thread_id);
+    if(thread == nullptr) return 0;
 
-    const auto filter_min_timestamp = filter.min_time == std::nullopt ? std::nullopt :
-                                                                        std::make_optional(to_relative_timestamp(*filter.min_time, session_start_time_));
+    const auto time_span = get_filter_timespan(*thread, filter, session_start_time_);
 
-    const auto filter_max_timestamp = filter.max_time == std::nullopt ? std::nullopt :
-                                                                        std::make_optional(to_relative_timestamp(*filter.max_time, session_start_time_));
-
-    const auto& threads = process_context.get_process_threads(process_id);
-
-    const auto source_internal_id = sample_source_internal_ids_[source_id];
-
-    std::size_t total_samples_count = 0;
-    for(const auto& thread_id : threads)
-    {
-        if(filter.excluded_threads.contains(thread_id)) continue;
-
-        const auto        thread_key = process_context.id_to_key(thread_id);
-        const auto* const thread     = process_context.get_threads().find_at(thread_key.id, thread_key.time);
-        if(thread == nullptr) continue;
-
-        const auto sample_min_time = filter_min_timestamp ?
-                                         std::max(*filter_min_timestamp, thread->timestamp) :
-                                         thread->timestamp;
-
-        const auto sample_max_time = filter_max_timestamp ?
-                                         (thread->payload.end_time ?
-                                              std::min(*filter_max_timestamp, *thread->payload.end_time) :
-                                              *filter_max_timestamp) :
-                                         thread->payload.end_time;
-
-        total_samples_count += process_context.thread_samples(thread_key.id, sample_min_time, sample_max_time, source_internal_id).size();
-    }
-    return total_samples_count;
+    return process_context_->thread_samples(thread->id, time_span.start, time_span.end, sample_source_internal_ids_[source_id]).size();
 }

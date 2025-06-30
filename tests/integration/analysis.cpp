@@ -296,6 +296,10 @@ TEST(DiagsessionDataProvider, ProcessInner)
     }
     EXPECT_EQ(sample_count, 292);
     EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 292);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_4224.unique_id, filter), 3);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_6180.unique_id, filter), 2);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_3828.unique_id, filter), 286);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_3148.unique_id, filter), 1);
 
     // Filter complete range
     filter.min_time = 1073706700ns;
@@ -321,6 +325,10 @@ TEST(DiagsessionDataProvider, ProcessInner)
     }
     EXPECT_EQ(sample_count, 292);
     EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 292);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_4224.unique_id, filter), 3);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_6180.unique_id, filter), 2);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_3828.unique_id, filter), 286);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_3148.unique_id, filter), 1);
 
     // Filter first half
     filter.min_time = std::nullopt;
@@ -346,6 +354,10 @@ TEST(DiagsessionDataProvider, ProcessInner)
     }
     EXPECT_EQ(sample_count, 11);
     EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 11);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_4224.unique_id, filter), 2);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_6180.unique_id, filter), 2);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_3828.unique_id, filter), 6);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_3148.unique_id, filter), 1);
 
     // Filter second half
     filter.min_time = 1818779600ns;
@@ -371,6 +383,10 @@ TEST(DiagsessionDataProvider, ProcessInner)
     }
     EXPECT_EQ(sample_count, 281);
     EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 281);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_4224.unique_id, filter), 1);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_6180.unique_id, filter), 0);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_3828.unique_id, filter), 280);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_3148.unique_id, filter), 0);
 
     // Filter somewhere in the middle
     filter.min_time = 2200000000ns;
@@ -396,6 +412,10 @@ TEST(DiagsessionDataProvider, ProcessInner)
     }
     EXPECT_EQ(sample_count, 99);
     EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 99);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_4224.unique_id, filter), 0);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_6180.unique_id, filter), 0);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_3828.unique_id, filter), 99);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_3148.unique_id, filter), 0);
 
     // None empty
     filter.min_time = 2300000000ns;
@@ -408,6 +428,10 @@ TEST(DiagsessionDataProvider, ProcessInner)
     }
     EXPECT_EQ(sample_count, 0);
     EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 0);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_4224.unique_id, filter), 0);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_6180.unique_id, filter), 0);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_3828.unique_id, filter), 0);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_3148.unique_id, filter), 0);
 
     // Filter one unimportant thread
     filter.min_time = std::nullopt;
@@ -435,6 +459,10 @@ TEST(DiagsessionDataProvider, ProcessInner)
     }
     EXPECT_EQ(sample_count, 291);
     EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 291);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_4224.unique_id, filter), 3);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_6180.unique_id, filter), 2);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_3828.unique_id, filter), 286);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_3148.unique_id, filter), 0);
 
     // Filter the main thread and another one
     filter.min_time = std::nullopt;
@@ -454,6 +482,10 @@ TEST(DiagsessionDataProvider, ProcessInner)
     }
     EXPECT_EQ(sample_count, 3);
     EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 3);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_4224.unique_id, filter), 0);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_6180.unique_id, filter), 2);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_3828.unique_id, filter), 0);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_3148.unique_id, filter), 1);
 
     // Filter the process
     filter.min_time = std::nullopt;
@@ -468,6 +500,10 @@ TEST(DiagsessionDataProvider, ProcessInner)
     }
     EXPECT_EQ(sample_count, 0);
     EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 0);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_4224.unique_id, filter), 3);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_6180.unique_id, filter), 2);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_3828.unique_id, filter), 286);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, thread_3148.unique_id, filter), 1);
 }
 
 TEST(DiagsessionDataProvider, ProcessInnerCancel)
@@ -652,9 +688,28 @@ TEST(EtlDataProvider, ProcessOrdered)
     analysis::sample_filter filter;
 
     EXPECT_EQ(data_provider.count_samples(sample_source_0.id, unique_sampling_process_id, filter), 21501);
+    EXPECT_EQ(data_provider.count_samples(sample_source_0.id, thread_5844.unique_id, filter), 21452);
+    EXPECT_EQ(data_provider.count_samples(sample_source_0.id, thread_5852.unique_id, filter), 22);
+    EXPECT_EQ(data_provider.count_samples(sample_source_0.id, thread_2140.unique_id, filter), 14);
+    EXPECT_EQ(data_provider.count_samples(sample_source_0.id, thread_1704.unique_id, filter), 13);
+
     EXPECT_EQ(data_provider.count_samples(sample_source_1.id, unique_sampling_process_id, filter), 257);
+    EXPECT_EQ(data_provider.count_samples(sample_source_1.id, thread_5844.unique_id, filter), 255);
+    EXPECT_EQ(data_provider.count_samples(sample_source_1.id, thread_5852.unique_id, filter), 1);
+    EXPECT_EQ(data_provider.count_samples(sample_source_1.id, thread_2140.unique_id, filter), 0);
+    EXPECT_EQ(data_provider.count_samples(sample_source_1.id, thread_1704.unique_id, filter), 1);
+
     EXPECT_EQ(data_provider.count_samples(sample_source_2.id, unique_sampling_process_id, filter), 7303);
+    EXPECT_EQ(data_provider.count_samples(sample_source_2.id, thread_5844.unique_id, filter), 7269);
+    EXPECT_EQ(data_provider.count_samples(sample_source_2.id, thread_5852.unique_id, filter), 13);
+    EXPECT_EQ(data_provider.count_samples(sample_source_2.id, thread_2140.unique_id, filter), 11);
+    EXPECT_EQ(data_provider.count_samples(sample_source_2.id, thread_1704.unique_id, filter), 10);
+
     EXPECT_EQ(data_provider.count_samples(sample_source_3.id, unique_sampling_process_id, filter), 3059);
+    EXPECT_EQ(data_provider.count_samples(sample_source_3.id, thread_5844.unique_id, filter), 3048);
+    EXPECT_EQ(data_provider.count_samples(sample_source_3.id, thread_5852.unique_id, filter), 4);
+    EXPECT_EQ(data_provider.count_samples(sample_source_3.id, thread_2140.unique_id, filter), 4);
+    EXPECT_EQ(data_provider.count_samples(sample_source_3.id, thread_1704.unique_id, filter), 3);
 }
 
 TEST(EtlDataProvider, ProcessOrderedCancel)
@@ -809,6 +864,7 @@ TEST(PerfDataDataProvider, ProcessInner)
     }
     EXPECT_EQ(sample_count, 1524);
     EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 1524);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, threads[0].unique_id, filter), 1524);
 
     // Filter complete range
     filter.min_time = 0ns;
@@ -834,6 +890,7 @@ TEST(PerfDataDataProvider, ProcessInner)
     }
     EXPECT_EQ(sample_count, 1524);
     EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 1524);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, threads[0].unique_id, filter), 1524);
 
     // Filter first half
     filter.min_time = std::nullopt;
@@ -859,6 +916,7 @@ TEST(PerfDataDataProvider, ProcessInner)
     }
     EXPECT_EQ(sample_count, 755);
     EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 755);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, threads[0].unique_id, filter), 755);
 
     // Filter second half
     filter.min_time = 193699200ns;
@@ -884,6 +942,7 @@ TEST(PerfDataDataProvider, ProcessInner)
     }
     EXPECT_EQ(sample_count, 769);
     EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 769);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, threads[0].unique_id, filter), 769);
 
     // Filter somewhere in the middle
     filter.min_time = 180000000ns;
@@ -909,6 +968,7 @@ TEST(PerfDataDataProvider, ProcessInner)
     }
     EXPECT_EQ(sample_count, 80);
     EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 80);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, threads[0].unique_id, filter), 80);
 
     // None empty
     filter.min_time = 230000000ns;
@@ -921,6 +981,7 @@ TEST(PerfDataDataProvider, ProcessInner)
     }
     EXPECT_EQ(sample_count, 0);
     EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 0);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, threads[0].unique_id, filter), 0);
 
     // Filter the only thread
     filter.min_time = std::nullopt;
@@ -935,6 +996,7 @@ TEST(PerfDataDataProvider, ProcessInner)
     }
     EXPECT_EQ(sample_count, 0);
     EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 0);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, threads[0].unique_id, filter), 0);
 
     // Filter the process
     filter.min_time = std::nullopt;
@@ -949,6 +1011,7 @@ TEST(PerfDataDataProvider, ProcessInner)
     }
     EXPECT_EQ(sample_count, 0);
     EXPECT_EQ(data_provider.count_samples(sample_source.id, unique_sampling_process_id, filter), 0);
+    EXPECT_EQ(data_provider.count_samples(sample_source.id, threads[0].unique_id, filter), 1524);
 }
 
 TEST(PerfDataDataProvider, ProcessInnerCancel)
@@ -1075,7 +1138,14 @@ TEST(PerfDataDataProvider, ProcessOrdered)
     analysis::sample_filter filter;
 
     EXPECT_EQ(data_provider.count_samples(sample_source_0.id, unique_sampling_process_id, filter), 18603);
+    EXPECT_EQ(data_provider.count_samples(sample_source_0.id, threads[0].unique_id, filter), 18603);
+
     EXPECT_EQ(data_provider.count_samples(sample_source_1.id, unique_sampling_process_id, filter), 18128);
+    EXPECT_EQ(data_provider.count_samples(sample_source_1.id, threads[0].unique_id, filter), 18128);
+
     EXPECT_EQ(data_provider.count_samples(sample_source_2.id, unique_sampling_process_id, filter), 18716);
+    EXPECT_EQ(data_provider.count_samples(sample_source_2.id, threads[0].unique_id, filter), 18716);
+
     EXPECT_EQ(data_provider.count_samples(sample_source_3.id, unique_sampling_process_id, filter), 9692);
+    EXPECT_EQ(data_provider.count_samples(sample_source_3.id, threads[0].unique_id, filter), 9692);
 }
