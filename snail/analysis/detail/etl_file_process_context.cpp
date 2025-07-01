@@ -564,6 +564,8 @@ void etl_file_process_context::handle_event(const etl::etl_file::header_data& /*
     // assign it to the threads on the threads start/end events and flush any potentially
     // remaining data in the end.
 
+    has_context_switches_ = true;
+
     const auto header = etl::make_common_trace_header(header_variant);
 
     const auto old_thread_id = event.old_thread_id();
@@ -1069,4 +1071,9 @@ std::optional<std::u16string_view> etl_file_process_context::pmc_name(std::size_
 {
     if(counter_index >= pmc_names_.size()) return std::nullopt;
     return pmc_names_[counter_index];
+}
+
+bool etl_file_process_context::has_context_switches() const
+{
+    return has_context_switches_;
 }

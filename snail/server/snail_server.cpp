@@ -309,6 +309,50 @@ auto make_callers_callees_json(const analysis::stacks_analysis&                 
     return result;
 }
 
+void append_pmc_counter_json(nlohmann::json&                                data,
+                             const std::vector<analysis::pmc_counter_info>& counters)
+{
+    if(counters.empty()) return;
+
+    auto json_counters = nlohmann::json::array();
+    for(const auto& counter : counters)
+    {
+        json_counters.push_back({
+            {"name",  counter.name ? nlohmann::json(*counter.name) : nlohmann::json(nullptr)},
+            {"count", counter.count                                                         }
+        });
+    }
+    data["pmcCounters"] = std::move(json_counters);
+}
+
+void append_statistics_json(nlohmann::json&              data,
+                            const analysis::thread_info& thread_info)
+{
+    auto json_statistics = nlohmann::json::object();
+    if(thread_info.context_switches)
+    {
+        json_statistics["contextSwitches"] = *thread_info.context_switches;
+    }
+
+    append_pmc_counter_json(json_statistics, thread_info.counters);
+
+    data["statistics"] = std::move(json_statistics);
+}
+
+void append_statistics_json(nlohmann::json&               data,
+                            const analysis::process_info& process_info)
+{
+    auto json_statistics = nlohmann::json::object();
+    if(process_info.context_switches)
+    {
+        json_statistics["contextSwitches"] = *process_info.context_switches;
+    }
+
+    append_pmc_counter_json(json_statistics, process_info.counters);
+
+    data["statistics"] = std::move(json_statistics);
+}
+
 } // namespace
 
 struct snail_server::impl
@@ -840,6 +884,7 @@ struct snail_server::impl
                             {"startTime", thread_info.start_time.count()                                                },
                             {"endTime",   thread_info.end_time.count()                                                  }
                         });
+                        append_statistics_json(json_threads.back(), thread_info);
                     }
 
                     const auto& process_info = data_provider.process_info(process_id);
@@ -851,6 +896,7 @@ struct snail_server::impl
                         {"endTime",   process_info.end_time.count()  },
                         {"threads",   std::move(json_threads)        }
                     });
+                    append_statistics_json(json_processes.back(), process_info);
                 }
                 return {
                     {"processes", std::move(json_processes)}
@@ -979,6 +1025,56 @@ struct snail_server::impl
 
                 return {
                     {"functions", json_functions}
+                };
+            });
+
+        register_document_request<retrieve_process_sample_info_request>(
+            detail::document_access_type::read_only,
+            [this](const retrieve_process_sample_info_request& request, const common::cancellation_token&) -> nlohmann::json
+            {
+                const auto& data_provider = storage_.get_data({request.document_id()});
+                const auto& filter        = storage_.get_document_filter({request.document_id()});
+                const auto& process       = data_provider.process_info({request.process_key()});
+
+                const auto& sample_sources = data_provider.sample_sources();
+
+                std::vector<std::size_t> process_sums(sample_sources.size(), 0);
+
+                auto json_threads = nlohmann::json::array();
+                for(const auto& thread_info : data_provider.threads_info(process.unique_id))
+                {
+                    auto json_thread_samples = nlohmann::json::array();
+                    for(std::size_t source_index = 0; source_index < sample_sources.size(); ++source_index)
+                    {
+                        const auto& source_info = sample_sources[source_index];
+
+                        const auto count = data_provider.count_samples(source_info.id, thread_info.unique_id, filter);
+
+                        process_sums[source_index] += count;
+
+                        json_thread_samples.push_back({
+                            {"sourceId",        source_info.id},
+                            {"numberOfSamples", count         },
+                        });
+                    }
+                    json_threads.push_back({
+                        {"key",    thread_info.unique_id.key     },
+                        {"counts", std::move(json_thread_samples)},
+                    });
+                }
+
+                auto json_process_samples = nlohmann::json::array();
+                for(std::size_t source_index = 0; source_index < sample_sources.size(); ++source_index)
+                {
+                    json_process_samples.push_back({
+                        {"sourceId",        sample_sources[source_index].id},
+                        {"numberOfSamples", process_sums[source_index]     },
+                    });
+                }
+
+                return {
+                    {"counts",  std::move(json_process_samples)},
+                    {"threads", std::move(json_threads)        }
                 };
             });
 

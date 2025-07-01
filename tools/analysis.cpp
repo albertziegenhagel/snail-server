@@ -18,6 +18,8 @@ struct command_line_args
     snail::analysis::path_map module_path_mapper;
 
     bool no_progress = false;
+
+    bool no_analysis = false;
 };
 
 std::string extract_application_name(std::string_view application_path)
@@ -36,6 +38,7 @@ void print_usage(std::string_view application_path)
               << "Options:\n"
               << "  --module-path-map <source> <target>\n"
               << "                   Module file path map. Can be added multiple times.\n"
+              << "  --no-analysis    Skip analysis of samples.\n"
               << "  --no-progress    Do not print a progress bar.\n";
 }
 
@@ -73,6 +76,10 @@ command_line_args parse_command_line(int argc, char* argv[]) // NOLINT(modernize
         else if(current_arg == "--no-progress")
         {
             result.no_progress = true;
+        }
+        else if(current_arg == "--no-analysis")
+        {
+            result.no_analysis = true;
         }
         else
         {
@@ -120,12 +127,45 @@ int main(int argc, char* argv[])
     std::cout << "Architecture:    " << system_info.architecture << "\n";
 
     std::cout << "\n";
+    std::cout << "Sample Sources:\n";
+    std::cout << "------------\n";
+    for(const auto& sample_source : provider->sample_sources())
+    {
+        std::cout << sample_source.name << ":\n";
+        std::cout << "  Id:                         " << sample_source.id << "\n";
+        std::cout << "  Num. Samples:               " << sample_source.number_of_samples << "\n";
+        std::cout << "  Avg. Samples Per Second:    " << sample_source.average_sampling_rate << "\n";
+        std::cout << "  Has Stacks:                 " << (sample_source.has_stacks ? "true" : "false") << "\n";
+    }
+
+    std::cout << "\n";
     std::cout << "Processes:\n";
     std::cout << "----------\n";
     for(const auto process_id : provider->sampling_processes())
     {
         const auto process_info = provider->process_info(process_id);
         std::cout << process_info.name << " (PID " << process_info.os_id << "):\n";
+        std::cout << "  Start Time:                 " << process_info.start_time << "\n";
+        std::cout << "  End Time:                   " << process_info.end_time << "\n";
+
+        std::cout << "  Samples:\n";
+        for(const auto& sample_source : provider->sample_sources())
+        {
+            std::cout << "    " << std::format("{:25} {}", sample_source.name + ":", provider->count_samples(sample_source.id, process_id, {})) << "\n";
+        }
+        if(process_info.context_switches)
+        {
+            std::cout << "  Context Switches:           " << *process_info.context_switches << "\n";
+        }
+        if(!process_info.counters.empty())
+        {
+            std::cout << "  PMC:\n";
+            for(const auto& info : process_info.counters)
+            {
+                std::cout << "    " << std::format("{:25} {}", (info.name ? *info.name : "UNKNOWN") + ": ", info.count) << "\n";
+            }
+        }
+
         std::cout << "  Threads:\n";
         for(const auto& thread_info : provider->threads_info(process_id))
         {
@@ -137,19 +177,36 @@ int main(int argc, char* argv[])
             {
                 std::cout << "    TID " << thread_info.os_id << ":\n";
             }
+            std::cout << "      Start Time:             " << thread_info.start_time << "\n";
+            std::cout << "      End Time:               " << thread_info.end_time << "\n";
+
+            std::cout << "      Samples:\n";
+            for(const auto& sample_source : provider->sample_sources())
+            {
+                std::cout << "        " << std::format("{:21} {}", sample_source.name + ":", provider->count_samples(sample_source.id, thread_info.unique_id, {})) << "\n";
+            }
             if(thread_info.context_switches)
             {
-                std::cout << "      Context Switches: " << *thread_info.context_switches << "\n";
+                std::cout << "      Context Switches:       " << *thread_info.context_switches << "\n";
             }
-            for(const auto& info : thread_info.counters)
+            if(!thread_info.counters.empty())
             {
-                std::cout << "      " << (info.name ? *info.name : "UNKNOWN") << ": " << info.count << "\n";
+                std::cout << "      PMC:\n";
+                for(const auto& info : thread_info.counters)
+                {
+                    std::cout << "        " << std::format("{:21} {}", (info.name ? *info.name : "UNKNOWN") + ": ", info.count) << "\n";
+                }
             }
         }
-        const auto stacks_analysis = snail::analysis::analyze_stacks(*provider, process_id, {}, args.no_progress ? nullptr : &progress);
-        std::cout << "  Modules:   " << stacks_analysis.all_modules().size() << "\n";
-        std::cout << "  Functions: " << stacks_analysis.all_functions().size() << "\n";
-        std::cout << "  Files:     " << stacks_analysis.all_files().size() << "\n";
+
+        if(!args.no_analysis)
+        {
+            const auto stacks_analysis = snail::analysis::analyze_stacks(*provider, process_id, {}, args.no_progress ? nullptr : &progress);
+            std::cout << "  Analysis:\n";
+            std::cout << "    Num Modules:              " << stacks_analysis.all_modules().size() << "\n";
+            std::cout << "    Num Functions:            " << stacks_analysis.all_functions().size() << "\n";
+            std::cout << "    Num Files:                " << stacks_analysis.all_files().size() << "\n";
+        }
     }
 
     return EXIT_SUCCESS;

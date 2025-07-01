@@ -67,6 +67,8 @@ public:
 
     void apply_document_filter(const document_id& id, analysis::sample_filter filter);
 
+    const analysis::sample_filter& get_document_filter(const document_id& id);
+
     const std::unordered_map<analysis::sample_source_info::id_t, std::size_t>& get_total_samples_counts(const document_id& id);
 
     const analysis::stacks_analysis& get_stacks_analysis(const document_id&                id,

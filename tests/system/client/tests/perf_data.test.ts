@@ -112,6 +112,8 @@ describe("InnerPerfData", function () {
         assert.strictEqual(response.processes[0].name, "inner");
         assert.strictEqual(response.processes[0].startTime, 0);
         assert.strictEqual(response.processes[0].endTime, 387398400);
+        assert.isUndefined(response.processes[0].statistics.contextSwitches);
+        assert.isUndefined(response.processes[0].statistics.pmcCounters);
 
         assert.strictEqual(response.processes[0].threads.length, 1);
 
@@ -119,6 +121,8 @@ describe("InnerPerfData", function () {
         assert.strictEqual(response.processes[0].threads[0].name, "inner");
         assert.strictEqual(response.processes[0].threads[0].startTime, 0);
         assert.strictEqual(response.processes[0].threads[0].endTime, 387398400);
+        assert.isUndefined(response.processes[0].threads[0].statistics.contextSwitches);
+        assert.isUndefined(response.processes[0].threads[0].statistics.pmcCounters);
     });
 
     it("hottestFunctions_1", async () => {
@@ -200,6 +204,32 @@ describe("InnerPerfData", function () {
         assert.strictEqual(response.functions[2].function.hits[0].selfPercent, 10.236220472440944);
     });
 
+    it("processSampleInfo", async () => {
+        const processesResponse = await fixture.connection.sendRequest(snail.retrieveProcessesRequestType, {
+            documentId: documentId
+        });
+        const process = processesResponse.processes.find(proc => proc.osId == 248);
+        assert.isDefined(process);
+
+        const thread = processesResponse.processes[0].threads[0]
+
+        const response = await fixture.connection.sendRequest(snail.retrieveProcessSampleInfoRequestType, {
+            documentId: documentId,
+            processKey: process!.key
+        });
+
+        assert.strictEqual(response.counts.length, 1);
+        assert.strictEqual(response.counts[0].sourceId, sourceId);
+        assert.strictEqual(response.counts[0].numberOfSamples, 1524);
+
+        assert.strictEqual(response.threads.length, 1);
+
+        const thread_info = response.threads.find(info => info.key == thread?.key);
+        assert.isDefined(thread_info);
+        assert.strictEqual(thread_info!.counts.length, 1);
+        assert.strictEqual(thread_info!.counts[0].sourceId, sourceId);
+        assert.strictEqual(thread_info!.counts[0].numberOfSamples, 1524);
+    });
 
     it("callTreeHotPath", async () => {
         const processesResponse = await fixture.connection.sendRequest(snail.retrieveProcessesRequestType, {

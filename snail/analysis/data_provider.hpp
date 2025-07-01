@@ -50,6 +50,10 @@ public:
     virtual std::size_t count_samples(sample_source_info::id_t source_id,
                                       unique_process_id        process_id,
                                       const sample_filter&     filter = {}) const = 0;
+
+    virtual std::size_t count_samples(sample_source_info::id_t source_id,
+                                      unique_thread_id         thread_id,
+                                      const sample_filter&     filter = {}) const = 0;
 };
 
 class info_provider

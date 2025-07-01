@@ -312,6 +312,41 @@ struct is_request<retrieve_hottest_functions_request> : std::true_type
 {};
 } // namespace snail::jsonrpc::detail
 
+struct retrieve_process_sample_info_request
+{
+    static constexpr std::string_view name = "retrieveProcessSampleInfo";
+
+    static constexpr auto parameters = std::tuple(
+        snail::jsonrpc::detail::request_parameter<std::uint64_t>{"processKey"},
+        snail::jsonrpc::detail::request_parameter<std::size_t>{"documentId"});
+
+    const std::uint64_t& process_key() const
+    {
+        return std::get<0>(data_);
+    }
+    // The id of the document to perform the operation on.
+    // This should be an id that resulted from a call to `readDocument`.
+    const std::size_t& document_id() const
+    {
+        return std::get<1>(data_);
+    }
+
+    template<typename RequestType>
+        requires snail::jsonrpc::detail::is_request_v<RequestType>
+    friend RequestType snail::jsonrpc::detail::unpack_request(const nlohmann::json& raw_data);
+
+private:
+    std::tuple<
+        std::uint64_t,
+        std::size_t>
+        data_;
+};
+namespace snail::jsonrpc::detail {
+template<>
+struct is_request<retrieve_process_sample_info_request> : std::true_type
+{};
+} // namespace snail::jsonrpc::detail
+
 struct retrieve_call_tree_hot_path_request
 {
     static constexpr std::string_view name = "retrieveCallTreeHotPath";

@@ -50,6 +50,10 @@ public:
                                       unique_process_id        process_id,
                                       const sample_filter&     filter) const override;
 
+    virtual std::size_t count_samples(sample_source_info::id_t source_id,
+                                      unique_thread_id         thread_id,
+                                      const sample_filter&     filter) const override;
+
 private:
     std::unique_ptr<detail::etl_file_process_context> process_context_;
     std::unique_ptr<detail::pdb_resolver>             symbol_resolver_;

@@ -73,4 +73,41 @@ private:
     mutable std::optional<std::size_t> application_id_length;
 };
 
+// See `Process_V2_TypeGroup2:Process_V2` from wmicore.mof in WDK 10.0.22621.0
+struct process_v2_type_group2_event_view : private extract_view_dynamic_base
+{
+    static inline constexpr std::string_view event_name    = "Process-TypeGroup2";
+    static inline constexpr std::uint16_t    event_version = 2;
+    static inline constexpr auto             event_types   = std::array{
+        event_identifier_group{event_trace_group::process, 32, "PerformanceCounter"       },
+        event_identifier_group{event_trace_group::process, 33, "PerformanceCounterRundown"}
+    };
+
+    using extract_view_dynamic_base::buffer;
+    using extract_view_dynamic_base::extract_view_dynamic_base;
+
+    inline auto process_id() const { return extract<std::uint32_t>(dynamic_offset(0, 0)); }
+
+    inline auto page_fault_count() const { return extract<std::uint32_t>(dynamic_offset(4, 0)); }
+    inline auto handle_count() const { return extract<std::uint32_t>(dynamic_offset(8, 0)); }
+
+    inline auto reserved() const { return extract<std::uint32_t>(dynamic_offset(12, 0)); }
+
+    inline auto peak_virtual_size() const { return extract_pointer(dynamic_offset(16, 0)); }
+    inline auto peak_working_set_size() const { return extract_pointer(dynamic_offset(16, 1)); }
+    inline auto peak_pagefile_usage() const { return extract_pointer(dynamic_offset(16, 2)); }
+    inline auto quota_peak_paged_pool_usage() const { return extract_pointer(dynamic_offset(16, 3)); }
+    inline auto quota_peak_non_paged_pool_usage() const { return extract_pointer(dynamic_offset(16, 4)); }
+
+    inline auto virtual_size() const { return extract_pointer(dynamic_offset(16, 5)); }
+    inline auto working_set_size() const { return extract_pointer(dynamic_offset(16, 6)); }
+    inline auto pagefile_usage() const { return extract_pointer(dynamic_offset(16, 7)); }
+    inline auto quota_paged_pool_usage() const { return extract_pointer(dynamic_offset(16, 8)); }
+    inline auto quota_non_paged_pool_usage() const { return extract_pointer(dynamic_offset(16, 9)); }
+
+    inline auto private_page_count() const { return extract_pointer(dynamic_offset(16, 10)); }
+
+    inline std::size_t dynamic_size() const { return dynamic_offset(16, 11); }
+};
+
 } // namespace snail::etl::parser

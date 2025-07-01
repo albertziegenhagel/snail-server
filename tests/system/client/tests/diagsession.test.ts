@@ -186,6 +186,8 @@ describe("InnerDiagsession", function () {
         assert.strictEqual(response.processes[0].name, "inner.exe");
         assert.strictEqual(response.processes[0].startTime, 56312800);
         assert.strictEqual(response.processes[0].endTime, 2564215900);
+        assert.isUndefined(response.processes[0].statistics.contextSwitches);
+        assert.isUndefined(response.processes[0].statistics.pmcCounters);
 
         assert.strictEqual(response.processes[0].threads.length, 4);
 
@@ -195,6 +197,8 @@ describe("InnerDiagsession", function () {
         assert.strictEqual(thread_3148!.name, null);
         assert.strictEqual(thread_3148!.startTime, 1137927400);
         assert.strictEqual(thread_3148!.endTime, 2563524800);
+        assert.isUndefined(thread_3148!.statistics.contextSwitches);
+        assert.isUndefined(thread_3148!.statistics.pmcCounters);
 
         const thread_3828 = response.processes[0].threads.find(thread => thread.osId == 3828);
         assert.isDefined(thread_3828);
@@ -202,6 +206,8 @@ describe("InnerDiagsession", function () {
         assert.strictEqual(thread_3828!.name, null);
         assert.strictEqual(thread_3828!.startTime, 56313900);
         assert.strictEqual(thread_3828!.endTime, 2563993900);
+        assert.isUndefined(thread_3828!.statistics.contextSwitches);
+        assert.isUndefined(thread_3828!.statistics.pmcCounters);
 
         const thread_4224 = response.processes[0].threads.find(thread => thread.osId == 4224);
         assert.isDefined(thread_4224);
@@ -209,6 +215,8 @@ describe("InnerDiagsession", function () {
         assert.strictEqual(thread_4224!.name, null);
         assert.strictEqual(thread_4224!.startTime, 1138034300);
         assert.strictEqual(thread_4224!.endTime, 2563493400);
+        assert.isUndefined(thread_4224!.statistics.contextSwitches);
+        assert.isUndefined(thread_4224!.statistics.pmcCounters);
 
         const thread_6180 = response.processes[0].threads.find(thread => thread.osId == 6180);
         assert.isDefined(thread_6180);
@@ -216,6 +224,8 @@ describe("InnerDiagsession", function () {
         assert.strictEqual(thread_6180!.name, null);
         assert.strictEqual(thread_6180!.startTime, 1137662800);
         assert.strictEqual(thread_6180!.endTime, 2563540200);
+        assert.isUndefined(thread_6180!.statistics.contextSwitches);
+        assert.isUndefined(thread_6180!.statistics.pmcCounters);
     });
 
     it("hottestFunctions_1", async () => {
@@ -295,6 +305,58 @@ describe("InnerDiagsession", function () {
         assert.strictEqual(response.functions[2].function.hits[0].selfSamples, 24);
         assert.strictEqual(response.functions[2].function.hits[0].totalPercent, 28.767123287671232);
         assert.strictEqual(response.functions[2].function.hits[0].selfPercent, 8.219178082191782);
+    });
+
+    it("processSampleInfo", async () => {
+        const processesResponse = await fixture.connection.sendRequest(snail.retrieveProcessesRequestType, {
+            documentId: documentId
+        });
+        const process = processesResponse.processes.find(proc => proc.osId == 4140);
+        assert.isDefined(process);
+
+        const thread_3148 = processesResponse.processes[0].threads.find(thread => thread.osId == 3148);
+        assert.isDefined(thread_3148);
+        const thread_3828 = processesResponse.processes[0].threads.find(thread => thread.osId == 3828);
+        assert.isDefined(thread_3828);
+        const thread_4224 = processesResponse.processes[0].threads.find(thread => thread.osId == 4224);
+        assert.isDefined(thread_4224);
+        const thread_6180 = processesResponse.processes[0].threads.find(thread => thread.osId == 6180);
+        assert.isDefined(thread_6180);
+
+        const response = await fixture.connection.sendRequest(snail.retrieveProcessSampleInfoRequestType, {
+            documentId: documentId,
+            processKey: process!.key
+        });
+
+        assert.strictEqual(response.counts.length, 1);
+        assert.strictEqual(response.counts[0].sourceId, sourceId);
+        assert.strictEqual(response.counts[0].numberOfSamples, 292);
+
+        assert.strictEqual(response.threads.length, 4);
+
+        const thread_3148_info = response.threads.find(info => info.key == thread_3148?.key);
+        assert.isDefined(thread_3148_info);
+        assert.strictEqual(thread_3148_info!.counts.length, 1);
+        assert.strictEqual(thread_3148_info!.counts[0].sourceId, sourceId);
+        assert.strictEqual(thread_3148_info!.counts[0].numberOfSamples, 1);
+
+        const thread_3828_info = response.threads.find(info => info.key == thread_3828?.key);
+        assert.isDefined(thread_3828_info);
+        assert.strictEqual(thread_3828_info!.counts.length, 1);
+        assert.strictEqual(thread_3828_info!.counts[0].sourceId, sourceId);
+        assert.strictEqual(thread_3828_info!.counts[0].numberOfSamples, 286);
+
+        const thread_4224_info = response.threads.find(info => info.key == thread_4224?.key);
+        assert.isDefined(thread_4224_info);
+        assert.strictEqual(thread_4224_info!.counts.length, 1);
+        assert.strictEqual(thread_4224_info!.counts[0].sourceId, sourceId);
+        assert.strictEqual(thread_4224_info!.counts[0].numberOfSamples, 3);
+
+        const thread_6180_info = response.threads.find(info => info.key == thread_6180?.key);
+        assert.isDefined(thread_6180_info);
+        assert.strictEqual(thread_6180_info!.counts.length, 1);
+        assert.strictEqual(thread_6180_info!.counts[0].sourceId, sourceId);
+        assert.strictEqual(thread_6180_info!.counts[0].numberOfSamples, 2);
     });
 
     it("callTreeHotPath", async () => {
