@@ -96,6 +96,18 @@
             }
         },
         {
+            "method": "retrieveProcessSampleInfo",
+            "result": {
+                "kind": "reference",
+                "name": "RetrieveProcessSampleInfoResult"
+            },
+            "messageDirection": "clientToServer",
+            "params": {
+                "kind": "reference",
+                "name": "RetrieveProcessSampleInfoParams"
+            }
+        },
+        {
             "method": "retrieveCallTreeHotPath",
             "result": {
                 "kind": "reference",
@@ -289,6 +301,47 @@
                     "type": {
                         "kind": "base",
                         "name": "boolean"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "SampleCountInfo",
+            "properties": [
+                {
+                    "name": "sourceId",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "numberOfSamples",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "ThreadSampleInfo",
+            "properties": [
+                {
+                    "name": "key",
+                    "type": {
+                        "kind": "base",
+                        "name": "uinteger"
+                    }
+                },
+                {
+                    "name": "counts",
+                    "type": {
+                        "kind": "array",
+                        "element": {
+                            "kind": "reference",
+                            "name": "SampleCountInfo"
+                        }
                     }
                 }
             ]
@@ -1128,6 +1181,41 @@
                         "element": {
                             "kind": "reference",
                             "name": "ProcessFunction"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "RetrieveProcessSampleInfoParams",
+            "properties": [],
+            "extends": [
+                {
+                    "kind": "reference",
+                    "name": "_ProcessParams"
+                }
+            ]
+        },
+        {
+            "name": "RetrieveProcessSampleInfoResult",
+            "properties": [
+                {
+                    "name": "counts",
+                    "type": {
+                        "kind": "array",
+                        "element": {
+                            "kind": "reference",
+                            "name": "SampleCountInfo"
+                        }
+                    }
+                },
+                {
+                    "name": "threads",
+                    "type": {
+                        "kind": "array",
+                        "element": {
+                            "kind": "reference",
+                            "name": "ThreadSampleInfo"
                         }
                     }
                 }

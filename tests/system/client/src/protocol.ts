@@ -38,6 +38,18 @@ export interface SampleSourceInfo {
     hasStacks: boolean;
 }
 
+export interface SampleCountInfo {
+    sourceId: number;
+
+    numberOfSamples: number;
+}
+
+export interface ThreadSampleInfo {
+    key: number;
+
+    counts: SampleCountInfo[];
+}
+
 export interface PmcCounterInfo {
     count: number;
 
@@ -278,6 +290,20 @@ export interface RetrieveHottestFunctionsResult {
     functions: ProcessFunction[];
 }
 
+export interface RetrieveProcessSampleInfoParams {
+    processKey: number;
+
+    // The id of the document to perform the operation on.
+    // This should be an id that resulted from a call to `readDocument`.
+    documentId: number;
+}
+
+export interface RetrieveProcessSampleInfoResult {
+    counts: SampleCountInfo[];
+
+    threads: ThreadSampleInfo[];
+}
+
 export interface RetrieveCallTreeHotPathParams extends WorkDoneProgressParams {
     sourceId: number;
 
@@ -449,6 +475,9 @@ export const retrieveProcessesRequestType = new rpc.RequestType<RetrieveProcesse
 
 
 export const retrieveHottestFunctionsRequestType = new rpc.RequestType<RetrieveHottestFunctionsParams, RetrieveHottestFunctionsResult, void>('retrieveHottestFunctions');
+
+
+export const retrieveProcessSampleInfoRequestType = new rpc.RequestType<RetrieveProcessSampleInfoParams, RetrieveProcessSampleInfoResult, void>('retrieveProcessSampleInfo');
 
 
 export const retrieveCallTreeHotPathRequestType = new rpc.RequestType<RetrieveCallTreeHotPathParams, RetrieveCallTreeHotPathResult, void>('retrieveCallTreeHotPath');

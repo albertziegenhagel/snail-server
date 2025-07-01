@@ -251,6 +251,12 @@ void storage::apply_document_filter(const document_id& document_id, analysis::sa
     document.analysis_per_process.clear();
 }
 
+const analysis::sample_filter& storage::get_document_filter(const document_id& document_id)
+{
+    auto& document = impl_->get_document_storage(document_id);
+    return document.filter;
+}
+
 const std::unordered_map<analysis::sample_source_info::id_t, std::size_t>& storage::get_total_samples_counts(const detail::document_id& document_id)
 {
     auto& document = impl_->get_document_storage(document_id);

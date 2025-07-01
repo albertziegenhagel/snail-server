@@ -307,6 +307,58 @@ describe("InnerDiagsession", function () {
         assert.strictEqual(response.functions[2].function.hits[0].selfPercent, 8.219178082191782);
     });
 
+    it("processSampleInfo", async () => {
+        const processesResponse = await fixture.connection.sendRequest(snail.retrieveProcessesRequestType, {
+            documentId: documentId
+        });
+        const process = processesResponse.processes.find(proc => proc.osId == 4140);
+        assert.isDefined(process);
+
+        const thread_3148 = processesResponse.processes[0].threads.find(thread => thread.osId == 3148);
+        assert.isDefined(thread_3148);
+        const thread_3828 = processesResponse.processes[0].threads.find(thread => thread.osId == 3828);
+        assert.isDefined(thread_3828);
+        const thread_4224 = processesResponse.processes[0].threads.find(thread => thread.osId == 4224);
+        assert.isDefined(thread_4224);
+        const thread_6180 = processesResponse.processes[0].threads.find(thread => thread.osId == 6180);
+        assert.isDefined(thread_6180);
+
+        const response = await fixture.connection.sendRequest(snail.retrieveProcessSampleInfoRequestType, {
+            documentId: documentId,
+            processKey: process!.key
+        });
+
+        assert.strictEqual(response.counts.length, 1);
+        assert.strictEqual(response.counts[0].sourceId, sourceId);
+        assert.strictEqual(response.counts[0].numberOfSamples, 292);
+
+        assert.strictEqual(response.threads.length, 4);
+
+        const thread_3148_info = response.threads.find(info => info.key == thread_3148?.key);
+        assert.isDefined(thread_3148_info);
+        assert.strictEqual(thread_3148_info!.counts.length, 1);
+        assert.strictEqual(thread_3148_info!.counts[0].sourceId, sourceId);
+        assert.strictEqual(thread_3148_info!.counts[0].numberOfSamples, 1);
+
+        const thread_3828_info = response.threads.find(info => info.key == thread_3828?.key);
+        assert.isDefined(thread_3828_info);
+        assert.strictEqual(thread_3828_info!.counts.length, 1);
+        assert.strictEqual(thread_3828_info!.counts[0].sourceId, sourceId);
+        assert.strictEqual(thread_3828_info!.counts[0].numberOfSamples, 286);
+
+        const thread_4224_info = response.threads.find(info => info.key == thread_4224?.key);
+        assert.isDefined(thread_4224_info);
+        assert.strictEqual(thread_4224_info!.counts.length, 1);
+        assert.strictEqual(thread_4224_info!.counts[0].sourceId, sourceId);
+        assert.strictEqual(thread_4224_info!.counts[0].numberOfSamples, 3);
+
+        const thread_6180_info = response.threads.find(info => info.key == thread_6180?.key);
+        assert.isDefined(thread_6180_info);
+        assert.strictEqual(thread_6180_info!.counts.length, 1);
+        assert.strictEqual(thread_6180_info!.counts[0].sourceId, sourceId);
+        assert.strictEqual(thread_6180_info!.counts[0].numberOfSamples, 2);
+    });
+
     it("callTreeHotPath", async () => {
         const processesResponse = await fixture.connection.sendRequest(snail.retrieveProcessesRequestType, {
             documentId: documentId

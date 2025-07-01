@@ -1028,6 +1028,56 @@ struct snail_server::impl
                 };
             });
 
+        register_document_request<retrieve_process_sample_info_request>(
+            detail::document_access_type::read_only,
+            [this](const retrieve_process_sample_info_request& request, const common::cancellation_token&) -> nlohmann::json
+            {
+                const auto& data_provider = storage_.get_data({request.document_id()});
+                const auto& filter        = storage_.get_document_filter({request.document_id()});
+                const auto& process       = data_provider.process_info({request.process_key()});
+
+                const auto& sample_sources = data_provider.sample_sources();
+
+                std::vector<std::size_t> process_sums(sample_sources.size(), 0);
+
+                auto json_threads = nlohmann::json::array();
+                for(const auto& thread_info : data_provider.threads_info(process.unique_id))
+                {
+                    auto json_thread_samples = nlohmann::json::array();
+                    for(std::size_t source_index = 0; source_index < sample_sources.size(); ++source_index)
+                    {
+                        const auto& source_info = sample_sources[source_index];
+
+                        const auto count = data_provider.count_samples(source_info.id, thread_info.unique_id, filter);
+
+                        process_sums[source_index] += count;
+
+                        json_thread_samples.push_back({
+                            {"sourceId",        source_info.id},
+                            {"numberOfSamples", count         },
+                        });
+                    }
+                    json_threads.push_back({
+                        {"key",    thread_info.unique_id.key     },
+                        {"counts", std::move(json_thread_samples)},
+                    });
+                }
+
+                auto json_process_samples = nlohmann::json::array();
+                for(std::size_t source_index = 0; source_index < sample_sources.size(); ++source_index)
+                {
+                    json_process_samples.push_back({
+                        {"sourceId",        sample_sources[source_index].id},
+                        {"numberOfSamples", process_sums[source_index]     },
+                    });
+                }
+
+                return {
+                    {"counts",  std::move(json_process_samples)},
+                    {"threads", std::move(json_threads)        }
+                };
+            });
+
         register_document_request<retrieve_call_tree_hot_path_request>(
             detail::document_access_type::write, // TODO: change to read_only?
             [this](const retrieve_call_tree_hot_path_request& request,
