@@ -186,6 +186,8 @@ describe("InnerDiagsession", function () {
         assert.strictEqual(response.processes[0].name, "inner.exe");
         assert.strictEqual(response.processes[0].startTime, 56312800);
         assert.strictEqual(response.processes[0].endTime, 2564215900);
+        assert.isUndefined(response.processes[0].statistics.contextSwitches);
+        assert.isUndefined(response.processes[0].statistics.pmcCounters);
 
         assert.strictEqual(response.processes[0].threads.length, 4);
 
@@ -195,6 +197,8 @@ describe("InnerDiagsession", function () {
         assert.strictEqual(thread_3148!.name, null);
         assert.strictEqual(thread_3148!.startTime, 1137927400);
         assert.strictEqual(thread_3148!.endTime, 2563524800);
+        assert.isUndefined(thread_3148!.statistics.contextSwitches);
+        assert.isUndefined(thread_3148!.statistics.pmcCounters);
 
         const thread_3828 = response.processes[0].threads.find(thread => thread.osId == 3828);
         assert.isDefined(thread_3828);
@@ -202,6 +206,8 @@ describe("InnerDiagsession", function () {
         assert.strictEqual(thread_3828!.name, null);
         assert.strictEqual(thread_3828!.startTime, 56313900);
         assert.strictEqual(thread_3828!.endTime, 2563993900);
+        assert.isUndefined(thread_3828!.statistics.contextSwitches);
+        assert.isUndefined(thread_3828!.statistics.pmcCounters);
 
         const thread_4224 = response.processes[0].threads.find(thread => thread.osId == 4224);
         assert.isDefined(thread_4224);
@@ -209,6 +215,8 @@ describe("InnerDiagsession", function () {
         assert.strictEqual(thread_4224!.name, null);
         assert.strictEqual(thread_4224!.startTime, 1138034300);
         assert.strictEqual(thread_4224!.endTime, 2563493400);
+        assert.isUndefined(thread_4224!.statistics.contextSwitches);
+        assert.isUndefined(thread_4224!.statistics.pmcCounters);
 
         const thread_6180 = response.processes[0].threads.find(thread => thread.osId == 6180);
         assert.isDefined(thread_6180);
@@ -216,6 +224,8 @@ describe("InnerDiagsession", function () {
         assert.strictEqual(thread_6180!.name, null);
         assert.strictEqual(thread_6180!.startTime, 1137662800);
         assert.strictEqual(thread_6180!.endTime, 2563540200);
+        assert.isUndefined(thread_6180!.statistics.contextSwitches);
+        assert.isUndefined(thread_6180!.statistics.pmcCounters);
     });
 
     it("hottestFunctions_1", async () => {

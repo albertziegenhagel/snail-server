@@ -38,6 +38,12 @@ export const mochaGlobalSetup = async function () {
 
     connection.listen();
 
+    // connection.trace(rpc.Trace.Verbose, {
+    //     log: (message: string | any, data?: string) => {
+    //         console.log(message, data)
+    //     }
+    // });
+
     const response = await connection.sendRequest(snail.initializeRequestType, {});
 
     assert.isTrue(response.success);

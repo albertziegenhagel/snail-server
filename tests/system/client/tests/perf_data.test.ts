@@ -112,6 +112,8 @@ describe("InnerPerfData", function () {
         assert.strictEqual(response.processes[0].name, "inner");
         assert.strictEqual(response.processes[0].startTime, 0);
         assert.strictEqual(response.processes[0].endTime, 387398400);
+        assert.isUndefined(response.processes[0].statistics.contextSwitches);
+        assert.isUndefined(response.processes[0].statistics.pmcCounters);
 
         assert.strictEqual(response.processes[0].threads.length, 1);
 
@@ -119,6 +121,8 @@ describe("InnerPerfData", function () {
         assert.strictEqual(response.processes[0].threads[0].name, "inner");
         assert.strictEqual(response.processes[0].threads[0].startTime, 0);
         assert.strictEqual(response.processes[0].threads[0].endTime, 387398400);
+        assert.isUndefined(response.processes[0].threads[0].statistics.contextSwitches);
+        assert.isUndefined(response.processes[0].threads[0].statistics.pmcCounters);
     });
 
     it("hottestFunctions_1", async () => {

@@ -160,6 +160,8 @@ public:
 
     std::optional<std::u16string_view> pmc_name(std::size_t counter_index) const;
 
+    bool has_context_switches() const;
+
 private:
     template<typename T>
     void register_event();
@@ -250,6 +252,8 @@ private:
 
         std::vector<pmc_counter_info> pmc_counters_info;
     };
+
+    bool has_context_switches_ = false;
 
     std::unordered_map<os_tid_t, context_switch_data> last_context_switch_data_per_thread_id_;
 

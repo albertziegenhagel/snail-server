@@ -309,6 +309,50 @@ auto make_callers_callees_json(const analysis::stacks_analysis&                 
     return result;
 }
 
+void append_pmc_counter_json(nlohmann::json&                                data,
+                             const std::vector<analysis::pmc_counter_info>& counters)
+{
+    if(counters.empty()) return;
+
+    auto json_counters = nlohmann::json::array();
+    for(const auto& counter : counters)
+    {
+        json_counters.push_back({
+            {"name",  counter.name ? nlohmann::json(*counter.name) : nlohmann::json(nullptr)},
+            {"count", counter.count                                                         }
+        });
+    }
+    data["pmcCounters"] = std::move(json_counters);
+}
+
+void append_statistics_json(nlohmann::json&              data,
+                            const analysis::thread_info& thread_info)
+{
+    auto json_statistics = nlohmann::json::object();
+    if(thread_info.context_switches)
+    {
+        json_statistics["contextSwitches"] = *thread_info.context_switches;
+    }
+
+    append_pmc_counter_json(json_statistics, thread_info.counters);
+
+    data["statistics"] = std::move(json_statistics);
+}
+
+void append_statistics_json(nlohmann::json&               data,
+                            const analysis::process_info& process_info)
+{
+    auto json_statistics = nlohmann::json::object();
+    if(process_info.context_switches)
+    {
+        json_statistics["contextSwitches"] = *process_info.context_switches;
+    }
+
+    append_pmc_counter_json(json_statistics, process_info.counters);
+
+    data["statistics"] = std::move(json_statistics);
+}
+
 } // namespace
 
 struct snail_server::impl
@@ -840,6 +884,7 @@ struct snail_server::impl
                             {"startTime", thread_info.start_time.count()                                                },
                             {"endTime",   thread_info.end_time.count()                                                  }
                         });
+                        append_statistics_json(json_threads.back(), thread_info);
                     }
 
                     const auto& process_info = data_provider.process_info(process_id);
@@ -851,6 +896,7 @@ struct snail_server::impl
                         {"endTime",   process_info.end_time.count()  },
                         {"threads",   std::move(json_threads)        }
                     });
+                    append_statistics_json(json_processes.back(), process_info);
                 }
                 return {
                     {"processes", std::move(json_processes)}

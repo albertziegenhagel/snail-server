@@ -5,6 +5,7 @@
 #include <string>
 
 #include <snail/analysis/data/ids.hpp>
+#include <snail/analysis/data/pmc_counter.hpp>
 
 namespace snail::analysis {
 
@@ -22,12 +23,7 @@ struct thread_info
 
     std::optional<std::size_t> context_switches;
 
-    struct counter_info
-    {
-        std::optional<std::string> name;
-        std::size_t                count;
-    };
-    std::vector<counter_info> counters;
+    std::vector<pmc_counter_info> counters;
 };
 
 } // namespace snail::analysis

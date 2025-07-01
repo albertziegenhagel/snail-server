@@ -38,6 +38,24 @@ export interface SampleSourceInfo {
     hasStacks: boolean;
 }
 
+export interface PmcCounterInfo {
+    count: number;
+
+    name?: string;
+}
+
+export interface ThreadStatistics {
+    contextSwitches?: number;
+
+    pmcCounters?: PmcCounterInfo[];
+}
+
+export interface ProcessStatistics {
+    contextSwitches?: number;
+
+    pmcCounters?: PmcCounterInfo[];
+}
+
 export interface ThreadInfo {
     key: number;
 
@@ -48,6 +66,8 @@ export interface ThreadInfo {
 
     // Time when the thread ended (in nanoseconds since the session start).
     endTime: number;
+
+    statistics: ThreadStatistics;
 
     name?: string;
 }
@@ -66,6 +86,8 @@ export interface ProcessInfo {
     endTime: number;
 
     threads: ThreadInfo[];
+
+    statistics: ProcessStatistics;
 }
 
 export interface SessionInfo {

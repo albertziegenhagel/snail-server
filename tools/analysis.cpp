@@ -153,6 +153,18 @@ int main(int argc, char* argv[])
         {
             std::cout << "    " << std::format("{:25} {}", sample_source.name + ":", provider->count_samples(sample_source.id, process_id, {})) << "\n";
         }
+        if(process_info.context_switches)
+        {
+            std::cout << "  Context Switches:           " << *process_info.context_switches << "\n";
+        }
+        if(!process_info.counters.empty())
+        {
+            std::cout << "  PMC:\n";
+            for(const auto& info : process_info.counters)
+            {
+                std::cout << "    " << std::format("{:25} {}", (info.name ? *info.name : "UNKNOWN") + ": ", info.count) << "\n";
+            }
+        }
 
         std::cout << "  Threads:\n";
         for(const auto& thread_info : provider->threads_info(process_id))
@@ -168,19 +180,22 @@ int main(int argc, char* argv[])
             std::cout << "      Start Time:             " << thread_info.start_time << "\n";
             std::cout << "      End Time:               " << thread_info.end_time << "\n";
 
-            if(thread_info.context_switches)
-            {
-                std::cout << "      Context Switches:       " << *thread_info.context_switches << "\n";
-            }
-            std::cout << "      PMC:\n";
-            for(const auto& info : thread_info.counters)
-            {
-                std::cout << "        " << std::format("{:21} {}", (info.name ? *info.name : "UNKNOWN") + ": ", info.count) << "\n";
-            }
             std::cout << "      Samples:\n";
             for(const auto& sample_source : provider->sample_sources())
             {
                 std::cout << "        " << std::format("{:21} {}", sample_source.name + ":", provider->count_samples(sample_source.id, thread_info.unique_id, {})) << "\n";
+            }
+            if(thread_info.context_switches)
+            {
+                std::cout << "      Context Switches:       " << *thread_info.context_switches << "\n";
+            }
+            if(!thread_info.counters.empty())
+            {
+                std::cout << "      PMC:\n";
+                for(const auto& info : thread_info.counters)
+                {
+                    std::cout << "        " << std::format("{:21} {}", (info.name ? *info.name : "UNKNOWN") + ": ", info.count) << "\n";
+                }
             }
         }
 
